@@ -1,0 +1,24 @@
+{
+  "name": "devilcloak",
+  "version": "0.0.1",
+  "description": "devilcloak is a shared utility built to verify keycloak JWT in an existing javascript project",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://gitlab.com/dapperduckling/devilcloak.git"
+  },
+  "author": "DapperDuckling Dev LLC",
+  "license": "SEE LICENSE IN LICENSE",
+  "bugs": {
+    "url": "https://gitlab.com/dapperduckling/devilcloak/issues"
+  },
+  "homepage": "https://gitlab.com/dapperduckling/devilcloak#readme",
+  "dependencies": {
+    "jose": "^4.13.0"
+  },
+  "files": ["lib/**/*"]
+}
