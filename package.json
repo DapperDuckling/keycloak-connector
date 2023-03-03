@@ -16,8 +16,8 @@
   },
   "homepage": "https://gitlab.com/dapperduckling/devil-cloak#readme",
   "scripts": {
-    "build:client": "npm run build -w devil-cloak-client",
-    "build:server": "npm run build -w devil-cloak-server",
+    "build:client": "npm run build -w @dapperducklingdev/devil-cloak-client",
+    "build:server": "npm run build -w @dapperducklingdev/devil-cloak-server",
     "build": "npm run build --workspaces",
     "publish": "npm publish --workspaces --access public"
   }
