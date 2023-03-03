@@ -1,9 +1,9 @@
-# devilcloak
+# devil-cloak
 
-## Name
-Choose a self-explaining name for your project.
+A utility library for web browsers and nodejs servers to interface with keycloak
 
-## Description
-devilcloak is a shared utility built to verify keycloak JWT in an existing javascript project
+## devil-cloak-client
+`npm install @dapperducklingdev/devil-cloak-client`
 
-## License
+## devil-cloak-server
+`npm install @dapperducklingdev/devil-cloak-server`

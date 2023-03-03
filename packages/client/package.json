@@ -1,0 +1,20 @@
+{
+  "name": "@dapperducklingdev/devil-cloak-client",
+  "version": "0.0.3",
+  "namespace": "@dapperducklingdev",
+  "description": "DevilCloak Client is a utility library built to ease integration of keycloak into existing frontend web applications",
+  "main": "dist/index.js",
+  "author": "DapperDuckling Dev LLC",
+  "license": "SEE LICENSE IN LICENSE",
+  "bugs": {
+    "url": "https://gitlab.com/dapperduckling/devil-cloak/issues"
+  },
+  "homepage": "https://gitlab.com/dapperduckling/devil-cloak#readme",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@tsconfig/node-lts-strictest-esm": "^18.12.1"
+  }
+}
