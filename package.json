@@ -1,24 +1,24 @@
 {
-  "name": "dark-cloak",
+  "name": "keycloak-connector",
   "private": true,
-  "namespace": "@dapperducklingdev",
   "workspaces": [
     "packages/*"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://gitlab.com/dapperduckling/dark-cloak.git"
+    "url": "git+https://github.com/DapperDuckling/keycloak-connector.git"
   },
   "author": "DapperDuckling Dev LLC",
   "license": "SEE LICENSE IN LICENSE",
   "bugs": {
-    "url": "https://gitlab.com/dapperduckling/dark-cloak/issues"
+    "url": "https://github.com/DapperDuckling/keycloak-connector/issues"
   },
-  "homepage": "https://gitlab.com/dapperduckling/dark-cloak#readme",
+  "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
   "scripts": {
-    "build:client": "npm run build -w @dapperducklingdev/dark-cloak-client",
-    "build:server": "npm run build -w @dapperducklingdev/dark-cloak-server",
+    "build:client": "npm run build -w keycloak-connector-client",
+    "build:server": "npm run build -w keycloak-connector-server",
     "build": "npm run build --workspaces",
-    "publish": "npm publish --workspaces --access public"
+    "publish:client": "npm publish -w keycloak-connector-client --access public",
+    "publish:server": "npm publish -w keycloak-connector-server --access public"
   }
 }

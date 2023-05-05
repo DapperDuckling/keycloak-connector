@@ -1,9 +1,9 @@
-# dark-cloak
+# keycloak-connector
 
 A utility library for web browsers and nodejs servers to interface with keycloak
 
-## dark-cloak-client
-`npm install @dapperducklingdev/dark-cloak-client`
+## keycloak-connector-client
+`npm install @dapperducklingdev/keycloak-connector-client`
 
-## dark-cloak-server
-`npm install @dapperducklingdev/dark-cloak-server`
+## keycloak-connector-server
+`npm install @dapperducklingdev/keycloak-connector-server`
