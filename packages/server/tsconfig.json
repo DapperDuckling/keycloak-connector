@@ -1,6 +1,8 @@
 {
   "extends": "@tsconfig/node-lts-strictest-esm/tsconfig.json",
   "compilerOptions": {
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "lib": ["DOM", "ES6"],
     "target": "es2016",
     "module": "commonjs",

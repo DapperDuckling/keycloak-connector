@@ -20,5 +20,13 @@
     "build": "npm run build --workspaces",
     "publish:client": "npm publish -w keycloak-connector-client --access public",
     "publish:server": "npm publish -w keycloak-connector-server --access public"
+  },
+  "devDependencies": {
+    "@fastify/cookie": "^8.3.0",
+    "@types/express-serve-static-core": "^4.17.34",
+    "@types/node": "^20.0.0",
+    "fastify": "^4.17.0",
+    "openid-client": "^5.4.2",
+    "pino": "^8.12.1"
   }
 }
