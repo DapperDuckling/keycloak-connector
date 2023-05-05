@@ -1,5 +1,5 @@
 {
-  "name": "devil-cloak",
+  "name": "dark-cloak",
   "private": true,
   "namespace": "@dapperducklingdev",
   "workspaces": [
@@ -7,17 +7,17 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://gitlab.com/dapperduckling/devil-cloak.git"
+    "url": "git+https://gitlab.com/dapperduckling/dark-cloak.git"
   },
   "author": "DapperDuckling Dev LLC",
   "license": "SEE LICENSE IN LICENSE",
   "bugs": {
-    "url": "https://gitlab.com/dapperduckling/devil-cloak/issues"
+    "url": "https://gitlab.com/dapperduckling/dark-cloak/issues"
   },
-  "homepage": "https://gitlab.com/dapperduckling/devil-cloak#readme",
+  "homepage": "https://gitlab.com/dapperduckling/dark-cloak#readme",
   "scripts": {
-    "build:client": "npm run build -w @dapperducklingdev/devil-cloak-client",
-    "build:server": "npm run build -w @dapperducklingdev/devil-cloak-server",
+    "build:client": "npm run build -w @dapperducklingdev/dark-cloak-client",
+    "build:server": "npm run build -w @dapperducklingdev/dark-cloak-server",
     "build": "npm run build --workspaces",
     "publish": "npm publish --workspaces --access public"
   }

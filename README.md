@@ -1,9 +1,9 @@
-# devil-cloak
+# dark-cloak
 
 A utility library for web browsers and nodejs servers to interface with keycloak
 
-## devil-cloak-client
-`npm install @dapperducklingdev/devil-cloak-client`
+## dark-cloak-client
+`npm install @dapperducklingdev/dark-cloak-client`
 
-## devil-cloak-server
-`npm install @dapperducklingdev/devil-cloak-server`
+## dark-cloak-server
+`npm install @dapperducklingdev/dark-cloak-server`

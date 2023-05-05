@@ -1,5 +1,5 @@
 {
-  "name": "@dapperducklingdev/devil-cloak-server",
+  "name": "@dapperducklingdev/dark-cloak-server",
   "version": "0.0.6",
   "namespace": "@dapperducklingdev",
   "description": "Devil Cloak Server is a utility library built to ease integration of keycloak into existing nodejs express servers",
@@ -8,9 +8,9 @@
   "license": "MIT",
   "types": "dist/index.d.ts",
   "bugs": {
-    "url": "https://gitlab.com/dapperduckling/devil-cloak/issues"
+    "url": "https://gitlab.com/dapperduckling/dark-cloak/issues"
   },
-  "homepage": "https://gitlab.com/dapperduckling/devil-cloak#readme",
+  "homepage": "https://gitlab.com/dapperduckling/dark-cloak#readme",
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "npm run build"
