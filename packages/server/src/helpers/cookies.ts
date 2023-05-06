@@ -1,5 +1,5 @@
 import {isDev} from "./utils.js";
-import {CookieOptionsBase} from "./types.js";
+import {CookieOptionsBase} from "../types.js";
 
 const COOKIE_SECURE_PREFIX = isDev() ? "__DEV_ONLY__" : "__Host__";
 const COOKIE_KCC_PREFIX = "kcc-";

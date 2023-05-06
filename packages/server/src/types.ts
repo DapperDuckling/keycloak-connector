@@ -174,7 +174,7 @@ export enum RoleLocations {
     RESOURCE_ACCESS = "RESOURCE_ACCESS",
 }
 
-export type RoleRule<
+type RoleRule<
     Roles extends KeycloakRole = KeycloakRole
 > = Roles | Roles[];
 

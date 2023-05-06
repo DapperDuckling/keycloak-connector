@@ -1,13 +1,13 @@
 import type {FastifyPluginAsync, FastifyRequest, RouteGenericInterface} from "fastify";
-import {KeycloakConnector} from "./keycloak-connector.js";
+import {KeycloakConnector} from "../keycloak-connector.js";
 import type {
     KeycloakConnectorConfigCustom,
     UserData,
     KeycloakRouteConfig,
     SupportedServers
-} from "./types.js";
+} from "../types.js";
 import {fastifyPlugin} from "fastify-plugin";
-import {FastifyAdapter} from "./adapter/fastify-adapter.js";
+import {FastifyAdapter} from "./fastify-adapter.js";
 import type {Logger} from "pino";
 import {randomInt} from "crypto";
 import type {TokenSet} from "openid-client";

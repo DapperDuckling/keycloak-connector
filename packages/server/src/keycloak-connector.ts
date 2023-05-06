@@ -1,4 +1,4 @@
-import {sleep} from "./utils.js";
+import {sleep} from "./helpers/utils.js";
 import {ClientMetadata, errors, generators, Issuer, IssuerMetadata} from "openid-client";
 import type {
     ConnectorRequest,
@@ -16,12 +16,12 @@ import {AzpOptions, RouteEnum, StateOptions} from "./types.js";
 import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapter/abstract-adapter.js";
 import type {GenerateKeyPairResult, JWK, KeyLike} from "jose";
 import * as jose from 'jose';
-import {ConnectorErrorRedirect, ErrorHints, LoginError} from "./errors.js";
-import {CookieNames, Cookies, CookiesToKeep} from "./cookies.js";
-import {isDev} from "./utils.js";
-import {RouteUrlDefaults, UserDataDefault} from "./defaults.js";
+import {ConnectorErrorRedirect, ErrorHints, LoginError} from "./helpers/errors.js";
+import {CookieNames, Cookies, CookiesToKeep} from "./helpers/cookies.js";
+import {isDev} from "./helpers/utils.js";
+import {RouteUrlDefaults, UserDataDefault} from "./helpers/defaults.js";
 import type {JWTVerifyResult} from "jose/dist/types/types.js";
-import {RoleHelper} from "./role-helper.js";
+import {RoleHelper} from "./helpers/role-helper.js";
 import RPError = errors.RPError;
 import OPError = errors.OPError;
 

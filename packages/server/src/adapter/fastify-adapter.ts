@@ -17,7 +17,7 @@ import type {RawRequestDefaultExpression, RawServerDefault} from "fastify/types/
 import type {FastifyTypeProviderDefault} from "fastify/types/type-provider.js";
 import type {FastifySchema} from "fastify/types/schema.js";
 import type {FastifyBaseLogger} from "fastify/types/logger.js";
-import {RouteConfigDefault} from "../defaults.js";
+import {RouteConfigDefault} from "../helpers/defaults.js";
 
 export type FastifyKeycloakInstance = FastifyInstance<RawServerDefault, RawRequestDefaultExpression, RawReplyDefaultExpression, FastifyBaseLogger, FastifyTypeProviderDefault>;
 export type KeycloakRequest = FastifyRequest<RouteGenericInterface, RawServerDefault, RawRequestDefaultExpression, FastifySchema, FastifyTypeProviderDefault, KeycloakRouteConfig, FastifyBaseLogger>

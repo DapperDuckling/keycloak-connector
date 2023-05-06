@@ -1,5 +1,5 @@
-import type {ConnectorResponse, CookieParams} from "./types.js";
-import type {SupportedServers} from "./types.js";
+import type {ConnectorResponse, CookieParams} from "../types.js";
+import type {SupportedServers} from "../types.js";
 
 export class ConnectorErrorRedirect<Server extends SupportedServers> implements ConnectorResponse<Server> {
     responseText?: string;

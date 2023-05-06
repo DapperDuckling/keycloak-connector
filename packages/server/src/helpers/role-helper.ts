@@ -9,7 +9,7 @@ import {
     RoleLocation,
     RoleLocations,
     RoleRules
-} from "./types.js";
+} from "../types.js";
 import type {Logger} from "pino";
 
 const childRoleConfigurationStyles = [RoleConfigurationStyle.RoleLocation, RoleConfigurationStyle.ClientRole, RoleConfigurationStyle.RoleRules];
