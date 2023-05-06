@@ -5,14 +5,19 @@
   "main": "dist/index.js",
   "author": "DapperDuckling Dev LLC",
   "license": "MIT",
+  "type": "module",
   "types": "dist/index.d.ts",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "bugs": {
     "url": "https://github.com/DapperDuckling/keycloak-connector/issues"
   },
   "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": ""
   },
   "devDependencies": {
     "@tsconfig/node-lts-strictest-esm": "^18.12.1",
