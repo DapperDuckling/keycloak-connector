@@ -21,6 +21,12 @@
   },
   "devDependencies": {
     "@tsconfig/node-lts-strictest-esm": "^18.12.1",
-    "typescript": "^4.9.5"
+    "@types/jest": "^29.5.1",
+    "typescript": "^5.0.4",
+    "@jest/globals": "^29.5.0"
+  },
+  "imports": {
+    "#src/*": "./src/*",
+    "#test2/*.js": "./src/helpers/*.js"
   }
 }

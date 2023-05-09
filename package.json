@@ -1,6 +1,7 @@
 {
   "name": "keycloak-connector",
   "private": true,
+  "type": "module",
   "workspaces": [
     "packages/*"
   ],

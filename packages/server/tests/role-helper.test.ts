@@ -1,10 +1,19 @@
+import {expect, test} from "@jest/globals";
+
+test('adds 1 + 2 tto equal 3', () => {
+    expect(1+2).toBe(3);
+});
+// describe('test', () => {
+//     test('test2', () => {
+//         expect(true).toStrictEqual(true);
+//     })
+// });
+
 // import {describe, expect, test} from '@jest/globals';
-import {jest} from '@jest/globals';
-// const { describe, expect, test } = jest;
 //
-// import {RoleHelper} from "./role-helper.js";
+// import {RoleHelper} from "../src/helpers/role-helper.js";
 // import * as jose from 'jose'
-// import {RoleLocations} from "../types.js";
+// import {RoleLocations} from "../src/types.js";
 //
 // describe('Validate role requirement calculation', () => {
 //     test('Tests full requirement', async () => {
