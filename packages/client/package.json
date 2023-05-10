@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "author": "DapperDuckling Dev LLC",
   "license": "MIT",
+  "type": "module",
   "types": "dist/index.d.ts",
   "bugs": {
     "url": "https://github.com/DapperDuckling/keycloak-connector/issues"

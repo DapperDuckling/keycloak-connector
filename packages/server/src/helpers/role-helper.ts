@@ -1,14 +1,16 @@
-import {
+import type {
     ClientRole,
-    ClientSearch,
     CombinedRoleRules,
     KcAccessJWT,
     KeycloakRole,
     RequiredRoles,
-    RoleConfigurationStyle,
     RoleLocation,
-    RoleLocations,
     RoleRules
+} from "../types.js";
+import {
+    ClientSearch,
+    RoleConfigurationStyle,
+    RoleLocations
 } from "../types.js";
 import type {Logger} from "pino";
 

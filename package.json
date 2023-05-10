@@ -20,7 +20,10 @@
     "build:server": "npm run build -w keycloak-connector-server",
     "build": "npm run build --workspaces",
     "publish:client": "npm publish -w keycloak-connector-client --access public",
-    "publish:server": "npm publish -w keycloak-connector-server --access public"
+    "publish:server": "npm publish -w keycloak-connector-server --access public",
+    "test": "node --experimental-vm-modules --require ./suppress-experimental-vm-warnings.cjs ./node_modules/jest/bin/jest.js --verbose",
+    "test:server": "node --experimental-vm-modules --require ./suppress-experimental-vm-warnings.cjs ./node_modules/jest/bin/jest.js --verbose --selectProjects keycloak-connector-server",
+    "test:client": "node --experimental-vm-modules --require ./suppress-experimental-vm-warnings.cjs ./node_modules/jest/bin/jest.js --verbose --selectProjects keycloak-connector-client"
   },
   "devDependencies": {
     "@fastify/cookie": "^8.3.0",

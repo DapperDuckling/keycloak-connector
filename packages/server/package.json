@@ -16,8 +16,7 @@
   "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "npm run build",
-    "test": "node --experimental-vm-modules --require ./suppress-experimental-vm-warnings.cjs ../../node_modules/jest/bin/jest.js"
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
     "@types/jest": "^29.5.1",

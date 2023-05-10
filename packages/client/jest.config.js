@@ -1,7 +1,8 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 const jestConfig = {
-    displayName: 'keycloak-connector-server',
+    displayName: 'keycloak-connector-client',
     preset: 'ts-jest/presets/default-esm',
+    modulePaths: ["<rootDir>/src/"],
     testEnvironment: 'node'
 }
 
