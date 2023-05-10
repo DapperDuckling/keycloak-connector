@@ -1,5 +1,9 @@
 {
-  "extends": "@tsconfig/node-lts-strictest-esm/tsconfig.json",
+  "extends": [
+    "@tsconfig/strictest/tsconfig.json",
+    "@tsconfig/node18/tsconfig.json",
+    "@tsconfig/esm/tsconfig.json"
+  ],
   "compilerOptions": {
     "lib": ["DOM", "ES6"],
     "target": "es2016",

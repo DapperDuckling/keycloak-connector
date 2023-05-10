@@ -15,7 +15,6 @@
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
-    "@tsconfig/node-lts-strictest-esm": "^18.12.1",
     "typescript": "^5.0.4"
   },
   "files": [
