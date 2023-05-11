@@ -38,9 +38,9 @@ export class RoleHelper {
     ));
 
 
-    public userHasRoles = (roles: RequiredRoles, verifiedAccessToken: KcAccessJWT) => this.userHasRolesRecurse(roles, verifiedAccessToken, true);
+    public userHasRoles = (roles: RequiredRoles, validatedAccessToken: KcAccessJWT) => this.userHasRolesRecurse(roles, validatedAccessToken, true);
 
-    private userHasRolesRecurse = (roles: RequiredRoles, verifiedAccessToken: KcAccessJWT, topLevel = false): boolean => {
+    private userHasRolesRecurse = (roles: RequiredRoles, validatedAccessToken: KcAccessJWT, topLevel = false): boolean => {
 
         // Determine the role configuration style
         const roleConfigStyle = this.determineRoleConfigStyle(roles);
@@ -50,7 +50,7 @@ export class RoleHelper {
                 // Assert the roles type
                 const roleRules = roles as RoleRules;
 
-                return this.userHasRoleRule(roleRules, verifiedAccessToken, ClientSearch.RESOURCE_ACCESS);
+                return this.userHasRoleRule(roleRules, validatedAccessToken, ClientSearch.RESOURCE_ACCESS);
             }
             case RoleConfigurationStyle.ClientRole: {
                 // Assert the roles type
@@ -58,7 +58,7 @@ export class RoleHelper {
 
                 // Ensure the user has role for each specified client
                 return Object.entries(clientRoles).every(([client, role]) => {
-                    return this.userHasRoleRule(role, verifiedAccessToken, client);
+                    return this.userHasRoleRule(role, validatedAccessToken, client);
                 });
             }
             case RoleConfigurationStyle.RoleLocation: {
@@ -70,8 +70,8 @@ export class RoleHelper {
                     throw new Error("Invalid role location configuration. Cannot process role rules.");
 
                 // Check if the user either has the required REALM roles and required CLIENT roles
-                const hasRealmAccess = this.userHasRoleRule(roleLocations[RoleLocations.REALM_ACCESS], verifiedAccessToken, ClientSearch.REALM);
-                const hasResourceAccess = (roleLocations[RoleLocations.RESOURCE_ACCESS] !== undefined && this.userHasRolesRecurse(roleLocations[RoleLocations.RESOURCE_ACCESS], verifiedAccessToken));
+                const hasRealmAccess = this.userHasRoleRule(roleLocations[RoleLocations.REALM_ACCESS], validatedAccessToken, ClientSearch.REALM);
+                const hasResourceAccess = (roleLocations[RoleLocations.RESOURCE_ACCESS] !== undefined && this.userHasRolesRecurse(roleLocations[RoleLocations.RESOURCE_ACCESS], validatedAccessToken));
 
                 return ((roleLocations[RoleLocations.REALM_ACCESS] === undefined || hasRealmAccess)
                     && (roleLocations[RoleLocations.RESOURCE_ACCESS] === undefined || hasResourceAccess));
@@ -84,12 +84,12 @@ export class RoleHelper {
                 if (!topLevel) throw new Error("A combined role rules array must be at the top-level. Invalid role configuration.");
 
                 // Check if any one of the combined role rules matches
-                return combinedRoleRules.some(rule => this.userHasRolesRecurse(rule, verifiedAccessToken));
+                return combinedRoleRules.some(rule => this.userHasRolesRecurse(rule, validatedAccessToken));
             }
         }
     };
 
-    private userHasRoleRule = (roleRules: RoleRules|undefined, verifiedAccessToken: KcAccessJWT, client: ClientSearch | string): boolean => {
+    private userHasRoleRule = (roleRules: RoleRules|undefined, validatedAccessToken: KcAccessJWT, client: ClientSearch | string): boolean => {
         // Check for an undefined role
         if (roleRules === undefined) return false;
 
@@ -102,7 +102,7 @@ export class RoleHelper {
             if (typeof roleRule === "string") roleRule = [roleRule];
 
             // Must match every role in this role rule
-            const roleRuleCheck = roleRule.every(role => this.userHasRole(role, verifiedAccessToken, client));
+            const roleRuleCheck = roleRule.every(role => this.userHasRole(role, validatedAccessToken, client));
 
             // If this role rule checks good, return now
             if (roleRuleCheck) return true;
@@ -112,18 +112,18 @@ export class RoleHelper {
         return false;
     };
 
-    private userHasRole = (role: KeycloakRole, verifiedAccessToken: KcAccessJWT, client: ClientSearch | string): boolean => {
+    private userHasRole = (role: KeycloakRole, validatedAccessToken: KcAccessJWT, client: ClientSearch | string): boolean => {
 
         if (client === ClientSearch.REALM) {
             // Check if the role is included in the realm roles
-            return verifiedAccessToken.realm_access?.roles.includes(role) ?? false;
+            return validatedAccessToken.realm_access?.roles.includes(role) ?? false;
         }
 
         // Grab the client id
         const clientId = (client === ClientSearch.RESOURCE_ACCESS) ? this.defaultResourceAccessKey : client;
 
         // Check if the role is included in the client roles
-        return verifiedAccessToken.resource_access?.[clientId]?.roles.includes(role) ?? false;
+        return validatedAccessToken.resource_access?.[clientId]?.roles.includes(role) ?? false;
     }
 
     private determineRoleConfigStyle = (roles: RequiredRoles): RoleConfigurationStyle => {
