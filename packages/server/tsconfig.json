@@ -13,7 +13,6 @@
     "noUnusedParameters": false,
     "declaration": true,
     "outDir": "./dist/",
-    "rootDir": "./src/",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
@@ -34,6 +33,6 @@
     "types": ["node"]
   },
   "include": ["./src/**/*"],
-//  "exclude": ["./tests/**/*"],
-//  "baseUrl": "src"
+  "exclude": ["./tests/**/*"],
+  "baseUrl": "src"
 }

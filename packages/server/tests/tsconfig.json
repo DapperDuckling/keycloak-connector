@@ -6,7 +6,10 @@
     "noUnusedLocals": true,
     "noEmitOnError": false,
     "sourceMap": true,
-    "rootDir": "./../"
   },
   "include": ["./**/*"],
+  "exclude": [],
+  //  "paths": {
+  //    "@source/*": [ "./src/*" ]
+  //  }
 }

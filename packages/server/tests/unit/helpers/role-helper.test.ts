@@ -20,6 +20,15 @@ describe('Validate role requirement calculation', () => {
     });
 
     describe('Test RoleRules style input', () => {
+        test('Empty roles', async () => {
+            const roles: RoleRules<TestRoles> = [];
+            const accessToken = await generateTestAccessToken({
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER]
+            });
+            expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
+            expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(false);
+        });
+
         test('Singular RoleRule item passing', async () => {
             const roles: RoleRules<TestRoles> = [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER];
             const accessToken = await generateTestAccessToken({
