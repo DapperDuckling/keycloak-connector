@@ -66,7 +66,7 @@ export class RoleHelper {
                 const roleLocations = roles as RoleLocation;
 
                 // Ensure there is a realm OR resource access
-                if (roleLocations[RoleLocations.REALM_ACCESS] === undefined && roleLocations[RoleLocations.REALM_ACCESS] === undefined)
+                if (roleLocations[RoleLocations.REALM_ACCESS] === undefined && roleLocations[RoleLocations.RESOURCE_ACCESS] === undefined)
                     throw new Error("Invalid role location configuration. Cannot process role rules.");
 
                 // Check if the user either has the required REALM roles and required CLIENT roles

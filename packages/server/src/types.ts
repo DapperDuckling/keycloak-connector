@@ -166,7 +166,7 @@ type RouteConfigBase = {
  * Dev note - Unable to limit the number of properties declared when using a dynamic key in typescript
  * Even though typescript may not throw errors, the runtime script still may.
  */
-type KeycloakClient = string;
+export type KeycloakClient = string;
 export type KeycloakRole = string;
 
 export enum RoleLocations {
