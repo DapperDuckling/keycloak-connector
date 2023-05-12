@@ -13,6 +13,6 @@ export abstract class AbstractAdapter<Server extends SupportedServers> {
 
     abstract registerRoute(
         options: RouteRegistrationOptions,
-        callback: ConnectorCallback<Server>,
+        connectorCallback: ConnectorCallback<Server>,
     ): void;
 }
