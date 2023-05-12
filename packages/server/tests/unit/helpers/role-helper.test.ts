@@ -1,50 +1,105 @@
-import {jest} from '@jest/globals';
+import {beforeAll, beforeEach, jest} from '@jest/globals';
 jest.useFakeTimers();
 
 import {describe, expect, test} from '@jest/globals';
 
 
 import {RoleHelper} from "../../../src/helpers/role-helper.js";
-import * as jose from 'jose'
-import {RoleLocations} from "./../../../src/types.js";
 import type {RoleRules} from "./../../../src/types.js";
-import {generateTestSecret, TOKEN_ALGORITHM} from "./generators.js";
-
-const TOKEN_ALG = 'HS256';
+import {generateTestAccessToken} from "./generators.js";
+import {faker} from "@faker-js/faker";
+import {RoleConfigurationStyle} from "./../../../src/types.js";
 
 describe('Validate role requirement calculation', () => {
 
+    let roleHelper: RoleHelper;
+
+    beforeEach(() => {
+        roleHelper = new RoleHelper(faker.word.noun());
+    });
+
     describe('Test RoleRules style input', () => {
         test('Singular RoleRule item passing', async () => {
-            const roleHelper = new RoleHelper("my_client_id");
-            const roles: RoleRules<TestRoles> = [TestRoles.BATTER];
-            const accessToken = "";
-
-            const secret = generateTestSecret();
-            const jwt = await new jose.SignJWT({
-                resource_access: {
-                    roles: ['sup', 'dawg']
-                }
-            })
-                .setProtectedHeader({alg: TOKEN_ALGORITHM})
-                .setIssuedAt()
-                .setIssuer('urn:example:issuer')
-                .setAudience('urn:example:audience')
-                .setExpirationTime('2h')
-                .sign(secret);
-
-            // @ts-ignore
-            expect(roleHelper.userHasRoles(roles, jwt)).toStrictEqual(false);
+            const roles: RoleRules<TestRoles> = [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER];
+            const accessToken = await generateTestAccessToken({
+                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER]
+            });
+            expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
+            expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(true);
         });
 
-        test.todo('All RoleRule item passing');
-        test.todo('No RoleRule item passing');
-        test.todo('RoleRule array of roles passing');
-        test.todo('RoleRule array of roles with one role missing, thus failing');
-        test.todo('RoleRule array of roles with all roles missing, thus failing');
-        test.todo('Combined array & non-array roles, array role passing');
-        test.todo('Combined array & non-array roles, non-array role passing');
-        test.todo('Combined array & non-array roles, both passing');
+        test('All RoleRule items passing', async () => {
+            const roles: RoleRules<TestRoles> = [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER];
+            const accessToken = await generateTestAccessToken({
+                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER]
+            });
+            expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
+            expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(true);
+        });
+
+        test('No RoleRule items passing', async () => {
+            const roles: RoleRules<TestRoles> = [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER];
+            const accessToken = await generateTestAccessToken({
+                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER]
+            });
+            expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
+            expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(false);
+        });
+
+        test('RoleRule array of roles passing', async () => {
+            const roles: RoleRules<TestRoles> = [[TestRoles.CATCHER, TestRoles.BUG_CATCHER]];
+            const accessToken = await generateTestAccessToken({
+                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER, TestRoles.BUG_CATCHER]
+            });
+            expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
+            expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(true);
+        });
+
+        test('RoleRule array of roles with one role missing, thus failing', async () => {
+            const roles: RoleRules<TestRoles> = [[TestRoles.CATCHER, TestRoles.BUG_CATCHER]];
+            const accessToken = await generateTestAccessToken({
+                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER]
+            });
+            expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
+            expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(false);
+        });
+
+        test('RoleRule array of roles with all roles missing, thus failing', async () => {
+            const roles: RoleRules<TestRoles> = [[TestRoles.CATCHER, TestRoles.BUG_CATCHER]];
+            const accessToken = await generateTestAccessToken({
+                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER]
+            });
+            expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
+            expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(false);
+        });
+
+        test('Combined array & non-array roles, array role passing', async () => {
+            const roles: RoleRules<TestRoles> = [TestRoles.BATTER, [TestRoles.CATCHER, TestRoles.BUG_CATCHER]];
+            const accessToken = await generateTestAccessToken({
+                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER, TestRoles.BUG_CATCHER]
+            });
+            expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
+            expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(true);
+        });
+
+        test('Combined array & non-array roles, non-array role passing', async () => {
+            const roles: RoleRules<TestRoles> = [TestRoles.BATTER, [TestRoles.CATCHER, TestRoles.BUG_CATCHER]];
+            const accessToken = await generateTestAccessToken({
+                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER]
+            });
+            expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
+            expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(true);
+        });
+
+        test('Combined array & non-array roles, both passing', async () => {
+            const roles: RoleRules<TestRoles> = [TestRoles.BATTER, [TestRoles.CATCHER, TestRoles.BUG_CATCHER]];
+            const accessToken = await generateTestAccessToken({
+                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER]
+            });
+            expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
+            expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(true);
+        });
+
         test.todo('Combined array & non-array roles, both failing');
     });
 

@@ -9,6 +9,7 @@ Object.values(tsjPreset.transform).map(rules => {
     rules[1].tsconfig = {
         ...rules[1].tsconfig,
         noEmitOnError: false,
+        sourceMap: true,
     };
 });
 
