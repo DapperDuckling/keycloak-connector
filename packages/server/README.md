@@ -71,11 +71,32 @@ Not yet implemented.
 
 ## Specifying Role Requirements
 ### RoleRules (simple)
-When passed a simple array, `keycloak-connector-server` will interpret this as a list of roles required for the current `client`. Roles assumed to be logically OR'd unless wrapped inside an inner array where those roles are logically AND'd.
-```javascript
+When passed a simple array, `keycloak-connector-server` will interpret this as a list of roles required for the current `client` (overridable by configuring `defaultResourceAccessKey`). Roles assumed to be logically OR'd unless wrapped inside an inner array where those roles are logically AND'd.
+
+```typescript
 // A user must either have the `nice_guy` role OR have both the `mean_guy` AND `has_counselor` roles
 const requiredRoles = {config: {roles: ['nice_guy', ['mean_guy', 'has_counselor']]}}
+
+/** Typescript Example */
+import {RoleRules} from "keycloak-connector-server";
+enum Roles {
+    nice_guy = "nice_guy",
+    mean_guy = "mean_guy",
+    has_counselor = "has_counselor"
+}
+const requiredRolesTs: RoleRules<Roles> = {config: {roles: [Roles.nice_guy, [Roles.mean_guy, Roles.has_counselor]]}}
 ```
+
+### ClientRole
+Used when requiring roles from a client other than the current (or as configured with`defaultResourceAccessKey`) client. Each client is logically AND'd together.
+```typescript
+// A user must have either `eat_toast` OR `eat_bread` for `other_client` AND ALSO have the `make_bread` role for `random_client`
+const requiredRoles = {config: {roles: {
+    other_client: ['eat_toast', 'eat_bread'],
+    random_client: ['make_bread'],
+}}}
+```
+
 
 
 ## Advanced Configuration
