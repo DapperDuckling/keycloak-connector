@@ -56,7 +56,7 @@ const keycloakConnectorFastifyPlugin: FastifyPluginAsync<KeycloakConnectorConfig
 
 export const keycloakConnectorFastify = fastifyPlugin(keycloakConnectorFastifyPlugin, {
     fastify: '4.x',
-    name: '@dapperducklingdev/keycloak-connector',
+    name: 'keycloak-connector-server',
     decorators: {
         request: ['cookies'],
     },

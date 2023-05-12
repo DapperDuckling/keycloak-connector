@@ -8,8 +8,8 @@ export interface RouteRegistrationOptions {
 }
 export abstract class AbstractAdapter<Server extends SupportedServers> {
 
-    protected abstract buildConnectorRequest(request: never): Promise<ConnectorRequest>;
-    protected abstract handleResponse(connectorResponse: ConnectorResponse<Server>, ...args: never): Promise<void>;
+    public abstract buildConnectorRequest(request: never): Promise<ConnectorRequest>;
+    public abstract handleResponse(connectorResponse: ConnectorResponse<Server>, ...args: never): Promise<void>;
 
     abstract registerRoute(
         options: RouteRegistrationOptions,

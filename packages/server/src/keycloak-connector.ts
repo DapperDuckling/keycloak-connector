@@ -516,7 +516,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         };
 
         // Check for invalid client metadata
-        if (config.oidcClientMetadata.client_id === EMPTY_STRING) throw new Error(`Client ID not specified or found`);
+        if (config.oidcClientMetadata.client_id === EMPTY_STRING) throw new Error(`Client ID not specified or environment variable "KC_CLIENT_ID" not found`);
         if (config.oidcClientMetadata.redirect_uris === undefined || config.oidcClientMetadata.redirect_uris.length === 0)  throw new Error(`No login redirect URIs specified`);
         if (config.oidcClientMetadata.post_logout_redirect_uris === undefined || config.oidcClientMetadata.post_logout_redirect_uris.length === 0)  throw new Error(`No post logout redirect URIs specified`);
 

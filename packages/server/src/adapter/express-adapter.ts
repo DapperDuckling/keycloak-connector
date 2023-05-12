@@ -10,15 +10,12 @@ import type {
 } from "../types.js";
 import type {Express, NextFunction, Request, RequestHandler, Response} from "express-serve-static-core";
 import {RouteConfigDefault} from "../helpers/defaults.js";
-import {KeycloakConnector} from "../keycloak-connector.js";
-
-//todo: fix uses of `any` here
 
 export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
     private readonly app: Express;
     private readonly globalRouteConfig: KeycloakRouteConfig | undefined;
 
-    private constructor(app: Express, customConfig: KeycloakConnectorConfigCustom) {
+    constructor(app: Express, customConfig: KeycloakConnectorConfigCustom) {
         super();
 
         this.app = app;
@@ -29,7 +26,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 
     }
 
-    protected buildConnectorRequest = async (request: Request): Promise<ConnectorRequest> => ({
+    public buildConnectorRequest = async (request: Request): Promise<ConnectorRequest> => ({
         ...request.headers?.origin && {origin: request.headers?.origin},
         url: request.url,
         cookies: request.cookies,
@@ -40,7 +37,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         }
     });
 
-    protected async handleResponse(connectorResponse: ConnectorResponse<SupportedServers.express>, req: Request, res: Response, next: NextFunction): Promise<void> {
+    public async handleResponse(connectorResponse: ConnectorResponse<SupportedServers.express>, req: Request, res: Response, next: NextFunction): Promise<void> {
         // Set any cookies
         //todo:
         // connectorResponse.cookies?.forEach(cookieParam => reply.setCookie(cookieParam.name, cookieParam.value, cookieParam.options));
@@ -56,17 +53,16 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         } else if (connectorResponse.serveFile) {
             // Send any files
 
-            //todo: find up to date types
-            // @ts-ignore
-            res.sendFile(connectorResponse.serveFile);
+            //todo: debug, remove hard coded path
+            res.sendFile('../public/'+connectorResponse.serveFile);
 
             //todo: future, have nginx serve the files
             // res.header("x-accel-redirect", "/protected-content/auth/index.html");
 
+        } else {
+            // Send a regular response
+            res.send(connectorResponse.responseText ?? "");
         }
-
-        // Send a regular response
-        res.send(connectorResponse.responseText ?? "");
     }
 
     registerRoute = (options: RouteRegistrationOptions, connectorCallback: ConnectorCallback<SupportedServers.express>): void => {
@@ -88,20 +84,19 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
     private getRouterMethod(options: RouteRegistrationOptions) {
         switch (options.method) {
             case "GET":
-                return this.app.get;
+                return this.app.get.bind(this.app);
             case "POST":
-                return this.app.post;
+                return this.app.post.bind(this.app);
             case "PUT":
-                return this.app.put;
+                return this.app.put.bind(this.app);
             case "PATCH":
-                return this.app.patch;
+                return this.app.patch.bind(this.app);
             case "DELETE":
-                return this.app.delete;
+                return this.app.delete.bind(this.app);
             case "OPTIONS":
-                return this.app.options;
+                return this.app.options.bind(this.app);
             case "HEAD":
-                return this.app.head;
-
+                return this.app.head.bind(this.app);
         }
     }
 
@@ -115,35 +110,4 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             next();
         }
     }
-
-    static init = async (app: Express, customConfig: KeycloakConnectorConfigCustom) => {
-
-        // Create an Express specific adapter
-        const adapter = new ExpressAdapter(app, customConfig);
-
-        // Initialize the keycloak connector
-        const kcc = await KeycloakConnector.init<SupportedServers.express>(adapter, customConfig);
-
-        // Add handler to every request
-        app.use(async (req, res, next) => {
-
-            // Ignore 404 routes
-            //todo:
-
-            // Grab user data
-            const connectorReq = await adapter.buildConnectorRequest(req);
-            req.keycloak = await kcc.getUserData(connectorReq);
-
-            // Grab the protector response
-            const connectorResponse = await kcc.buildRouteProtectionResponse(connectorReq, req.keycloak);
-
-            // Handle the response
-            if (connectorResponse) {
-                await adapter.handleResponse(connectorResponse, req, res, next);
-            } else  {
-                next();
-            }
-        })
-    }
-
 }
