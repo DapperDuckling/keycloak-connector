@@ -44,8 +44,8 @@ export enum StateOptions {
     MIXED = 1,
     STATEFUL = 2,
 }
-export interface KeycloakConnectorConfigBase {
 
+export interface KeycloakConnectorConfigBase {
     /** The RP server origin */
     serverOrigin: string;
 
@@ -73,10 +73,16 @@ export interface KeycloakConnectorConfigBase {
     /** Determines where the client will store a user's oauth token information */
     stateType?: StateOptions
 
+    /**
+     *  How long until the initial login sequence cookie expires. Shorter times may impact users who may take a while
+     *  to finish logging in.
+     */
     loginCookieTimeout: number;
 
+    /** Overrides the default routes created to handle keycloak interactions */
     routePaths?: CustomRouteUrl;
 
+    /** Overrides the default configuration for all routes */
     globalRouteConfig?: KeycloakRouteConfig;
 
     /**
@@ -85,10 +91,15 @@ export interface KeycloakConnectorConfigBase {
      */
     defaultResourceAccessKey?: string;
 
+    /** When true, a case-sensitive search is used to match requirements to user's roles */
     caseSensitiveRoleCheck?: boolean;
 
+    /** Optional claims required when verifying user-provided JWTs */
     jwtClaims?: {
+        /** Require the user-provided JWT to be intended for a particular audience */
         audience?: string;
+
+        /** Ensures the party to which the JWT was issued matches provided value. By default, azp must match the current `client_id` */
         azp?: string | AzpOptions;
     }
 }
