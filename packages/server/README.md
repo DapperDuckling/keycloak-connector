@@ -75,7 +75,7 @@ When passed a simple array, `keycloak-connector-server` will interpret this as a
 
 ```typescript
 // A user must either have the `nice_guy` role OR have both the `mean_guy` AND `has_counselor` roles
-const requiredRoles = {config: {roles: ['nice_guy', ['mean_guy', 'has_counselor']]}}
+const requiredRoles = ['nice_guy', ['mean_guy', 'has_counselor']];
 
 /** Typescript Example */
 import {RoleRules} from "keycloak-connector-server";
@@ -84,20 +84,119 @@ enum Roles {
     mean_guy = "mean_guy",
     has_counselor = "has_counselor"
 }
-const requiredRolesTs: RoleRules<Roles> = {config: {roles: [Roles.nice_guy, [Roles.mean_guy, Roles.has_counselor]]}}
+const requiredRolesTs: RoleRules<Roles> = [Roles.nice_guy, [Roles.mean_guy, Roles.has_counselor]];
+
 ```
 
 ### ClientRole
 Used when requiring roles from a client other than the current (or as configured with`defaultResourceAccessKey`) client. Each client is logically AND'd together.
 ```typescript
 // A user must have either `eat_toast` OR `eat_bread` for `other_client` AND ALSO have the `make_bread` role for `random_client`
-const requiredRoles = {config: {roles: {
+const requiredRoles = {
     other_client: ['eat_toast', 'eat_bread'],
     random_client: ['make_bread'],
-}}}
+}
+
+/** Typescript Example */
+import {ClientRole} from "keycloak-connector-server";
+type CombinedRoles = OtherClientRoles | RandomClientRoles;
+enum OtherClientRoles {
+    eat_toast = "eat_toast",
+    eat_bread = "eat_bread",
+}
+enum RandomClientRoles {
+    make_bread = "make_bread"
+}
+enum Clients {
+    other_client = "other_client",
+    random_client = "random_client"
+}
+const requiredRolesTs: ClientRole<Clients, CombinedRoles> = {
+    [Clients.other_client]: [OtherClientRoles.eat_toast, OtherClientRoles.eat_bread],
+    [Clients.random_client]: [RandomClientRoles.make_bread],
+}
 ```
 
+### RoleLocation
+Used when requiring roles from the `realm`. Can be used in combination with requiring `client` roles.
+```typescript
+// A user requires ALL of the following:
+//  - The `buy_house` realm role
+//  - Either the `eat_toast` or `eat_bread` role for `other_client`
+//  - The `make_bread` role for `random_client`
+const requiredRoles = {
+    REALM_ACCESS: ['buy_house'],
+    RESOURCE_ACCESS: {
+        other_client: ['eat_toast', 'eat_bread'],
+        random_client: ['make_bread'],
+    }
+}
 
+/** Typescript Example */
+import {RoleLocation} from "keycloak-connector-server";
+type CombinedRoles = RealmRoles | OtherClientRoles | RandomClientRoles;
+enum OtherClientRoles {
+    eat_toast = "eat_toast",
+    eat_bread = "eat_bread",
+}
+enum RandomClientRoles {
+    make_bread = "make_bread"
+}
+enum Clients {
+    other_client = "other_client",
+    random_client = "random_client"
+}
+enum RealmRoles {
+    buy_house = "buy_house"
+}
+const requiredRolesTs: RoleLocation<CombinedRoles, Clients> = {
+    [RoleLocations.REALM_ACCESS]: [RealmRoles.buy_house],
+    [RoleLocations.RESOURCE_ACCESS]: {
+        [Clients.other_client]: [OtherClientRoles.eat_toast, OtherClientRoles.eat_bread],
+        [Clients.random_client]: [RandomClientRoles.make_bread],
+    }
+}
+```
+
+### Array of CombinedRoleRules
+Used for situations where multiple complex rules must be OR'd together.
+```typescript
+// A user must meet ANY ONE of the following requirements:
+//  - Have either `eat_toast` OR `eat_bread` for `other_client` AND ALSO have the `make_bread` role for `random_client`
+//  - Have the `pizza_guy` role for the current client
+const requiredRoles = [
+    {
+        other_client: ['eat_toast', 'eat_bread'],
+        random_client: ['make_bread'],
+    },
+    ['pizza_guy'],
+];
+
+// Typescript example
+import {CombinedRoles} from "keycloak-connector-server";
+enum Clients {
+    other_client = "other_client",
+    random_client = "random_client"
+}
+type CombinedRoles = OtherClientRoles | RandomClientRoles | CurrentClientRoles;
+enum OtherClientRoles {
+    eat_toast = "eat_toast",
+    eat_bread = "eat_bread",
+}
+enum RandomClientRoles {
+    make_bread = "make_bread"
+}
+enum CurrentClientRoles {
+    pizza_guy = "pizza_guy"
+}
+const requiredRolesTs: RequiredRoles<CombinedRoles, Clients> = [
+    {
+        [Clients.other_client]: [OtherClientRoles.eat_toast, OtherClientRoles.eat_bread],
+        [Clients.random_client]: [RandomClientRoles.make_bread],
+    },
+    [CurrentClientRoles.pizza_guy],
+];
+```
 
 ## Advanced Configuration
 

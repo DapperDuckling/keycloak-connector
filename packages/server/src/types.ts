@@ -424,3 +424,32 @@ export enum ClientSearch {
     REALM,
     RESOURCE_ACCESS,
 }
+
+
+//todo: debug remove
+
+type CombinedRoles = OtherClientRoles | RandomClientRoles | CurrentClientRoles;
+
+enum OtherClientRoles {
+    eat_toast = "eat_toast",
+    eat_bread = "eat_bread",
+}
+
+enum RandomClientRoles {
+    make_bread = "make_bread"
+}
+
+enum Clients {
+    other_client = "other_client",
+    random_client = "random_client"
+}
+enum CurrentClientRoles {
+    pizza_guy = "pizza_guy"
+}
+const requiredRolesTs: RequiredRoles<CombinedRoles, Clients> = [
+    {
+        [Clients.other_client]: [OtherClientRoles.eat_toast, OtherClientRoles.eat_bread],
+        [Clients.random_client]: [RandomClientRoles.make_bread],
+    },
+    [CurrentClientRoles.pizza_guy],
+];
