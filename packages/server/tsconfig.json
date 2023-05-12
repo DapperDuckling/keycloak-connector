@@ -32,9 +32,7 @@
     "target": "es2022",
     "types": ["node"]
   },
-  "include": ["./src/**/*", "./tests/**/*"],
-  "baseUrl": "src",
-  "paths": {
-    "@source/*": [ "./src/*" ]
-  }
+  "include": ["./src/**/*"],
+  "exclude": ["./tests/**/*"],
+  "baseUrl": "src"
 }

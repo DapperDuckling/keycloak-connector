@@ -1,17 +1,9 @@
-import {beforeEach} from '@jest/globals';
-import {describe, expect, test} from '@jest/globals';
+import {beforeEach, describe, expect, test} from '@jest/globals';
 import {RoleHelper} from "../../../src/helpers/role-helper.js";
-import type {
-    ClientRole,
-    CombinedRoleRules,
-    KeycloakClient,
-    RequiredRoles,
-    RoleLocation,
-    RoleRules
-} from "./../../../src/types.js";
+import type {ClientRole, KeycloakClient, RequiredRoles, RoleLocation, RoleRules} from "./../../../src/types.js";
+import {RoleConfigurationStyle, RoleLocations} from "./../../../src/types.js";
 import {generateTestAccessToken, TestRoles} from "./generators.js";
 import {faker} from "@faker-js/faker";
-import {RoleConfigurationStyle, RoleLocations} from "./../../../src/types.js";
 
 // Uncomment to debug a particular seed
 // process.env["seed"] = "<SEED ID HERE>";

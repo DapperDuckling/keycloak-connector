@@ -1,4 +1,4 @@
-import {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./abstract-adapter.js";
+import {AbstractAdapter, type ConnectorCallback, type RouteRegistrationOptions} from "./abstract-adapter.js";
 import type {
     ConnectorRequest,
     ConnectorResponse,

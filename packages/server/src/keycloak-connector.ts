@@ -1,5 +1,5 @@
 import {sleep} from "./helpers/utils.js";
-import {ClientMetadata, errors, generators, Issuer, IssuerMetadata} from "openid-client";
+import {type ClientMetadata, errors, generators, Issuer, type IssuerMetadata} from "openid-client";
 import type {
     ConnectorRequest,
     ConnectorResponse,

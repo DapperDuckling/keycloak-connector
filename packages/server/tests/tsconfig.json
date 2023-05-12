@@ -1,0 +1,15 @@
+{
+  "extends": [
+    "../tsconfig.json"
+  ],
+  "compilerOptions": {
+    "noUnusedLocals": true,
+    "noEmitOnError": false,
+    "sourceMap": true
+  },
+  "include": ["./**/*"],
+  "exclude": [],
+  //  "paths": {
+  //    "@source/*": [ "./src/*" ]
+  //  }
+}
