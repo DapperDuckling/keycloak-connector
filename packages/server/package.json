@@ -1,6 +1,6 @@
 {
   "name": "keycloak-connector-server",
-  "version": "0.0.9",
+  "version": "0.0.15",
   "description": "Middleware connecting Node.js express or fastify servers to Keycloak",
   "keywords": [
     "express keycloak",

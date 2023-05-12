@@ -17,13 +17,17 @@ import type {Logger} from "pino";
 const childRoleConfigurationStyles = [RoleConfigurationStyle.RoleLocation, RoleConfigurationStyle.ClientRole, RoleConfigurationStyle.RoleRules];
 const roleLocations = Object.values(RoleLocations) as string[];
 
-export class RoleHelper {
-    private readonly defaultResourceAccessKey: string;
-    private readonly pinoLogger: Logger | undefined;
+interface RoleHelperConfig {
+    defaultResourceAccessKey: string;
+    caseSensitiveRoleCheck?: boolean | undefined;
+    pinoLogger?: Logger | undefined;
+}
 
-    public constructor(defaultResourceAccessKey: string, pinoLogger?: Logger) {
-        this.defaultResourceAccessKey = defaultResourceAccessKey;
-        this.pinoLogger = pinoLogger;
+export class RoleHelper {
+    private readonly config: RoleHelperConfig;
+
+    public constructor(config: RoleHelperConfig) {
+        this.config = config;
     }
 
     private arrayHasOnlyStrings = (array: Array<unknown>) => array.every(item => typeof item === "string");
@@ -114,16 +118,29 @@ export class RoleHelper {
 
     private userHasRole = (role: KeycloakRole, validatedAccessToken: KcAccessJWT, client: ClientSearch | string): boolean => {
 
+        // Check for a REALM search
         if (client === ClientSearch.REALM) {
             // Check if the role is included in the realm roles
-            return validatedAccessToken.realm_access?.roles.includes(role) ?? false;
+            return this.roleArrayHasRole(role, validatedAccessToken.realm_access?.roles);
         }
 
         // Grab the client id
-        const clientId = (client === ClientSearch.RESOURCE_ACCESS) ? this.defaultResourceAccessKey : client;
+        const clientId = (client === ClientSearch.RESOURCE_ACCESS) ? this.config.defaultResourceAccessKey : client;
+
+        // Check for any roles
+        if (validatedAccessToken.resource_access?.[clientId]?.roles === undefined) return false;
 
         // Check if the role is included in the client roles
-        return validatedAccessToken.resource_access?.[clientId]?.roles.includes(role) ?? false;
+        return this.roleArrayHasRole(role, validatedAccessToken.resource_access?.[clientId]?.roles)
+    }
+
+    private roleArrayHasRole = (roleToFind: string, roleArray: string[] | undefined): boolean => {
+        // Check for no roles
+        if (roleArray === undefined) return false;
+
+        return (this.config.caseSensitiveRoleCheck) ?
+            roleArray.some(role => role.localeCompare(roleToFind) === 0) :
+            roleArray.some(role => role.localeCompare(roleToFind, undefined, {sensitivity: 'base'}) === 0);
     }
 
     private determineRoleConfigStyle = (roles: RequiredRoles): RoleConfigurationStyle => {
@@ -150,7 +167,7 @@ export class RoleHelper {
 
             // Ensure the object has some keys
             if (objectKeys.length === 0) {
-                this.pinoLogger?.error("No keys provided for role object, cannot process: ", roles);
+                this.config.pinoLogger?.error("No keys provided for role object, cannot process: ", roles);
                 throw new Error("No keys provided for role object, cannot process.");
             }
 
@@ -165,7 +182,7 @@ export class RoleHelper {
             }
         }
 
-        this.pinoLogger?.error(`Failed to match input style to expected type: (${typeof roles})`, roles);
+        this.config.pinoLogger?.error(`Failed to match input style to expected type: (${typeof roles})`, roles);
         throw new Error("Invalid required roles, could not match input style to expected type");
     }
 }

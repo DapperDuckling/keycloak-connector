@@ -85,6 +85,8 @@ export interface KeycloakConnectorConfigBase {
      */
     defaultResourceAccessKey?: string;
 
+    caseSensitiveRoleCheck?: boolean;
+
     jwtClaims?: {
         audience?: string;
         azp?: string | AzpOptions;

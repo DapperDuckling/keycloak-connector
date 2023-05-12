@@ -55,8 +55,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
         this._config = Object.freeze(config);
         this.components = components;
 
-        const defaultResourceAccessKey = this._config.defaultResourceAccessKey ?? this.components.oidcClient.metadata.client_id;
-        this.roleHelper = new RoleHelper(defaultResourceAccessKey, this._config.pinoLogger);
+        this.roleHelper = new RoleHelper({
+            defaultResourceAccessKey : this._config.defaultResourceAccessKey ?? this.components.oidcClient.metadata.client_id,
+            pinoLogger : this._config.pinoLogger,
+            caseSensitiveRoleCheck: this._config.caseSensitiveRoleCheck,
+        });
 
         // Configure updating the OP oidc configuration periodically
         if (this._config.refreshConfigSecs && this._config.refreshConfigSecs > 0) {
@@ -403,10 +406,14 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         userData.isAuthenticated = true;
 
-        if (req.routeConfig.public || req.routeConfig.roles === undefined) {
+        // Check if the page is public anyway OR is the page is protected, but there is no role requirement
+        if (req.routeConfig.public || (Array.isArray(req.routeConfig.roles) && req.routeConfig.roles.length === 0)) {
             userData.isAuthorized = true;
+
         } else if (req.routeConfig.roles) {
+            // Check for required roles
             userData.isAuthorized = this.roleHelper.userHasRoles(req.routeConfig.roles, userData.accessToken);
+
         } else {
             this._config.pinoLogger?.error("Invalid route configuration, must specify roles if route is not public.");
             throw new Error('Invalid route configuration, must specify roles if route is not public.');
@@ -607,6 +614,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
             backoffSecs = Math.ceil(Math.min(backoffSecs * 1.5, 60));
 
             // Log the error
+            // (logging to console as well since this error is easily hidden by a litany of other messages)
+            console.error(`Start up error, failed to fetch auth server configuration ...retrying in ${backoffSecs} seconds`);
             config.pinoLogger?.error(`Start up error, failed to fetch auth server configuration ...retrying in ${backoffSecs} seconds`);
 
             // Hang here since we are on startup

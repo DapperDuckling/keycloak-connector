@@ -16,14 +16,14 @@ describe('Validate role requirement calculation', () => {
     let roleHelper: RoleHelper;
 
     beforeEach(() => {
-        roleHelper = new RoleHelper(faker.word.noun());
+        roleHelper = new RoleHelper({defaultResourceAccessKey : faker.word.noun()});
     });
 
     describe('Test RoleRules style input', () => {
         test('Singular RoleRule item passing', async () => {
             const roles: RoleRules<TestRoles> = [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER];
             const accessToken = await generateTestAccessToken({
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER]
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER]
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
             expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(true);
@@ -32,7 +32,7 @@ describe('Validate role requirement calculation', () => {
         test('All RoleRule items passing', async () => {
             const roles: RoleRules<TestRoles> = [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER];
             const accessToken = await generateTestAccessToken({
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER]
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER]
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
             expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(true);
@@ -41,7 +41,7 @@ describe('Validate role requirement calculation', () => {
         test('No RoleRule items passing', async () => {
             const roles: RoleRules<TestRoles> = [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER];
             const accessToken = await generateTestAccessToken({
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER]
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER]
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
             expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(false);
@@ -50,7 +50,7 @@ describe('Validate role requirement calculation', () => {
         test('RoleRule array of roles passing', async () => {
             const roles: RoleRules<TestRoles> = [[TestRoles.CATCHER, TestRoles.BUG_CATCHER]];
             const accessToken = await generateTestAccessToken({
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER, TestRoles.BUG_CATCHER]
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER, TestRoles.BUG_CATCHER]
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
             expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(true);
@@ -59,7 +59,7 @@ describe('Validate role requirement calculation', () => {
         test('RoleRule array of roles with one role missing, thus failing', async () => {
             const roles: RoleRules<TestRoles> = [[TestRoles.CATCHER, TestRoles.BUG_CATCHER]];
             const accessToken = await generateTestAccessToken({
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER]
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER]
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
             expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(false);
@@ -68,7 +68,7 @@ describe('Validate role requirement calculation', () => {
         test('RoleRule array of roles with all roles missing, thus failing', async () => {
             const roles: RoleRules<TestRoles> = [[TestRoles.CATCHER, TestRoles.BUG_CATCHER]];
             const accessToken = await generateTestAccessToken({
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER]
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER]
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
             expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(false);
@@ -77,7 +77,7 @@ describe('Validate role requirement calculation', () => {
         test('Combined array & non-array roles, array role passing', async () => {
             const roles: RoleRules<TestRoles> = [TestRoles.BATTER, [TestRoles.CATCHER, TestRoles.BUG_CATCHER]];
             const accessToken = await generateTestAccessToken({
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER, TestRoles.BUG_CATCHER]
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER, TestRoles.BUG_CATCHER]
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
             expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(true);
@@ -86,7 +86,7 @@ describe('Validate role requirement calculation', () => {
         test('Combined array & non-array roles, non-array role passing', async () => {
             const roles: RoleRules<TestRoles> = [TestRoles.BATTER, [TestRoles.CATCHER, TestRoles.BUG_CATCHER]];
             const accessToken = await generateTestAccessToken({
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER]
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER]
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
             expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(true);
@@ -95,7 +95,7 @@ describe('Validate role requirement calculation', () => {
         test('Combined array & non-array roles, both passing', async () => {
             const roles: RoleRules<TestRoles> = [TestRoles.BATTER, [TestRoles.CATCHER, TestRoles.BUG_CATCHER]];
             const accessToken = await generateTestAccessToken({
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER]
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER]
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
             expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(true);
@@ -104,7 +104,7 @@ describe('Validate role requirement calculation', () => {
         test('Combined array & non-array roles, both failing', async () => {
             const roles: RoleRules<TestRoles> = [TestRoles.BATTER, [TestRoles.CATCHER, TestRoles.BUG_CATCHER]];
             const accessToken = await generateTestAccessToken({
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER]
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER]
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
             expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(false);
@@ -114,10 +114,10 @@ describe('Validate role requirement calculation', () => {
     describe('Test ClientRole style input', () => {
         test('Singular client passing', async () => {
             const roles: ClientRole<KeycloakClient, TestRoles> = {
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
             };
             const accessToken = await generateTestAccessToken({
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER]
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER]
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.ClientRole);
             expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(true);
@@ -125,10 +125,10 @@ describe('Validate role requirement calculation', () => {
 
         test('Singular client failing', async () => {
             const roles: ClientRole<KeycloakClient, TestRoles> = {
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
             };
             const accessToken = await generateTestAccessToken({
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER]
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER]
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.ClientRole);
             expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(false);
@@ -136,11 +136,11 @@ describe('Validate role requirement calculation', () => {
 
         test('Multiple clients, all passing', async () => {
             const roles: ClientRole<KeycloakClient, TestRoles> = {
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
                 randomOtherClient: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
             };
             const accessToken = await generateTestAccessToken({
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER],
                 randomOtherClient: [TestRoles.BUG_CATCHER],
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.ClientRole);
@@ -149,11 +149,11 @@ describe('Validate role requirement calculation', () => {
 
         test('Multiple clients, single failing', async () => {
             const roles: ClientRole<KeycloakClient, TestRoles> = {
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
                 randomOtherClient: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
             };
             const accessToken = await generateTestAccessToken({
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER],
                 randomOtherClient: [TestRoles.BASIC_USER],
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.ClientRole);
@@ -162,11 +162,11 @@ describe('Validate role requirement calculation', () => {
 
         test('Multiple clients, multiple failing', async () => {
             const roles: ClientRole<KeycloakClient, TestRoles> = {
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
                 randomOtherClient: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
             };
             const accessToken = await generateTestAccessToken({
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER],
                 randomOtherClient: [TestRoles.BASIC_USER],
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.ClientRole);
@@ -179,13 +179,13 @@ describe('Validate role requirement calculation', () => {
             const roles: RoleLocation<TestRoles> = {
                 [RoleLocations.REALM_ACCESS]: [[TestRoles.GRAPE_SQUEEZER, TestRoles.POWER_USER], TestRoles.SOUNDCLOUD_PRODUCER],
                 [RoleLocations.RESOURCE_ACCESS]: {
-                    [roleHelper['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
+                    [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
                     randomOtherClient: [TestRoles.BATTER, [TestRoles.CATCHER, TestRoles.BUG_CATCHER]],
                 }
             };
             const accessToken = await generateTestAccessToken({
                 _realm: [TestRoles.BASIC_USER, TestRoles.GRAPE_SQUEEZER, TestRoles.POWER_USER],
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER],
                 randomOtherClient: [TestRoles.BASIC_USER, TestRoles.BATTER],
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleLocation);
@@ -196,13 +196,13 @@ describe('Validate role requirement calculation', () => {
             const roles: RoleLocation<TestRoles> = {
                 [RoleLocations.REALM_ACCESS]: [[TestRoles.GRAPE_SQUEEZER, TestRoles.POWER_USER], TestRoles.SOUNDCLOUD_PRODUCER],
                 [RoleLocations.RESOURCE_ACCESS]: {
-                    [roleHelper['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
+                    [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
                     randomOtherClient: [TestRoles.BATTER, [TestRoles.CATCHER, TestRoles.BUG_CATCHER]],
                 }
             };
             const accessToken = await generateTestAccessToken({
                 _realm: [TestRoles.BASIC_USER, TestRoles.GRAPE_SQUEEZER],
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER],
                 randomOtherClient: [TestRoles.BASIC_USER, TestRoles.BATTER],
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleLocation);
@@ -213,13 +213,13 @@ describe('Validate role requirement calculation', () => {
             const roles: RoleLocation<TestRoles> = {
                 [RoleLocations.REALM_ACCESS]: [[TestRoles.GRAPE_SQUEEZER, TestRoles.POWER_USER], TestRoles.SOUNDCLOUD_PRODUCER],
                 [RoleLocations.RESOURCE_ACCESS]: {
-                    [roleHelper['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
+                    [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
                     randomOtherClient: [TestRoles.BATTER, [TestRoles.CATCHER, TestRoles.BUG_CATCHER]],
                 }
             };
             const accessToken = await generateTestAccessToken({
                 _realm: [TestRoles.BASIC_USER, TestRoles.GRAPE_SQUEEZER, TestRoles.POWER_USER],
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER],
                 randomOtherClient: [TestRoles.BASIC_USER],
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleLocation);
@@ -230,12 +230,12 @@ describe('Validate role requirement calculation', () => {
             const roles: RoleLocation<TestRoles> = {
                 [RoleLocations.REALM_ACCESS]: [[TestRoles.GRAPE_SQUEEZER, TestRoles.POWER_USER], TestRoles.SOUNDCLOUD_PRODUCER],
                 [RoleLocations.RESOURCE_ACCESS]: {
-                    [roleHelper['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
+                    [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
                 }
             };
             const accessToken = await generateTestAccessToken({
                 _realm: [TestRoles.BASIC_USER, TestRoles.GRAPE_SQUEEZER, TestRoles.POWER_USER],
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER],
                 randomOtherClient: [TestRoles.BASIC_USER],
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleLocation);
@@ -248,7 +248,7 @@ describe('Validate role requirement calculation', () => {
             };
             const accessToken = await generateTestAccessToken({
                 _realm: [TestRoles.BASIC_USER, TestRoles.GRAPE_SQUEEZER, TestRoles.POWER_USER],
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER],
                 randomOtherClient: [TestRoles.BASIC_USER],
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleLocation);
@@ -261,7 +261,7 @@ describe('Validate role requirement calculation', () => {
             };
             const accessToken = await generateTestAccessToken({
                 _realm: [TestRoles.BASIC_USER, TestRoles.POWER_USER],
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER, TestRoles.GRAPE_SQUEEZER, TestRoles.POWER_USER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER, TestRoles.GRAPE_SQUEEZER, TestRoles.POWER_USER],
                 randomOtherClient: [TestRoles.BASIC_USER, TestRoles.GRAPE_SQUEEZER, TestRoles.POWER_USER],
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleLocation);
@@ -271,12 +271,12 @@ describe('Validate role requirement calculation', () => {
         test('With a single resource_access rule, passing', async () => {
             const roles: RoleLocation<TestRoles> = {
                 [RoleLocations.RESOURCE_ACCESS]: {
-                    [roleHelper['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
+                    [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
                 }
             };
             const accessToken = await generateTestAccessToken({
                 _realm: [TestRoles.BASIC_USER, TestRoles.GRAPE_SQUEEZER, TestRoles.POWER_USER],
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER],
                 randomOtherClient: [TestRoles.BASIC_USER],
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleLocation);
@@ -286,12 +286,12 @@ describe('Validate role requirement calculation', () => {
         test('With a single resource_access rule, failing', async () => {
             const roles: RoleLocation<TestRoles> = {
                 [RoleLocations.RESOURCE_ACCESS]: {
-                    [roleHelper['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
+                    [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
                 }
             };
             const accessToken = await generateTestAccessToken({
                 _realm: [TestRoles.BASIC_USER, TestRoles.GRAPE_SQUEEZER, TestRoles.POWER_USER, TestRoles.CATCHER],
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER],
                 randomOtherClient: [TestRoles.BASIC_USER, TestRoles.CATCHER],
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleLocation);
@@ -301,13 +301,13 @@ describe('Validate role requirement calculation', () => {
         test('With multiple resource_access rules, passing', async () => {
             const roles: RoleLocation<TestRoles> = {
                 [RoleLocations.RESOURCE_ACCESS]: {
-                    [roleHelper['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
+                    [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
                     randomOtherClient: [[TestRoles.BASIC_USER, TestRoles.CATCHER]],
                 }
             };
             const accessToken = await generateTestAccessToken({
                 _realm: [TestRoles.BASIC_USER, TestRoles.GRAPE_SQUEEZER, TestRoles.POWER_USER],
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER],
                 randomOtherClient: [TestRoles.BASIC_USER, TestRoles.CATCHER],
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleLocation);
@@ -317,13 +317,13 @@ describe('Validate role requirement calculation', () => {
         test('With multiple resource_access rules, failing', async () => {
             const roles: RoleLocation<TestRoles> = {
                 [RoleLocations.RESOURCE_ACCESS]: {
-                    [roleHelper['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
+                    [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
                     randomOtherClient: [[TestRoles.BASIC_USER, TestRoles.CATCHER]],
                 }
             };
             const accessToken = await generateTestAccessToken({
                 _realm: [TestRoles.BASIC_USER, TestRoles.GRAPE_SQUEEZER, TestRoles.POWER_USER],
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER],
                 randomOtherClient: [TestRoles.BASIC_USER],
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleLocation);
@@ -336,7 +336,7 @@ describe('Validate role requirement calculation', () => {
             const roles: RequiredRoles<TestRoles> = [
                 {
                     [RoleLocations.RESOURCE_ACCESS]: {
-                        [roleHelper['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
+                        [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
                         randomOtherClient: [[TestRoles.CATCHER]],
                     }
                 },
@@ -346,7 +346,7 @@ describe('Validate role requirement calculation', () => {
             ];
             const accessToken = await generateTestAccessToken({
                 _realm: [TestRoles.BASIC_USER, TestRoles.GRAPE_SQUEEZER, TestRoles.POWER_USER],
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER],
                 randomOtherClient: [TestRoles.BASIC_USER],
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.CombinedRoleRulesArray);
@@ -357,7 +357,7 @@ describe('Validate role requirement calculation', () => {
             const roles: RequiredRoles<TestRoles> = [
                 {
                     [RoleLocations.RESOURCE_ACCESS]: {
-                        [roleHelper['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
+                        [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
                         randomOtherClient: [[TestRoles.CATCHER]],
                     }
                 },
@@ -367,7 +367,7 @@ describe('Validate role requirement calculation', () => {
             ];
             const accessToken = await generateTestAccessToken({
                 _realm: [TestRoles.BASIC_USER, TestRoles.POWER_USER],
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER],
                 randomOtherClient: [TestRoles.BASIC_USER],
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.CombinedRoleRulesArray);
@@ -378,7 +378,7 @@ describe('Validate role requirement calculation', () => {
             const roles: RequiredRoles<TestRoles> = [
                 {
                     [RoleLocations.RESOURCE_ACCESS]: {
-                        [roleHelper['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
+                        [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BATTER, TestRoles.CATCHER, TestRoles.BUG_CATCHER],
                         randomOtherClient: [[TestRoles.CATCHER]],
                     }
                 },
@@ -388,7 +388,7 @@ describe('Validate role requirement calculation', () => {
             ];
             const accessToken = await generateTestAccessToken({
                 _realm: [TestRoles.BASIC_USER, TestRoles.POWER_USER],
-                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER],
+                [roleHelper['config']['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.BATTER],
                 randomOtherClient: [TestRoles.BASIC_USER, TestRoles.CATCHER],
             });
             expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.CombinedRoleRulesArray);

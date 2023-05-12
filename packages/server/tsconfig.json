@@ -20,7 +20,7 @@
     "noImplicitAny": true,
     "skipLibCheck": true,
     "baseUrl": ".",
-    "sourceMap": false,
+    "sourceMap": true,
     "strictNullChecks": true,
     "removeComments": false,
     "noEmitOnError": true,
