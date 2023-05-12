@@ -7,6 +7,10 @@ const generateTestSecret = () => {
     return Uint8Array.from(randomNumbers);
 }
 
+const generateRolesAndToken = (clientId: string) => {
+
+}
+
 interface SimpleRolesPayload {
     _realm?: string[],
     [clientId: string]: string[]

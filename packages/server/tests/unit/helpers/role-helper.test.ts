@@ -10,6 +10,9 @@ import {generateTestAccessToken} from "./generators.js";
 import {faker} from "@faker-js/faker";
 import {RoleConfigurationStyle} from "./../../../src/types.js";
 
+// Set the seed if given one
+if (process.env["seed"]) faker.seed(Number.parseInt(process.env["seed"]));
+
 describe('Validate role requirement calculation', () => {
 
     let roleHelper: RoleHelper;
@@ -100,7 +103,14 @@ describe('Validate role requirement calculation', () => {
             expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(true);
         });
 
-        test.todo('Combined array & non-array roles, both failing');
+        test('Combined array & non-array roles, both failing', async () => {
+            const roles: RoleRules<TestRoles> = [TestRoles.BATTER, [TestRoles.CATCHER, TestRoles.BUG_CATCHER]];
+            const accessToken = await generateTestAccessToken({
+                [roleHelper['defaultResourceAccessKey']]: [TestRoles.BASIC_USER, TestRoles.CATCHER]
+            });
+            expect(roleHelper['determineRoleConfigStyle'](roles)).toStrictEqual(RoleConfigurationStyle.RoleRules);
+            expect(roleHelper.userHasRoles(roles, accessToken)).toStrictEqual(false);
+        });
     });
 
     describe('Test ClientRole style input', () => {
