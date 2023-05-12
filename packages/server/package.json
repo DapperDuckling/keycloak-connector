@@ -1,12 +1,15 @@
 {
   "name": "keycloak-connector-server",
-  "version": "0.0.7",
-  "description": "Middleware connecting Node.js express and fastify servers to keycloak",
-  "main": "dist/index.js",
+  "version": "0.0.9",
+  "description": "Middleware connecting Node.js express or fastify servers to Keycloak",
+  "keywords": [
+    "express keycloak",
+    "fastify keycloak",
+    "node server keycloak"
+  ],
   "author": "DapperDuckling Dev LLC",
   "license": "MIT",
   "type": "module",
-  "types": "dist/index.d.ts",
   "engines": {
     "node": ">=18.0.0"
   },
@@ -18,6 +21,8 @@
     "build": "tsc",
     "prepublishOnly": "npm run build"
   },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "files": [
     "./dist"
   ],
