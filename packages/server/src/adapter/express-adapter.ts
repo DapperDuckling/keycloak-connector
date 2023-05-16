@@ -10,10 +10,13 @@ import type {
 } from "../types.js";
 import type {Express, NextFunction, Request, RequestHandler, Response} from "express-serve-static-core";
 import {RouteConfigDefault} from "../helpers/defaults.js";
+import {sleep} from "../helpers/utils.js";
+import type {Logger} from "pino";
 
 export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
     private readonly app: Express;
     private readonly globalRouteConfig: KeycloakRouteConfig | undefined;
+    private readonly pinoLogger: Logger | undefined;
 
     constructor(app: Express, customConfig: KeycloakConnectorConfigCustom) {
         super();
@@ -51,10 +54,29 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             res.redirect(connectorResponse.redirectUrl);
 
         } else if (connectorResponse.serveFile) {
-            // Send any files
 
-            //todo: debug, remove hard coded path
-            res.sendFile('../public/'+connectorResponse.serveFile);
+            // Grab the file path
+            // todo: remove hard coded path in this section
+
+            // Send file (async style)
+            res.sendFile(connectorResponse.serveFile, {
+                root: './public/'
+            }, () => {
+
+                // Log the error
+                this.pinoLogger?.error('Could not find file to serve', connectorResponse.serveFile)
+                res.status(500).send
+            });
+            // await new Promise<void>((resolve, reject) => {
+            //
+            //     console.log('test1');
+            //     res.sendFile(filePath, (err) => {
+            //         console.log('test2');
+            //         if (err) reject();
+            //         resolve();
+            //         console.log('test3');
+            //     });
+            // });
 
             //todo: future, have nginx serve the files
             // res.header("x-accel-redirect", "/protected-content/auth/index.html");
@@ -71,10 +93,10 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         const routerMethod = this.getRouterMethod(options);
 
         // Build any required lock
-        const lock = this.lock(options.isPublic ? undefined : []);
+        const lockHandler = this.lock(options.isPublic ? undefined : []);
 
         // Register the route with route handler
-        routerMethod(options.url, lock, async (req, res, next) => {
+        routerMethod(options.url, lockHandler, async (req, res, next) => {
             const connectorReq = await this.buildConnectorRequest(req);
             const response = await connectorCallback(connectorReq);
             await this.handleResponse(response, req, res, next);
@@ -103,11 +125,28 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
     public lock(roleRequirement?: RequiredRoles): RequestHandler {
         return (req, res, next) => {
             // Check for no lock requirement
-            if (roleRequirement === undefined) next();
+            if (roleRequirement === undefined) return next();
 
             // Todo: do some more lock checking
             console.log('lock bypasses for now');
             next();
         }
     }
+
+    // public test: RequestHandler = (req, res, next) => next();
+
+    // public lock(roleRequirement?: RequiredRoles): RequestHandler {
+    //     return async (req, res, next) => {
+    //         // Check for no lock requirement
+    //         // if (roleRequirement === undefined) next();
+    //
+    //         console.log(`Sleeping: ${new Date()}`);
+    //         await sleep(2000);
+    //         console.log(`Done: ${new Date()}`);
+    //
+    //         // Todo: do some more lock checking
+    //         console.log('lock bypasses for now');
+    //         next();
+    //     }
+    // }
 }

@@ -33,6 +33,6 @@
     "types": ["node"]
   },
   "include": ["./src/**/*"],
-  "exclude": ["./tests/**/*"],
+  "exclude": ["./tests/**/*", "./dist/**/*"],
   "baseUrl": "src"
 }
