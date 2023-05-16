@@ -5,6 +5,7 @@ declare module "http" {
     interface IncomingMessage {
         log?: pino.Logger;
         keycloak: UserData;
+        _keycloakReqHandled: boolean;
     }
 
     interface ServerResponse {

@@ -10,15 +10,17 @@ import type {
 } from "../types.js";
 import type {Express, NextFunction, Request, RequestHandler, Response} from "express-serve-static-core";
 import {RouteConfigDefault} from "../helpers/defaults.js";
-import {sleep} from "../helpers/utils.js";
 import type {Logger} from "pino";
+import {KeycloakConnector} from "../keycloak-connector.js";
 
 export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
+
     private readonly app: Express;
+    private _keycloakConnector: KeycloakConnector<SupportedServers.express> | undefined;
     private readonly globalRouteConfig: KeycloakRouteConfig | undefined;
     private readonly pinoLogger: Logger | undefined;
 
-    constructor(app: Express, customConfig: KeycloakConnectorConfigCustom) {
+    private constructor(app: Express, customConfig: KeycloakConnectorConfigCustom) {
         super();
 
         this.app = app;
@@ -40,10 +42,19 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         }
     });
 
-    public async handleResponse(connectorResponse: ConnectorResponse<SupportedServers.express>, req: Request, res: Response, next: NextFunction): Promise<void> {
+    //todo: wrap this in a try catch handler send 500 on errors
+    public handleResponse = async (connectorResponse: ConnectorResponse<SupportedServers.express>, req: Request, res: Response, next: NextFunction): Promise<void> => {
+
+        // Safety check improper uses
+        if (req._keycloakReqHandled) {
+            throw new Error('Invalid adapter usage, attempted to handle response more than once for a single request.');
+        }
+
+        // Set handling flag
+        req._keycloakReqHandled = true;
+
         // Set any cookies
-        //todo:
-        // connectorResponse.cookies?.forEach(cookieParam => reply.setCookie(cookieParam.name, cookieParam.value, cookieParam.options));
+        connectorResponse.cookies?.forEach(cookieParam => res.cookie(cookieParam.name, cookieParam.value, cookieParam.options));
 
         // Set the response code
         if (connectorResponse.statusCode) res.status(connectorResponse.statusCode);
@@ -56,27 +67,24 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         } else if (connectorResponse.serveFile) {
 
             // Grab the file path
+            const fileToServe = connectorResponse.serveFile;
             // todo: remove hard coded path in this section
 
+            //todo: test error handling
             // Send file (async style)
-            res.sendFile(connectorResponse.serveFile, {
-                root: './public/'
-            }, () => {
-
-                // Log the error
-                this.pinoLogger?.error('Could not find file to serve', connectorResponse.serveFile)
-                res.status(500).send
+            await new Promise<void>((resolve, reject) => {
+                res.sendFile(fileToServe, {
+                    root: './public/'
+                }, (err) => {
+                    if (err) {
+                        this.pinoLogger?.error('Could not find file to serve', connectorResponse.serveFile);
+                        reject(err);
+                    } else {
+                        resolve();
+                    }
+                });
             });
-            // await new Promise<void>((resolve, reject) => {
-            //
-            //     console.log('test1');
-            //     res.sendFile(filePath, (err) => {
-            //         console.log('test2');
-            //         if (err) reject();
-            //         resolve();
-            //         console.log('test3');
-            //     });
-            // });
+
 
             //todo: future, have nginx serve the files
             // res.header("x-accel-redirect", "/protected-content/auth/index.html");
@@ -85,7 +93,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             // Send a regular response
             res.send(connectorResponse.responseText ?? "");
         }
-    }
+    };
 
     registerRoute = (options: RouteRegistrationOptions, connectorCallback: ConnectorCallback<SupportedServers.express>): void => {
 
@@ -93,7 +101,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         const routerMethod = this.getRouterMethod(options);
 
         // Build any required lock
-        const lockHandler = this.lock(options.isPublic ? undefined : []);
+        const lockHandler = this.lock(options.isPublic ? false : []);
 
         // Register the route with route handler
         routerMethod(options.url, lockHandler, async (req, res, next) => {
@@ -103,7 +111,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         });
     };
 
-    private getRouterMethod(options: RouteRegistrationOptions) {
+    private getRouterMethod = (options: RouteRegistrationOptions) => {
         switch (options.method) {
             case "GET":
                 return this.app.get.bind(this.app);
@@ -120,33 +128,51 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             case "HEAD":
                 return this.app.head.bind(this.app);
         }
-    }
+    };
 
-    public lock(roleRequirement?: RequiredRoles): RequestHandler {
-        return (req, res, next) => {
-            // Check for no lock requirement
-            if (roleRequirement === undefined) return next();
+    private lock = (roleRequirement?: RequiredRoles | false): RequestHandler => async (req, res, next) => {
 
-            // Todo: do some more lock checking
-            console.log('lock bypasses for now');
+        // Check for cookies
+        if (req.cookies === undefined) {
+            throw new Error('`cookies` parameter not found on request, is `cookie-parser` installed and in use?');
+        }
+
+        // Check for no lock requirement
+        if (roleRequirement === false) return next();
+
+        // Grab user data
+        const connectorReq = await this.buildConnectorRequest(req);
+        req.keycloak = await this.keycloakConnector.getUserData(connectorReq);
+
+        // Grab the protector response
+        const connectorResponse = await this.keycloakConnector.buildRouteProtectionResponse(connectorReq, req.keycloak);
+
+        // Handle the response
+        if (connectorResponse) {
+            await this.handleResponse(connectorResponse, req, res, next);
+        } else {
             next();
         }
+    };
+
+    // Private getter for due to type checking. Keycloak connector is set later in initialization,
+    // but will not be used until after initialization is complete.
+    private get keycloakConnector() {
+        return this._keycloakConnector as KeycloakConnector<SupportedServers.express>;
     }
 
-    // public test: RequestHandler = (req, res, next) => next();
+    public static init = async (app: Express, customConfig: KeycloakConnectorConfigCustom) => {
 
-    // public lock(roleRequirement?: RequiredRoles): RequestHandler {
-    //     return async (req, res, next) => {
-    //         // Check for no lock requirement
-    //         // if (roleRequirement === undefined) next();
-    //
-    //         console.log(`Sleeping: ${new Date()}`);
-    //         await sleep(2000);
-    //         console.log(`Done: ${new Date()}`);
-    //
-    //         // Todo: do some more lock checking
-    //         console.log('lock bypasses for now');
-    //         next();
-    //     }
-    // }
+        // Create a new adapter here
+        const adapter = await new this(app, customConfig);
+
+        // Initialize the keycloak connector
+        adapter._keycloakConnector = await KeycloakConnector.init<SupportedServers.express>(adapter, customConfig);
+
+        // Add handler to every request
+        // Forcing all pages to require at least a valid login
+        app.use(adapter.lock([]));
+
+        return adapter.lock;
+    };
 }
