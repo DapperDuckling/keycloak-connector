@@ -1,10 +1,11 @@
 import type {ConnectorCallback, RouteRegistrationOptions} from "./abstract-adapter.js";
 import {AbstractAdapter} from "./abstract-adapter.js";
 import type {
+    CombinedRoleRules,
     ConnectorRequest,
     ConnectorResponse,
     KeycloakConnectorConfigCustom,
-    KeycloakRouteConfig,
+    KeycloakRouteConfig, KeycloakRouteConfigOrRoles,
     RequiredRoles,
     SupportedServers
 } from "../types.js";
@@ -31,16 +32,24 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 
     }
 
-    public buildConnectorRequest = async (request: Request): Promise<ConnectorRequest> => ({
-        ...request.headers?.origin && {origin: request.headers?.origin},
-        url: request.url,
-        cookies: request.cookies,
-        headers: request.headers,
-        routeConfig: {
-            ...this.globalRouteConfig,
-            ...request.keycloak,
-        }
-    });
+    public buildConnectorRequest = async (request: Request, routeConfigOrRoles: KeycloakRouteConfigOrRoles): Promise<ConnectorRequest> => {
+
+        // Determine the input route config type and build the requisite route config object
+        const routeConfig: KeycloakRouteConfig = (Array.isArray(routeConfigOrRoles) || routeConfigOrRoles === undefined) ? {
+            roles: routeConfigOrRoles ?? []
+        } : routeConfigOrRoles;
+
+        return ({
+            ...request.headers?.origin && {origin: request.headers?.origin},
+            url: request.url,
+            cookies: request.cookies,
+            headers: request.headers,
+            routeConfig: {
+                ...this.globalRouteConfig,
+                ...routeConfig,
+            }
+        });
+    };
 
     //todo: wrap this in a try catch handler send 500 on errors
     public handleResponse = async (connectorResponse: ConnectorResponse<SupportedServers.express>, req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -105,7 +114,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 
         // Register the route with route handler
         routerMethod(options.url, lockHandler, async (req, res, next) => {
-            const connectorReq = await this.buildConnectorRequest(req);
+            const connectorReq = await this.buildConnectorRequest(req, {public: options.isPublic});
             const response = await connectorCallback(connectorReq);
             await this.handleResponse(response, req, res, next);
         });
@@ -130,7 +139,8 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         }
     };
 
-    private lock = (roleRequirement?: RequiredRoles | false): RequestHandler => async (req, res, next) => {
+    // private lock = (roleRequirement?: RequiredRoles | false): RequestHandler => async (req, res, next) => {
+    private lock = (routeConfigOrRoles?: KeycloakRouteConfigOrRoles | false): RequestHandler => async (req, res, next) => {
 
         // Check for cookies
         if (req.cookies === undefined) {
@@ -138,10 +148,10 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         }
 
         // Check for no lock requirement
-        if (roleRequirement === false) return next();
+        if (routeConfigOrRoles === false) return next();
 
         // Grab user data
-        const connectorReq = await this.buildConnectorRequest(req);
+        const connectorReq = await this.buildConnectorRequest(req, routeConfigOrRoles);
         req.keycloak = await this.keycloakConnector.getUserData(connectorReq);
 
         // Grab the protector response

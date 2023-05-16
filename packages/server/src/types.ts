@@ -163,13 +163,14 @@ export enum SupportedServers {
     fastify = "fastify"
 }
 
+export type KeycloakRouteConfigOrRoles = KeycloakRouteConfig | RoleRules | undefined;
 export type KeycloakRouteConfig<Roles extends KeycloakRole = KeycloakRole> = RouteConfigRoles<Roles> & RouteConfigBase;
 
 type RouteConfigRoles<Roles extends KeycloakRole> = {
     public: true;
 } | {
     public?: false;
-    roles: RequiredRoles<Roles>;
+    roles?: RequiredRoles<Roles>;
 }
 
 type RouteConfigBase = {
@@ -211,7 +212,7 @@ export type RoleLocation<
 };
 
 export type CombinedRoleRules<
-    Roles extends KeycloakRole,
+    Roles extends KeycloakRole = KeycloakRole,
     Clients extends KeycloakClient = KeycloakClient
 > = RoleRules<Roles> | ClientRole<Clients, Roles> | RoleLocation<Roles>;
 

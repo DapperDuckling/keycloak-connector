@@ -35,7 +35,10 @@ try {
 By default, once the `keycloakConnectorFastify` plugin is registered, all unauthenticated requests are blocked.
 
 ### Add routes
-```javascript
+
+```typescript
+import {RoleLocations} from "keycloak-connector-server";
+
 // Public route
 fastify.get('/', {config: {public: true}}, async (request, reply) => {
     return 'I am publicly accessible, no login needed.';
@@ -46,45 +49,94 @@ fastify.get('/not-public', async (request, reply) => {
     return 'I am not public, but I do not require any particular roles to access.';
 });
 
-// Shorthand role requirement
-fastify.get('/cool-guy', {config: {roles: ['COOL_GUY']}}, async (request, reply) => {
-    return 'I am not public and I require the `cool_guy` role granted under this keycloak client to access.';
+// Shorthand route configuration
+fastify.get('/cool-person', {config: {roles: ['COOL_PERSON', 'NICE_PERSON']}}, async (request, reply) => {
+    return 'I am not public and I require either the `cool_person` or `nice_person` role granted under this keycloak client to access.';
+});
+
+// Extended route configuration
+fastify.get('/cool-person', {config: {roles: {[RoleLocations.REALM_ACCESS]: ['realm_lead']}}}, async (request, reply) => {
+    return 'I am not public and I require the `realm_lead` role granted under the current keycloak realm to access.';
 });
 ```
-
-#### Typescript support
-
-To add type hinting, simply set the `ContextConfig` generic to `KeycloakRouteConfig`
-
-```typescript
-// A public route with typescript!
-fastify.get<RouteGenericInterface,KeycloakRouteConfig>('/', {config: {public: true}}, async (request, reply) => {
-    return 'I am publicly accessible, no login needed.';
-});
-```
-
-<sub>Why specifying the default `RouteGenericInterface` generic is also required: [microsoft/TypeScript#10571](https://github.com/microsoft/TypeScript/issues/10571)</sub>
 
 ## Getting started with Express
 
-Not yet implemented.
+### Setup the server
+```typescript
+import express from 'express';
+import {keycloakConnectorExpress} from "keycloak-connector-server";
+import cookieParser from "cookie-parser";
+
+// Grab express app
+const app = express();
+
+// Register the cookie parser
+app.use(cookieParser());
+
+// Initialize the keycloak connector
+const lock = await keycloakConnectorExpress(app, {
+    serverOrigin: 'http://localhost:3005',
+    authServerUrl: 'http://localhost:8080/',
+    realm: 'local-dev',
+    refreshConfigSecs: -1, // Disable for dev testing
+});
+
+// Start server
+const port = 5000;
+app.listen(port, () => {
+    console.log(`I'm alive on ${port}`);
+});
+```
+
+By default, once the `keycloakConnectorExpress` middleware is initialized, all unauthenticated requests are blocked.
+
+### Add routes
+
+```typescript
+import {RoleLocations} from "keycloak-connector-server";
+
+// Default non-public route
+app.get('/', lock(false), (req, res) => {
+    // Send the response
+    res.send('hey!');
+});
+
+// Default non-public route
+app.get('/not-public', (req, res) => {
+    // Send the response
+    res.send('hey, but hidden!');
+});
+
+// Shorthand route configuration
+app.get('/wow', lock(['cool_person', 'nice_person']), (req, res) => {
+    // Send the response
+    res.send('hey, but you have to have either the `cool_person` or `nice_person` roles');
+});
+
+// Extended route configuration
+app.get('/wow', lock({roles: {[RoleLocations.REALM_ACCESS]: ['realm_lead']}}), (req, res) => {
+    // Send the response
+    res.send('hey, but you have to have the `realm_lead` role for this realm');
+});
+```
 
 ## Specifying Role Requirements
 ### RoleRules (simple)
 When passed a simple array, `keycloak-connector-server` will interpret this as a list of roles required for the current `client` (overridable by configuring `defaultResourceAccessKey`). Roles assumed to be logically OR'd unless wrapped inside an inner array where those roles are logically AND'd.
 
 ```typescript
-// A user must either have the `nice_guy` role OR have both the `mean_guy` AND `has_counselor` roles
-const requiredRoles = ['nice_guy', ['mean_guy', 'has_counselor']];
+// A user must either have the `nice_person` role OR have both the `mean_person` AND `has_counselor` roles
+const requiredRoles = ['nice_person', ['mean_person', 'has_counselor']];
 
 /** Typescript Example */
 import {RoleRules} from "keycloak-connector-server";
 enum Roles {
-    nice_guy = "nice_guy",
-    mean_guy = "mean_guy",
+    nice_person = "nice_person",
+    mean_person = "mean_person",
     has_counselor = "has_counselor"
 }
-const requiredRolesTs: RoleRules<Roles> = [Roles.nice_guy, [Roles.mean_guy, Roles.has_counselor]];
+const requiredRolesTs: RoleRules<Roles> = [Roles.nice_person, [Roles.mean_person, Roles.has_counselor]];
 
 ```
 
@@ -163,13 +215,13 @@ Used for situations where multiple complex rules must be OR'd together.
 ```typescript
 // A user must meet ANY ONE of the following requirements:
 //  - Have either `eat_toast` OR `eat_bread` for `other_client` AND ALSO have the `make_bread` role for `random_client`
-//  - Have the `pizza_guy` role for the current client
+//  - Have the `pizza_person` role for the current client
 const requiredRoles = [
     {
         other_client: ['eat_toast', 'eat_bread'],
         random_client: ['make_bread'],
     },
-    ['pizza_guy'],
+    ['pizza_person'],
 ];
 
 // Typescript example
@@ -187,14 +239,14 @@ enum RandomClientRoles {
     make_bread = "make_bread"
 }
 enum CurrentClientRoles {
-    pizza_guy = "pizza_guy"
+    pizza_person = "pizza_person"
 }
 const requiredRolesTs: RequiredRoles<CombinedRoles, Clients> = [
     {
         [Clients.other_client]: [OtherClientRoles.eat_toast, OtherClientRoles.eat_bread],
         [Clients.random_client]: [RandomClientRoles.make_bread],
     },
-    [CurrentClientRoles.pizza_guy],
+    [CurrentClientRoles.pizza_person],
 ];
 ```
 

@@ -14,20 +14,29 @@ import {
     ResolveFastifyRequestType
 } from "fastify/types/type-provider.js";
 import {FastifyBaseLogger} from "fastify/types/logger.js";
-import type {UserData} from "../types.js";
+import type {CombinedRoleRules, KeycloakRouteConfig, UserData} from "../types.js";
+import type {KeycloakRequest} from "./fastify-adapter.js";
 
 
 // Most importantly, use declaration merging to add the custom property to the Fastify type system
 declare module 'fastify' {
-    interface FastifyRequest<RouteGeneric extends RouteGenericInterface = RouteGenericInterface,
-        RawServer extends RawServerBase = RawServerDefault,
-        RawRequest extends RawRequestDefaultExpression<RawServer> = RawRequestDefaultExpression<RawServer>,
-        SchemaCompiler extends FastifySchema = FastifySchema,
-        TypeProvider extends FastifyTypeProvider = FastifyTypeProviderDefault,
-        ContextConfig = ContextConfigDefault,
-        Logger extends FastifyBaseLogger = FastifyBaseLogger,
-        RequestType extends FastifyRequestType = ResolveFastifyRequestType<TypeProvider, SchemaCompiler, RouteGeneric>> {
+    // interface FastifyRequest<RouteGeneric extends RouteGenericInterface = RouteGenericInterface,
+    //     RawServer extends RawServerBase = RawServerDefault,
+    //     RawRequest extends RawRequestDefaultExpression<RawServer> = RawRequestDefaultExpression<RawServer>,
+    //     SchemaCompiler extends FastifySchema = FastifySchema,
+    //     TypeProvider extends FastifyTypeProvider = FastifyTypeProviderDefault,
+    //     ContextConfig = ContextConfigDefault,
+    //     Logger extends FastifyBaseLogger = FastifyBaseLogger,
+    //     RequestType extends FastifyRequestType = ResolveFastifyRequestType<TypeProvider, SchemaCompiler, RouteGeneric>> {
+    //     keycloak: UserData
+    // }
+
+    interface FastifyRequest extends KeycloakRequest {
         keycloak: UserData
+    }
+
+    interface FastifyInstance {
+        lock: (roleRules: CombinedRoleRules[]) => ContextConfigDefault,
     }
 }
 
