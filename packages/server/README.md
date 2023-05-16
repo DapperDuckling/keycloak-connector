@@ -89,23 +89,21 @@ app.listen(port, () => {
 });
 ```
 
-By default, once the `keycloakConnectorExpress` middleware is initialized, all unauthenticated requests are blocked.
-
 ### Add routes
 
 ```typescript
 import {RoleLocations} from "keycloak-connector-server";
 
-// Default non-public route
-app.get('/', lock(false), (req, res) => {
+// Public route (default)
+app.get('/', (req, res) => {
     // Send the response
     res.send('hey!');
 });
 
-// Default non-public route
-app.get('/not-public', (req, res) => {
+// Non-public route
+app.get('/not-public', lock, (req, res) => {
     // Send the response
-    res.send('hey, but hidden!');
+    res.send('hey, but hidden behind login!');
 });
 
 // Shorthand route configuration
@@ -118,6 +116,30 @@ app.get('/wow', lock(['cool_person', 'nice_person']), (req, res) => {
 app.get('/wow', lock({roles: {[RoleLocations.REALM_ACCESS]: ['realm_lead']}}), (req, res) => {
     // Send the response
     res.send('hey, but you have to have the `realm_lead` role for this realm');
+});
+```
+#### Restricting an entire `router`
+> **Note**  
+> Due to how Express handles middleware, a `lock` does not work in parallel or override a previous `lock`. Instead, they each stack on each other, making a route more restrictive.
+
+```typescript
+
+const router = express.Router();
+
+// Lock all routes in this router behind a login page
+// (must place before declaring any other routes for it to be effective)
+router.use(lock);
+
+// Public route  ***will not work since entire router is locked!
+router.get('/', lock(false), (req, res) => {
+    // Send the response
+    res.send('hey!');
+});
+
+// Non-public route (default)
+router.get('/not-public', (req, res) => {
+    // Send the response
+    res.send('hey, but hidden behind login!');
 });
 ```
 

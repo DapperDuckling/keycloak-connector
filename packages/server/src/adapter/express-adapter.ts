@@ -25,6 +25,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         super();
 
         this.app = app;
+        this.pinoLogger = customConfig.pinoLogger;
         this.globalRouteConfig = {
             ...RouteConfigDefault,
             ...customConfig.globalRouteConfig
@@ -165,7 +166,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         }
     };
 
-    // Private getter for due to type checking. Keycloak connector is set later in initialization,
+    // Private getter due to type checking. Keycloak connector is set later in initialization,
     // but will not be used until after initialization is complete.
     private get keycloakConnector() {
         return this._keycloakConnector as KeycloakConnector<SupportedServers.express>;
@@ -179,9 +180,10 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         // Initialize the keycloak connector
         adapter._keycloakConnector = await KeycloakConnector.init<SupportedServers.express>(adapter, customConfig);
 
-        // Add handler to every request
-        // Forcing all pages to require at least a valid login
-        app.use(adapter.lock([]));
+        //todo: update readme to reflect no automatic locking
+        // // Add handler to every request
+        // // Forcing all pages to require at least a valid login
+        // app.use(adapter.lock([]));
 
         return adapter.lock;
     };
