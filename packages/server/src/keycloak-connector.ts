@@ -1,4 +1,4 @@
-import {sleep} from "./helpers/utils.js";
+import {isDev, sleep} from "./helpers/utils.js";
 import {type ClientMetadata, errors, generators, Issuer, type IssuerMetadata} from "openid-client";
 import type {
     ConnectorRequest,
@@ -18,7 +18,6 @@ import type {GenerateKeyPairResult, JWK, KeyLike} from "jose";
 import * as jose from 'jose';
 import {ConnectorErrorRedirect, ErrorHints, LoginError} from "./helpers/errors.js";
 import {CookieNames, Cookies, CookiesToKeep} from "./helpers/cookies.js";
-import {isDev} from "./helpers/utils.js";
 import {RouteUrlDefaults, UserDataDefault} from "./helpers/defaults.js";
 import type {JWTVerifyResult} from "jose/dist/types/types.js";
 import {RoleHelper} from "./helpers/role-helper.js";
@@ -145,11 +144,25 @@ export class KeycloakConnector<Server extends SupportedServers> {
             throw new LoginError(ErrorHints.CODE_400);
         }
 
+        // Generate random values
         const cv = generators.codeVerifier();
+        const loginFlowNonce = generators.nonce();
+
+        // Build the redirect uri
+        const redirectUriBase = this.components.oidcClient.metadata.redirect_uris?.[0];
+        if (redirectUriBase === undefined) {
+            this._config.pinoLogger?.error(`Connector not properly setup, need valid redirect uri.`);
+            throw new LoginError(ErrorHints.CODE_500);
+        }
+
+        // Add the login flow nonce to redirect the uri
+        const redirectUriObj = new URL(redirectUriBase);
+        redirectUriObj.searchParams.append("login_flow_nonce", loginFlowNonce);
+
         const authorizationUrl = this.components.oidcClient.authorizationUrl({
             code_challenge_method: "S256",
             code_challenge: generators.codeChallenge(cv),
-            redirect_uri: this.components.oidcClient.metadata.redirect_uris?.[0] ?? "",
+            redirect_uri: redirectUriObj.toString(),
             response_mode: "jwt",
             scope: "openid",
         });
@@ -168,12 +181,31 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Build the code verifier cookie
         cookies.push({
-            name: Cookies.CODE_VERIFIER,
+            name: Cookies.CODE_VERIFIER + `-${loginFlowNonce}`,
             value: cv,
             options: {
                 ...baseCookieOptions
             }
         });
+
+        // Handle the post login redirect uri
+        const inputUrlObj = new URL(req.url, req.origin);
+        const rawPostLoginRedirectUri = inputUrlObj.searchParams.get('post_login_redirect_uri');
+        const rawPostLoginRedirectUriObj = new URL(rawPostLoginRedirectUri ?? "");
+
+        // todo: FUTURE FEATURE -- Add option to filter post login redirect uri
+
+        // Build the post login redirect uri cookie if the redirect uri is from the same origin
+        if (rawPostLoginRedirectUriObj.origin === this._config.serverOrigin) {
+            cookies.push({
+                name: Cookies.REDIRECT_URI + `-${loginFlowNonce}`,
+                value: rawPostLoginRedirectUriObj.toString(),
+                options: {
+                    ...baseCookieOptions
+                }
+            });
+        }
+
 
         return {
             redirectUrl: authorizationUrl,
@@ -432,9 +464,13 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             //todo: auto update their access token?? probably not here. move to the user data function
 
-            // Auto redirect to login page
+            // // Auto redirect to login page
+            // if (req.routeConfig.autoRedirect !== false && req.headers['sec-fetch-mode'] === 'navigate') {
+            //     return new ConnectorErrorRedirect(this.getRoutePath(RouteEnum.LOGIN_PAGE), ErrorHints.UNAUTHENTICATED);
+            // }
+            // Auto-show login page
             if (req.routeConfig.autoRedirect !== false && req.headers['sec-fetch-mode'] === 'navigate') {
-                return new ConnectorErrorRedirect(this.getRoutePath(RouteEnum.LOGIN_PAGE), ErrorHints.UNAUTHENTICATED);
+                return await this.handleLoginGet();
             }
 
             //todo: make customizable

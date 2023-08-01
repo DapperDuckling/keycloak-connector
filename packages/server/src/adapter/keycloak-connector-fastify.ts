@@ -9,8 +9,7 @@ import type {
 import {fastifyPlugin} from "fastify-plugin";
 import {FastifyAdapter} from "./fastify-adapter.js";
 import type {Logger} from "pino";
-import {randomInt} from "crypto";
-import type {TokenSet} from "openid-client";
+
 const keycloakConnectorFastifyPlugin: FastifyPluginAsync<KeycloakConnectorConfigCustom> = async (fastify, customConfig): Promise<void> => {
 
     // Create a Fastify specific adapter

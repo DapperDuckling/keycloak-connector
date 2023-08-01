@@ -17,6 +17,7 @@ import type {RawRequestDefaultExpression, RawServerDefault} from "fastify/types/
 import type {FastifyTypeProviderDefault} from "fastify/types/type-provider.js";
 import type {FastifySchema} from "fastify/types/schema.js";
 import type {FastifyBaseLogger} from "fastify/types/logger.js";
+import type {fastifyStatic} from "@fastify/static";
 import {RouteConfigDefault} from "../helpers/defaults.js";
 
 export type FastifyKeycloakInstance = FastifyInstance<RawServerDefault, RawRequestDefaultExpression, RawReplyDefaultExpression, FastifyBaseLogger, FastifyTypeProviderDefault>;
@@ -57,22 +58,14 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
         // Handle exclusive parameters
         if (connectorResponse.redirectUrl) {
             // Redirect if needed
-            reply.redirect(connectorResponse.redirectUrl);
+            return reply.redirect(connectorResponse.redirectUrl);
 
         } else if (connectorResponse.serveFile) {
             // Send any files
-
-            //todo: find up to date types
-            // @ts-ignore
-            reply.sendFile(connectorResponse.serveFile);
-
-            //todo: future, have nginx serve the files
-            // reply.header("x-accel-redirect", "/protected-content/auth/index.html");
-
-        } else {
-            reply.send(connectorResponse.responseText ?? "");
-
+            return reply.sendFile(connectorResponse.serveFile);
         }
+
+        return reply.send(connectorResponse.responseText ?? "");
     }
 
     registerRoute(options: RouteRegistrationOptions, connectorCallback: ConnectorCallback<SupportedServers.fastify>): void {

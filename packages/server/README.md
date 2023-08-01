@@ -1,11 +1,16 @@
 ### keycloak-connector-server
 
 ### Description
-DevilCloak Server is a utility library built to ease integration of keycloak into existing nodejs express servers
+Keycloak Connector Server is a utility library built to ease integration of keycloak into existing nodejs express servers
 
-Simple [Keycloak](https://keycloak.org/) connector for [Node.js](https://nodejs.org/) projects using [Fastify](https://www.fastify.io/) ~~or [Express](https://expressjs.com/)~~
+Simple [Keycloak](https://keycloak.org/) connector for [Node.js](https://nodejs.org/) projects using [Fastify](https://www.fastify.io/) or [Express](https://expressjs.com/)
 
 ## Getting started with Fastify
+
+### Install (for Fastify)
+```shell
+npm i keycloak-connector-server @fastify/static
+```
 
 ### Setup the server
 ```typescript
