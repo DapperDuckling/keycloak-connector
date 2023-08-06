@@ -7,6 +7,7 @@ export const RouteUrlDefaults: CustomRouteUrl = {
     loginPost: '/login',
     callback: '/callback',
     publicKeys: '/k_jwks',
+    loginStatus: '/login_status',
 }
 
 export const RouteConfigDefault: KeycloakRouteConfig = {

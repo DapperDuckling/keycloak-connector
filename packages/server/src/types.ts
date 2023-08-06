@@ -8,10 +8,6 @@ import type {KeyLike} from "jose";
 import type { IncomingHttpHeaders } from "node:http";
 import type {JWTPayload} from "jose/dist/types/types.js";
 
-export type NullableProps<T> = {
-    [P in keyof T]: T[P] | null | undefined;
-};
-
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
 //todo: remove generic if not needed
@@ -116,6 +112,7 @@ export type CustomRouteUrl = {
     loginPost?: string;
     callback?: string;
     publicKeys?: string;
+    loginStatus?: string;
 }
 
 export enum RouteEnum {
@@ -123,6 +120,7 @@ export enum RouteEnum {
     LOGIN_POST = 1,
     CALLBACK = 2,
     PUBLIC_KEYS = 3,
+    LOGIN_STATUS = 4,
 }
 
 export type Cookies = { [cookieName: string]: string | undefined };
@@ -135,6 +133,8 @@ export interface ConnectorRequest {
     /** Headers must be lowercase **/
     headers: IncomingHttpHeaders;
     routeConfig: KeycloakRouteConfig;
+
+    keycloak?: UserData;
 }
 
 export interface ConnectorResponse<Server extends SupportedServers> {
