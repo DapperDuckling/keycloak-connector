@@ -48,7 +48,8 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             routeConfig: {
                 ...this.globalRouteConfig,
                 ...routeConfig,
-            }
+            },
+            ...request.keycloak && {keycloak: request.keycloak},
         });
     };
 

@@ -45,6 +45,7 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
             ...this.globalRouteConfig,
             ...request.routeConfig,
         },
+        ...request.keycloak && {keycloak: request.keycloak},
     });
 
     public async handleResponse(connectorResponse: ConnectorResponse<SupportedServers.fastify>, reply: FastifyReply): Promise<void> {
