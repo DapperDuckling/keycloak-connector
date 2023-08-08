@@ -338,6 +338,9 @@ export interface KeycloakConnectorConfiguration {
         /** Ensures the party to which the JWT was issued matches provided value. By default, azp must match the current `client_id` */
         azp?: string | AzpOptions;
     }
+
+    /** Allows you to specify a built-in or pass a custom key provider */
+    keyProvider?: ClassConstructor<AbstractKeyProvider>;
 }
 ```
 

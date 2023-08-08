@@ -1,0 +1,27 @@
+{
+  "name": "keycloak-connector-server-cluster-aws-redis",
+  "version": "0.0.1",
+  "description": "Provides cluster communications through an AWS ElastiCache Redis cluster, enabling synchronized scaling without interruption to security nor user experience.",
+  "keywords": [
+    "keycloak node cluster aws redis elasticache"
+  ],
+  "author": "DapperDuckling Dev LLC",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "bugs": {
+    "url": "https://github.com/DapperDuckling/keycloak-connector/issues"
+  },
+  "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "./dist"
+  ]
+}

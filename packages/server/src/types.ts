@@ -1,8 +1,7 @@
 import type {Client, ClientMetadata, Issuer, IssuerMetadata} from "openid-client";
-//todo: remove these individual packages
 import type {CookieSerializeOptions} from "@fastify/cookie";
 import type {CookieOptions} from "express-serve-static-core";
-import type {GenerateKeyPairResult, JWK} from "jose";
+import type {JWK} from "jose";
 import type {Logger} from "pino";
 import type {KeyLike} from "jose";
 import type { IncomingHttpHeaders } from "node:http";
@@ -25,7 +24,6 @@ export interface KeycloakConnectorInternalConfiguration<Server extends Supported
 
 }
 
-// export type ConnectorKeys = GenerateKeyPairResult & {
 export type ConnectorKeys = {
     publicJwk: JWK;
     privateJwk: JWK;
