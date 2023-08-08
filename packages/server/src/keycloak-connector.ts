@@ -22,10 +22,12 @@ import type {JWTVerifyResult} from "jose/dist/types/types.js";
 import {RoleHelper} from "./helpers/role-helper.js";
 import RPError = errors.RPError;
 import OPError = errors.OPError;
+import {webcrypto} from "crypto";
+import {StandaloneKeyProvider} from "./crypto/standalone-key-provider.js";
 
 export class KeycloakConnector<Server extends SupportedServers> {
 
-    private static readonly REQUIRED_ALGO = 'PS256';
+    public static readonly REQUIRED_ALGO = 'PS256';
     private readonly _config: KeycloakConnectorConfigBase;
     private readonly components: KeycloakConnectorInternalConfiguration<Server>;
     private readonly roleHelper: RoleHelper;
@@ -649,28 +651,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Grab the oidc configuration from the OP
         const openIdConfig = await KeycloakConnector.fetchInitialOpenIdConfig(oidcDiscoveryUrl, config);
 
-        // Grab the privateJwk
-        //todo: Need to redesign this to handle server scaling (i.e. multiple instances of the server... they will have different keys)
-        const keyPair = await KeycloakConnector.generateKeyPair();
-
-        const extraProps = {
-            use: 'sig',
-            alg: KeycloakConnector.REQUIRED_ALGO,
-            kid: 'kcc-signing-' + Date.now(),
-        }
-
-        const publicJwk = {
-            ...extraProps,
-            ...await jose.exportJWK(keyPair.publicKey),
-        };
-
-        const privateJwk = {
-            ...extraProps,
-            ...await jose.exportJWK(keyPair.privateKey),
-        };
+        // Grab the server's private/public JWKs (uses the standalone key provider as default)
+        const connectorKeys = await (new ((config.keyProvider) ? config.keyProvider : StandaloneKeyProvider)).getKeys();
 
         // Grab the oidc clients
-        const oidcClients = await KeycloakConnector.createOidcClients(openIdConfig, config.oidcClientMetadata, privateJwk);
+        const oidcClients = await KeycloakConnector.createOidcClients(openIdConfig, config.oidcClientMetadata, connectorKeys.privateJwk);
 
         // Ensure we have a JWKS uri
         if (oidcClients.oidcIssuer.metadata.jwks_uri === undefined) {
@@ -685,11 +670,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             // adapter: serverAdapter,
             oidcDiscoveryUrl: oidcDiscoveryUrl,
             oidcConfig: openIdConfig,
-            connectorKeys: {
-                ...keyPair,
-                publicJwk: publicJwk,
-                privateJwk: privateJwk,
-            },
+            connectorKeys: connectorKeys,
             ...oidcClients,
             remoteJWKS: remoteJWKS,
         }
@@ -698,7 +679,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return new this<Server>(config, components, adapter);
     }
 
-    private static async generateKeyPair(): Promise<GenerateKeyPairResult<KeyLike>> {
+    public static async generateKeyPair(): Promise<GenerateKeyPairResult<KeyLike>> {
         return await jose.generateKeyPair(KeycloakConnector.REQUIRED_ALGO);
     }
 

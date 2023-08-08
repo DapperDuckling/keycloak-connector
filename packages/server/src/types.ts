@@ -7,6 +7,7 @@ import type {Logger} from "pino";
 import type {KeyLike} from "jose";
 import type { IncomingHttpHeaders } from "node:http";
 import type {JWTPayload} from "jose/dist/types/types.js";
+import type {AbstractKeyProvider} from "./crypto/abstract-key-provider.js";
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -24,7 +25,8 @@ export interface KeycloakConnectorInternalConfiguration<Server extends Supported
 
 }
 
-export type ConnectorKeys = GenerateKeyPairResult & {
+// export type ConnectorKeys = GenerateKeyPairResult & {
+export type ConnectorKeys = {
     publicJwk: JWK;
     privateJwk: JWK;
 }
@@ -98,6 +100,9 @@ export interface KeycloakConnectorConfigBase {
         /** Ensures the party to which the JWT was issued matches provided value. By default, azp must match the current `client_id` */
         azp?: string | AzpOptions;
     }
+
+    /** Allows you to specify a built-in or pass a custom key provider */
+    keyProvider?: ClassConstructor<AbstractKeyProvider>;
 }
 
 export enum AzpOptions {
@@ -425,3 +430,5 @@ export enum ClientSearch {
     REALM,
     RESOURCE_ACCESS,
 }
+
+export type ClassConstructor<T> = new (...args: never[]) => T;

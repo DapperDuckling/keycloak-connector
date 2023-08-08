@@ -1,6 +1,6 @@
 {
   "name": "keycloak-connector-server",
-  "version": "0.0.19",
+  "version": "0.0.27",
   "description": "Middleware connecting Node.js express or fastify servers to Keycloak",
   "keywords": [
     "express keycloak",
@@ -30,8 +30,12 @@
     "@jest/globals": "^29.5.0",
     "@types/cookie-parser": "^1.4.3",
     "@types/express-serve-static-core": "^4.17.34",
+    "@types/fastify-static": "^2.2.1",
     "@types/jest": "^29.5.1",
-    "typescript": "^5.0.4",
-    "@types/fastify-static": "^2.2.1"
+    "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "jose": "^4.14.4",
+    "openid-client": "^5.4.0"
   }
 }
