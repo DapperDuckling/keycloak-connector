@@ -14,19 +14,30 @@ This plugin is written in order to synchronize this and other activities, such a
 1. Create a new EC2 security group to link Redis to EC2 instances
    - Allow inbound connections on tcp/6379
 2. Create a new ElastiCache default user
-   - User Id: \<as desired>
-   - User name: default
-   - Access string: on ~* +@all
-      - Or to disable logins with this account: off ~* +@all
+   - User Id: `<as desired>`
+   - User name: `default`
+   - Authentication mode: `Password(s)`
+   - Password 1: `<Use a 64 character or more password>`
+   - Access string: `on ~* &* +@all`
+      - Or to disable logins with this account: `off ~* &* +@all`
 3. Create a new ElastiCache user group
    - Add the new default user
 4. Create Redis Cluster
-    - Careful when selecting the size of the instance, the tiniest one probably works for now
-    - Set `transit encryption mode: required`
-    - Set `access control: user group access control list`
-    - Set `user group: <new group name>`
+    - **Note:** Careful when selecting the size of the instance, the tiniest one probably works for now
+    - Transit encryption mode: `required`
+    - Access control: `user group access control list`
+    - User group: `<new group name>`
     - Add cluster to the new security group
 5. Add the security group to any EC2 instances you want to have access
+
+### Authenticating each application
+1. Create a new user
+   - User settings: \<as desired>
+   - Authentication mode: IAM authentication (todo: determine how this works)
+   - Access string: \<read below>
+     - To restrict access to a specific of commands & partition data between users, we'll build a unique authentication string.
+     - Example: `on ~my-cool-app:* &my-cool-app:* nocommands +@FAST`
+     - The above allows read/write access to keys & pub/sub channels that match the `my-cool-app:*` glob and allows commands in the `FAST` category.
 
 ### Connecting through EC2 (bastion) instance
 1. Copy the _(primary or configuration??)_ endpoint
