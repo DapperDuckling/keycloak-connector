@@ -3,7 +3,7 @@
 ### Description
 Provides cluster communications through an AWS ElastiCache Redis cluster, enabling synchronized scaling without interruption to security nor user experience.
 
-_Why?_
+_**Why?**_
 When scaling a project that uses `keycloak-connector-server`, each instance will have its own set of generated client JWKs and when polled a single public key will be given to Keycloak. This will likely result in failed logins as Keycloak doesn't know all the live public keys.
 
 This plugin is written in order to synchronize this and other activities, such as backdoor logouts from Keycloak.
@@ -11,22 +11,77 @@ This plugin is written in order to synchronize this and other activities, such a
 
 ### AWS ElastiCache Setup
 
-1. Create Redis Cluster
+1. Create a new EC2 security group to link Redis to EC2 instances
+   - Allow inbound connections on tcp/6379
+2. Create a new ElastiCache default user
+   - User Id: \<as desired>
+   - User name: default
+   - Access string: on ~* +@all
+      - Or to disable logins with this account: off ~* +@all
+3. Create a new ElastiCache user group
+   - Add the new default user
+4. Create Redis Cluster
     - Careful when selecting the size of the instance, the tiniest one probably works for now
-2. Create a security group
-    - Allow inbound connections on tcp/6379
-3. Add the security group to your cluster & any instances you want to have access
-4. Create a user for this elasticache
-   - **Access string**:
-
+    - Set `transit encryption mode: required`
+    - Set `access control: user group access control list`
+    - Set `user group: <new group name>`
+    - Add cluster to the new security group
+5. Add the security group to any EC2 instances you want to have access
 
 ### Connecting through EC2 (bastion) instance
-1. Copy the (primary) endpoint
+1. Copy the _(primary or configuration??)_ endpoint
 2. Install redis
-    ```sh 
+    ```shell 
     sudo yum install -y redis
     ```
-3. Connect to the cluster
-    ```sh
-     redis-cli -h {replace_with_primary_endpoint} -p {replace_with_port_number}
+3. Check redis-cli version number. At least `>=6.0.0`
+   ```shell
+   redis-cli -v
+   ```
+   _...if the version is less than 6.0, skip to "Building redis from the source"_
+4. Connect to the cluster
+    ```shell
+     redis-cli --tls -h {replace_with_primary_endpoint} -p {replace_with_port_number}
     ```
+5. Ensure lack of permissions at this point
+   ```shell
+   > PING
+   < (error) NOAUTH Authentication required.
+   ```
+6. Authenticate
+   ```shell
+   > AUTH default <password>
+   < OK
+   ```
+   _**Note**: You may need to wrap your password in quotation marks (and even escape question marks in the password itself with a forward slash)_
+7. Test connection
+   ```shell
+   > PING hi
+   < "hi"
+   ```
+   
+#### Building Redis from the source
+0. Remove existing `redis`
+   ```shell
+   sudo yum remove redis
+   ```
+1. Install the required utilities
+   ```shell
+   sudo yum install -y make gcc openssl-devel
+   ```
+2. Build and install Redis
+   ```shell
+   cd ~
+   wget https://download.redis.io/redis-stable.tar.gz
+   tar -xzvf redis-stable.tar.gz
+   cd redis-stable
+   make distclean
+   make BUILD_TLS=yes MALLOC=libc
+   sudo make install
+   ```
+3. Cleanup redis install files
+
+   _**WAIT!!!** Careful with the following command, ensure it points to the correct directory..._
+   ```shell
+   rm -rf ~/redis-*
+   ```
