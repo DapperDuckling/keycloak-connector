@@ -17,6 +17,7 @@ dotenv.config({path: './.env.test.local'});
 // Configure fastify
 const fastify = Fastify({
     logger: {
+        level: "debug",
         transport: {
             target: 'pino-pretty',
             options: {
@@ -60,20 +61,6 @@ fastify.register(fastifyStatic, {
 
 // Create our cluster provider
 const awsRedisClusterProvider = new AwsRedisClusterProvider({
-    redisConfig: {
-        url: "clustercfg.keycloak-connector-aws-redis-channel.6ufjp6.usgw1.cache.amazonaws.com:6379",
-
-
-        region: process.env["AWS_REDIS_USERNAME"] ?? "",
-        logger: fastify.log,
-        endpoint: "clustercfg.keycloak-connector-aws-redis-channel.6ufjp6.usgw1.cache.amazonaws.com:6379",
-
-    },
-    // credentials: {
-    //     username: process.env["AWS_REDIS_USERNAME"] ?? "",
-    //     password: process.env["AWS_REDIS_PASSWORD"] ?? ""
-    // },
-    // endpoint: "clustercfg.keycloak-connector-aws-redis-channel.6ufjp6.usgw1.cache.amazonaws.com:6379",
     prefix: "my-cool-app:*",
     pinoLogger: fastify.log as Logger,
 });

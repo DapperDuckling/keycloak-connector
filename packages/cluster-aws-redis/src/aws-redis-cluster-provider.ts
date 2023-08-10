@@ -1,40 +1,32 @@
-import {
-    AbstractClusterProvider,
-} from "keycloak-connector-server";
 import type {ClusterConfig} from "keycloak-connector-server";
-import {createClient} from "redis";
-import type {RedisClientOptions} from "@redis/client";
+import {AbstractClusterProvider, BaseClusterEvents,} from "keycloak-connector-server";
+import {createCluster} from "redis";
+import type {RedisClusterOptions} from "@redis/client";
 
-type AwsRedisPasswordAuthentication = {
-    username: string;
-    password: string;
-}
-
-type AwsRedisIamAuthentication = {
-    whoknowswhatineed: string;
-}
 
 interface AwsRedisClusterConfig extends ClusterConfig  {
-    redisConfig: RedisClientOptions,
-    // credentials: AwsRedisPasswordAuthentication | AwsRedisIamAuthentication;
+    redisConfig?: RedisClusterOptions,
+    // redisConfig: RedisClientOptions,
     prefix: string | {
         object: string,
         pubsub: string,
     };
     DANGEROUS_allowUnsecureConnectionToRedisServer?: boolean;
-    // endpoint: string;
 }
 
-export enum AwsRedisClusterEvents {
-    "AWS_RANDOM_EVENT" = "AWS_RANDOM_EVENT",
-    "AWS_EVENT_2" = "AWS_EVENT_2",
+export enum RedisClusterEvents {
+    CONNECT = "connect",
+    READY = "ready",
+    END = "end",
+    ERROR = "error",
+    RECONNECTING = "reconnecting",
 }
 
-
-export class AwsRedisClusterProvider extends AbstractClusterProvider<AwsRedisClusterEvents> {
+export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
     protected override clusterConfig: AwsRedisClusterConfig;
-    private client: ReturnType<typeof createClient>;
+    private client: ReturnType<typeof createCluster>;
+    private isConnectedTracker: boolean = false;
 
     constructor(clusterConfig: AwsRedisClusterConfig) {
         super(clusterConfig);
@@ -42,13 +34,43 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<AwsRedisClu
         // Store the cluster config
         this.clusterConfig = clusterConfig;
 
-        // Ensure the connection is over TLS
-        if (
-            (this.clusterConfig.redisConfig.url && this.clusterConfig.redisConfig.url.startsWith("rediss")) ||
-            (this.clusterConfig.redisConfig.socket && this.clusterConfig.redisConfig.socket.tls !== true)
-        ) {
+        // Create a bogus config if not already specified
+        this.clusterConfig.redisConfig ??= {
+            rootNodes: []
+        };
 
-            // Check for no dangerous override flag
+        // Set the defaults
+        this.clusterConfig.redisConfig = {
+            ...this.clusterConfig.redisConfig,
+
+            // Add a default node if none are specified
+            ...(this.clusterConfig.redisConfig.rootNodes.length === 0 && process.env["REDIS_URL"]) && {
+                rootNodes: [{
+                    url: process.env["REDIS_URL"]
+                }]
+            },
+
+            // Add default connection information
+            defaults: {
+                ...process.env["REDIS_USERNAME"] && {username: process.env["REDIS_USERNAME"]},
+                ...process.env["REDIS_PASSWORD"] && {password: process.env["REDIS_PASSWORD"]},
+                name: process.env["REDIS_CLIENT_NAME"] ?? "keycloak-connector",
+                ...this.clusterConfig.redisConfig.defaults,
+            },
+        }
+
+        // Grab a reference to the redis configuration
+        const redisConfig = this.clusterConfig.redisConfig;
+
+        // Ensure the connections are over TLS
+        for (const node of this.clusterConfig.redisConfig.rootNodes) {
+            // Check for secure connection
+            if (
+                (node.url && node.url.startsWith("rediss")) ||
+                (node.socket && node.socket.tls === true)
+            ) continue;
+
+            // Check for missing dangerous override flag
             if (this.clusterConfig.DANGEROUS_allowUnsecureConnectionToRedisServer !== true) {
                 throw new Error(`Connection url does not not start with "rediss" disabling TLS connection to REDIS server. Will not connect via unsecure connection without override.`);
             }
@@ -57,17 +79,58 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<AwsRedisClu
         }
 
         // Create a new redis client
-        this.client = createClient(this.clusterConfig.redisConfig);
+        this.client = createCluster(redisConfig);
+
+        // Register the error listeners
+        this.client.on(RedisClusterEvents.READY, (msg) => {
+            this.clusterConfig.pinoLogger?.debug(`Redis ready to use`, msg);
+            this.isConnectedTracker = true;
+            this.emitEvent(RedisClusterEvents.READY, msg);
+        });
+        this.client.on(RedisClusterEvents.END, (msg) => {
+            this.clusterConfig.pinoLogger?.error(`Redis connection has been closed`, msg);
+            this.isConnectedTracker = false;
+            this.emitEvent(RedisClusterEvents.END, msg);
+        });
+        this.client.on(RedisClusterEvents.ERROR, (msg) => {
+            this.clusterConfig.pinoLogger?.error(`Redis cluster error`, msg);
+            this.isConnectedTracker = false;
+            this.emitEvent(BaseClusterEvents.ERROR, msg);
+        });
+        this.client.on(RedisClusterEvents.RECONNECTING, (msg) => {
+            this.clusterConfig.pinoLogger?.error(`Redis client is attempting to reconnect to the server`, msg);
+            this.isConnectedTracker = false;
+            this.emitEvent(RedisClusterEvents.RECONNECTING, msg);
+        });
     }
 
-    connect(args: any): boolean {
+    async connectOrThrow(): Promise<true> {
+        this.clusterConfig.pinoLogger?.debug(`Connecting to redis server`);
 
-
-        return false;
+        try {
+            await this.client.connect();
+            return true;
+        } catch (err) {
+            const errMsg = `Failed to connect to redis cluster - ${err}`;
+            this.clusterConfig.pinoLogger?.error(errMsg);
+            throw new Error(errMsg);
+        }
     }
 
-    disconnect(args: any): boolean {
-        return false;
+    override isConnected(): boolean {
+        return this.isConnectedTracker;
+    }
+
+    async disconnect(): Promise<boolean> {
+        this.clusterConfig.pinoLogger?.debug(`Disconnecting from redis server`);
+
+        try {
+            await this.client.disconnect();
+            return true;
+        } catch (err) {
+            this.clusterConfig.pinoLogger?.error(`Failed to disconnect from redis cluster - ${err}`);
+            return false;
+        }
     }
 
 

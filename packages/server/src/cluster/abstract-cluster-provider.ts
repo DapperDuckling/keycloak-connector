@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events';
 import type {Logger} from "pino";
 
 export enum BaseClusterEvents {
+    ERROR = "error",
     BASE = "BASE",
     PRE_CONNECTION = "PRE_CONNECTION",
     CONNECTED = "CONNECTED",
@@ -23,8 +24,9 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
         this.clusterConfig = clusterConfig;
     }
 
-    abstract connect(...args: any[]): boolean;
-    abstract disconnect(...args: any[]): boolean;
+    abstract connectOrThrow(): Promise<true>;
+    abstract isConnected(): boolean;
+    abstract disconnect(): Promise<boolean>;
 
     public addListener(event: AllEvents<CustomEvents>, listener: listener) {
         this.clusterConfig.pinoLogger?.debug(`Adding a listener for '${event}' event`);

@@ -20,7 +20,7 @@
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "npm run build",
-    "start:fastify": "cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts"
+    "start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

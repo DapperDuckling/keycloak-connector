@@ -648,6 +648,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const authPath = (config.keycloakVersionBelow18) ? "/auth" : "";
         const oidcDiscoveryUrl = config.oidcDiscoveryUrlOverride ?? `${config.authServerUrl}${authPath}/realms/${config.realm}/.well-known/openid-configuration`;
 
+        // Attempt to connect to a cluster
+        await config.clusterProvider?.connectOrThrow();
+
         // Grab the oidc configuration from the OP
         const openIdConfig = await KeycloakConnector.fetchInitialOpenIdConfig(oidcDiscoveryUrl, config);
 
