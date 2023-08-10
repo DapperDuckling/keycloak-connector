@@ -1,7 +1,7 @@
 import {AbstractKeyProvider} from "keycloak-connector-server";
 import type {ConnectorKeys} from "keycloak-connector-server";
 
-export class AwsRedisKeyProvider extends AbstractKeyProvider {
+export class KeyProvider extends AbstractKeyProvider {
     protected generateKeys(): Promise<ConnectorKeys> {
         return Promise.resolve(undefined);
     }

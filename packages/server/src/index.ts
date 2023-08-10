@@ -4,4 +4,5 @@ export * from "./adapter/keycloak-connector-express.js";
 export * from "./adapter/express-adapter.js";
 export * from "./crypto/abstract-key-provider.js";
 export * from "./crypto/standalone-key-provider.js";
+export * from "./cluster/abstract-cluster-provider.js";
 export * from "./types.js";

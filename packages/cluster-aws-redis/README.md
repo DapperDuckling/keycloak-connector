@@ -36,7 +36,7 @@ This plugin is written in order to synchronize this and other activities, such a
    - Authentication mode: IAM authentication (todo: determine how this works)
    - Access string: \<read below>
      - To restrict access to a specific of commands & partition data between users, we'll build a unique authentication string.
-     - Example: `on ~my-cool-app:* &my-cool-app:* nocommands +@FAST`
+     - Example: `on clearselectors resetkeys ~my-cool-app:* resetchannels &my-cool-app:* -@all +@FAST`
      - The above allows read/write access to keys & pub/sub channels that match the `my-cool-app:*` glob and allows commands in the `FAST` category.
 
 ### Connecting through EC2 (bastion) instance
