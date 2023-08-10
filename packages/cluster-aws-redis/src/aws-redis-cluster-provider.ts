@@ -28,7 +28,7 @@ export enum AwsRedisClusterEvents {
 }
 
 
-class AwsRedisClusterProvider extends AbstractClusterProvider<AwsRedisClusterEvents> {
+export class AwsRedisClusterProvider extends AbstractClusterProvider<AwsRedisClusterEvents> {
 
     protected override clusterConfig: AwsRedisClusterConfig;
 
@@ -37,6 +37,16 @@ class AwsRedisClusterProvider extends AbstractClusterProvider<AwsRedisClusterEve
 
         // Store the cluster config
         this.clusterConfig = clusterConfig;
-
     }
+
+    connect(args: any): boolean {
+        return false;
+    }
+
+    disconnect(args: any): boolean {
+        return false;
+    }
+
+
+
 }

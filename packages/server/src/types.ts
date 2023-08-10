@@ -7,6 +7,7 @@ import type {KeyLike} from "jose";
 import type { IncomingHttpHeaders } from "node:http";
 import type {JWTPayload} from "jose/dist/types/types.js";
 import type {AbstractKeyProvider} from "./crypto/abstract-key-provider.js";
+import type {AbstractClusterProvider} from "./cluster/abstract-cluster-provider.js";
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -100,7 +101,11 @@ export interface KeycloakConnectorConfigBase {
     }
 
     /** Allows you to specify a built-in or pass a custom key provider */
+    //todo: Is this no longer needed now that we have the cluster provider??
     keyProvider?: ClassConstructor<AbstractKeyProvider>;
+
+    /** Specify a cluster provider in order to synchronize instances of the same app */
+    clusterProvider?: AbstractClusterProvider;
 }
 
 export enum AzpOptions {

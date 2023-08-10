@@ -19,7 +19,8 @@
   "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "start:fastify": "cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -32,6 +33,8 @@
     "@types/express-serve-static-core": "^4.17.34",
     "@types/fastify-static": "^2.2.1",
     "@types/jest": "^29.5.1",
+    "keycloak-connector-server-cluster-aws-redis": "file:../cluster-aws-redis",
+    "nodemon": "^3.0.1",
     "typescript": "^5.0.4"
   },
   "dependencies": {

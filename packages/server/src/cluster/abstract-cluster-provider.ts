@@ -7,14 +7,14 @@ export enum BaseClusterEvents {
     CONNECTED = "CONNECTED",
 }
 
-type AllEvents<T extends string> = T | BaseClusterEvents;
+type AllEvents<T extends string | void> = T extends void ? BaseClusterEvents : BaseClusterEvents | T;
 type listener = (...args: any[]) => void;
 
 export interface ClusterConfig {
     pinoLogger?: Logger
 }
 
-export abstract class AbstractClusterProvider<CustomEvents extends string> {
+export abstract class AbstractClusterProvider<CustomEvents extends string | void = void> {
 
     protected clusterConfig: ClusterConfig;
     private eventEmitter = new EventEmitter();
@@ -22,6 +22,9 @@ export abstract class AbstractClusterProvider<CustomEvents extends string> {
     protected constructor(clusterConfig: ClusterConfig) {
         this.clusterConfig = clusterConfig;
     }
+
+    abstract connect(...args: any[]): boolean;
+    abstract disconnect(...args: any[]): boolean;
 
     public addListener(event: AllEvents<CustomEvents>, listener: listener) {
         this.clusterConfig.pinoLogger?.debug(`Adding a listener for '${event}' event`);
