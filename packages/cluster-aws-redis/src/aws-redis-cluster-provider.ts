@@ -1,4 +1,7 @@
-import {AbstractClusterProvider, AllClusterEvents, BaseClusterEvents} from "keycloak-connector-server";
+import {
+    AbstractClusterProvider,
+    BaseClusterEvents,
+} from "keycloak-connector-server";
 
 type AwsRedisPasswordAuthentication = {
     username: string;
@@ -23,28 +26,18 @@ export enum AwsRedisClusterEvents {
     "AWS_EVENT_2" = "AWS_EVENT_2",
 }
 
-// type AwsRedisClusterEventsAll = AwsRedisClusterEvents & BaseClusterEvents;
-// type AwsRedisClusterEventsAll = AwsRedisClusterEvents & BaseClusterEvents;
 
-class AwsRedisClusterProvider extends AbstractClusterProvider<AllClusterEvents<AwsRedisClusterEvents>> {
+class AwsRedisClusterProvider extends AbstractClusterProvider<AwsRedisClusterEvents> {
 
     private clusterConfig: AwsRedisClusterConfig;
-    // private customEventListeners: EventListeners<AwsRedisClusterEvents> = new Map();
-
-    // // todo: move up
-    // private genericEventListeners: EventListeners<ClusterEvents> = new Map();
 
     constructor(clusterConfig: AwsRedisClusterConfig) {
         super();
 
         this.clusterConfig = clusterConfig;
 
-        this.addEventListener(AwsRedisClusterEvents.AWS_EVENT_2);
+        this.addEventListener("ds");
+        this.addEventListener(AwsRedisClusterEvents.AWS_RANDOM_EVENT);
+        this.addEventListener(BaseClusterEvents.CONNECTED);
     }
-
-
-    // public addCustomEventListener(event: AwsRedisClusterEvents, cb: Callback<AwsRedisClusterEvents>) {
-    //
-    // }
-
 }
