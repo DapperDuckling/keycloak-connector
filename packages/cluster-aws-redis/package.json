@@ -23,5 +23,8 @@
   "types": "dist/index.d.ts",
   "files": [
     "./dist"
-  ]
+  ],
+  "dependencies": {
+    "redis": "^4.6.7"
+  }
 }

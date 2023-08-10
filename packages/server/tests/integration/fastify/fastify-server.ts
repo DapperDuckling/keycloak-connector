@@ -60,11 +60,20 @@ fastify.register(fastifyStatic, {
 
 // Create our cluster provider
 const awsRedisClusterProvider = new AwsRedisClusterProvider({
-    credentials: {
-        username: "super cool username",
-        password: "super cool password"
+    redisConfig: {
+        url: "clustercfg.keycloak-connector-aws-redis-channel.6ufjp6.usgw1.cache.amazonaws.com:6379",
+
+
+        region: process.env["AWS_REDIS_USERNAME"] ?? "",
+        logger: fastify.log,
+        endpoint: "clustercfg.keycloak-connector-aws-redis-channel.6ufjp6.usgw1.cache.amazonaws.com:6379",
+
     },
-    endpoint: "clustercfg.keycloak-connector-aws-redis-channel.6ufjp6.usgw1.cache.amazonaws.com:6379",
+    // credentials: {
+    //     username: process.env["AWS_REDIS_USERNAME"] ?? "",
+    //     password: process.env["AWS_REDIS_PASSWORD"] ?? ""
+    // },
+    // endpoint: "clustercfg.keycloak-connector-aws-redis-channel.6ufjp6.usgw1.cache.amazonaws.com:6379",
     prefix: "my-cool-app:*",
     pinoLogger: fastify.log as Logger,
 });
