@@ -2,6 +2,7 @@ import {
     AbstractClusterProvider,
     BaseClusterEvents,
 } from "keycloak-connector-server";
+import type {ClusterConfig} from "keycloak-connector-server";
 
 type AwsRedisPasswordAuthentication = {
     username: string;
@@ -12,7 +13,7 @@ type AwsRedisIamAuthentication = {
     whoknowswhatineed: string;
 }
 
-type AwsRedisClusterConfig = {
+interface AwsRedisClusterConfig extends ClusterConfig  {
     credentials: AwsRedisPasswordAuthentication | AwsRedisIamAuthentication;
     prefix: string | {
         object: string,
@@ -29,15 +30,13 @@ export enum AwsRedisClusterEvents {
 
 class AwsRedisClusterProvider extends AbstractClusterProvider<AwsRedisClusterEvents> {
 
-    private clusterConfig: AwsRedisClusterConfig;
+    protected override clusterConfig: AwsRedisClusterConfig;
 
     constructor(clusterConfig: AwsRedisClusterConfig) {
-        super();
+        super(clusterConfig);
 
+        // Store the cluster config
         this.clusterConfig = clusterConfig;
 
-        this.addEventListener("ds");
-        this.addEventListener(AwsRedisClusterEvents.AWS_RANDOM_EVENT);
-        this.addEventListener(BaseClusterEvents.CONNECTED);
     }
 }
