@@ -1,4 +1,4 @@
-import type {ClusterConfig} from "keycloak-connector-server";
+import type {ClusterConfig, listener} from "keycloak-connector-server";
 import {AbstractClusterProvider, BaseClusterEvents,} from "keycloak-connector-server";
 import {createClient, createCluster} from "redis";
 import type {RedisClientOptions} from "redis";
@@ -7,8 +7,8 @@ import type {RedisSocketOptions} from "@redis/client/dist/lib/client/socket.js";
 
 interface BaseRedisClusterConfig extends ClusterConfig {
     prefix: string | {
-        object: string,
-        pubsub: string,
+        key: string,
+        channel: string,
     };
     DANGEROUS_allowUnsecureConnectionToRedisServer?: boolean;
 }
@@ -33,11 +33,15 @@ export enum RedisClusterEvents {
     RECONNECTING = "reconnecting",
 }
 
+type RedisClient = ReturnType<typeof createCluster> | ReturnType<typeof createClient>;
+
 export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
     protected override clusterConfig: RedisClusterConfig;
-    private client: ReturnType<typeof createCluster> | ReturnType<typeof createClient>;
-    private isConnectedTracker: boolean = false;
+    private readonly client: RedisClient;
+    private isClientConnected: boolean = false;
+    private readonly subscriber: RedisClient;
+    private isSubscriberConnected: boolean = false;
 
     constructor(clusterConfig: RedisClusterConfig) {
         super(clusterConfig);
@@ -52,8 +56,16 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         this.client = (clusterConfig.clusterMode) ?
             createCluster(clusterConfig.redisConfig as RedisClusterOptions) : createClient(clusterConfig.redisConfig as RedisClientOptions);
 
+        // Create the pub sub client
+        this.subscriber = this.client.duplicate();
+
         // Register event listeners
-        this.registerEventListeners();
+        this.registerEventListeners(this.client);
+        this.registerEventListeners(this.subscriber);
+
+        //todo: Test cluster mode
+        // Add cluster mode warning
+        this.clusterConfig.pinoLogger?.warn("**WARNING** Using Redis in cluster mode has not been thoroughly tested.");
     }
 
     private handleClusterMode(config: ClusterMode): ClusterMode {
@@ -145,28 +157,36 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         }
     }
 
-    private registerEventListeners() {
+    private registerEventListeners(client: RedisClient, isSubscriber: boolean = false) {
+
+        const clientNameTag = (isSubscriber) ? "Subscriber" : "Client";
+
         // Register the event listeners
-        this.client.on(RedisClusterEvents.READY, (msg) => {
-            this.clusterConfig.pinoLogger?.debug(`Redis ready to use`, msg);
-            this.isConnectedTracker = true;
+        client.on(RedisClusterEvents.READY, (msg) => {
+            this.clusterConfig.pinoLogger?.debug(`Redis ${clientNameTag} ready to use`, msg);
+            this.setIsConnected(isSubscriber, true);
             this.emitEvent(RedisClusterEvents.READY, msg);
         });
-        this.client.on(RedisClusterEvents.END, (msg) => {
-            this.clusterConfig.pinoLogger?.error(`Redis connection has been closed`, msg);
-            this.isConnectedTracker = false;
+        client.on(RedisClusterEvents.END, (msg) => {
+            this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} connection has been closed`, msg);
+            this.setIsConnected(isSubscriber, false);
             this.emitEvent(RedisClusterEvents.END, msg);
         });
-        this.client.on(RedisClusterEvents.ERROR, (msg) => {
-            this.clusterConfig.pinoLogger?.error(`Redis cluster error`, msg);
-            this.isConnectedTracker = false;
+        client.on(RedisClusterEvents.ERROR, (msg) => {
+            this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} cluster error`, msg);
+            this.setIsConnected(isSubscriber, false);
             this.emitEvent(BaseClusterEvents.ERROR, msg);
         });
-        this.client.on(RedisClusterEvents.RECONNECTING, (msg) => {
-            this.clusterConfig.pinoLogger?.error(`Redis client is attempting to reconnect to the server`, msg);
-            this.isConnectedTracker = false;
+        client.on(RedisClusterEvents.RECONNECTING, (msg) => {
+            this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} is attempting to reconnect to the server`, msg);
+            this.setIsConnected(isSubscriber, false);
             this.emitEvent(RedisClusterEvents.RECONNECTING, msg);
         });
+
+    }
+
+    private isClusterMode(): boolean {
+        return this.clusterConfig.clusterMode === true;
     }
 
     private isConfigClusterMode(config: RedisClusterConfig): config is ClusterMode {
@@ -178,16 +198,33 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
 
         try {
             await this.client.connect();
-            return true;
         } catch (err) {
-            const errMsg = `Failed to connect to redis cluster - ${err}`;
+            const errMsg = `Client failed to connect to redis cluster - ${err}`;
             this.clusterConfig.pinoLogger?.error(errMsg);
             throw new Error(errMsg);
         }
+
+        try {
+            await this.subscriber.connect();
+        } catch (err) {
+            const errMsg = `Subscriber failed to connect to redis cluster - ${err}`;
+            this.clusterConfig.pinoLogger?.error(errMsg);
+            throw new Error(errMsg);
+        }
+
+        return true;
     }
 
-    override isConnected(): boolean {
-        return this.isConnectedTracker;
+    private setIsConnected(isSubscriber: boolean, connected: boolean) {
+        if (isSubscriber) {
+            this.isSubscriberConnected = connected
+        } else {
+            this.isClientConnected = connected;
+        }
+    }
+
+    override isConnected(isSubscriber: boolean): boolean {
+        return (isSubscriber) ? this.isSubscriberConnected : this.isClientConnected;
     }
 
     async disconnect(): Promise<boolean> {
@@ -202,23 +239,69 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         }
     }
 
-    publish(topic: string, args: any): boolean {
-        this.client.publish()
+    TODO_DELETE_ME() {
+        const test = createCluster(clusterConfig.redisConfig as RedisClusterOptions);
+        test.set("s", 2);
+        test.publish()
+
+        const test2 = createClient(clusterConfig.redisConfig as RedisClientOptions);
+        test2.set("s", 2);
     }
 
-    remove(key: string): boolean {
-        return false;
+    private channel(channel: string) {
+        const prefix = (typeof this.clusterConfig.prefix === "string") ? this.clusterConfig.prefix : this.clusterConfig.prefix.channel;
+        return `${prefix}${channel}`;
     }
 
-    store(key: string, value: any[], ttl: number | undefined): boolean {
-        return false;
+    private key(key: string) {
+        const prefix = (typeof this.clusterConfig.prefix === "string") ? this.clusterConfig.prefix : this.clusterConfig.prefix.key;
+        return `${prefix}${key}`;
     }
 
-    subscribe(topic: string): boolean {
-        return false;
+    async subscribe(channel: string, listener: listener): Promise<boolean> {
+        // Grab the correct function
+        const targetFunc = (this.isClusterMode()) ? this.subscriber.sSubscribe : this.subscriber.subscribe;
+
+        // Execute the request
+        await targetFunc(this.channel(channel), listener);
+
+        return true;
     }
 
-    unsubscribe(topic: string): boolean {
-        return false;
+    async unsubscribe(channel: string, listener?: listener): Promise<boolean> {
+        // Grab the correct function
+        const targetFunc = (this.isClusterMode()) ? this.subscriber.sUnsubscribe : this.subscriber.unsubscribe;
+
+        // Execute the request
+        const channelName = this.channel(channel);
+        await (listener) ? targetFunc(channelName, listener) : targetFunc(channelName);
+
+        return true;
+    }
+
+    async publish(channel: string, message: string | Buffer): Promise<boolean> {
+        // Grab the correct function
+        const targetFunc = (this.isClusterMode()) ? this.subscriber.sPublish : this.subscriber.publish;
+
+        // Execute the request
+        await targetFunc(this.channel(channel), message);
+
+        return true;
+    }
+
+    async store(key: string, value: string | number | Buffer, ttl: number | null): boolean {
+
+        const keyName = this.key(key);
+        await (ttl === null) ? this.client.set(keyName, value) :this.client.set(keyName, value, {
+            EX: ttl
+        });
+
+        return true;
+    }
+
+    async remove(key: string): Promise<boolean> {
+        const keyName = this.key(key);
+        await this.client.del(keyName);
+        return true;
     }
 }

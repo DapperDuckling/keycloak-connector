@@ -9,7 +9,7 @@ export enum BaseClusterEvents {
 }
 
 type AllEvents<T extends string | void> = T extends void ? BaseClusterEvents : BaseClusterEvents | T;
-type listener = (...args: any[]) => void;
+export type listener = (...args: any[]) => void;
 
 export interface ClusterConfig {
     pinoLogger?: Logger
@@ -25,7 +25,7 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
     }
 
     abstract connectOrThrow(): Promise<true>;
-    abstract isConnected(): boolean;
+    abstract isConnected(isSubscriber: boolean): boolean;
     abstract disconnect(): Promise<boolean>;
 
     public addListener(event: AllEvents<CustomEvents>, listener: listener) {
@@ -43,9 +43,9 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
         this.eventEmitter.emit(event, ...args);
     }
 
-    public abstract subscribe(topic: string): boolean;
-    public abstract unsubscribe(topic: string): boolean;
-    public abstract publish(topic: string, ...args: any[]): boolean;
-    public abstract store(key: string, value: any[], ttl?: number): boolean;
-    public abstract remove(key: string): boolean;
+    public abstract subscribe(channel: string, listener: listener): Promise<boolean>;
+    public abstract unsubscribe(channel: string, listener?: listener): Promise<boolean>;
+    public abstract publish(channel: string, message: string | Buffer): Promise<boolean>;
+    public abstract store(key: string, value: string | number | Buffer, ttl: number | null): Promise<boolean>;
+    public abstract remove(key: string): Promise<boolean>;
 }
