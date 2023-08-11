@@ -1,18 +1,29 @@
 import type {ClusterConfig} from "keycloak-connector-server";
 import {AbstractClusterProvider, BaseClusterEvents,} from "keycloak-connector-server";
 import {createClient, createCluster} from "redis";
+import type {RedisClientOptions} from "redis";
 import type {RedisClusterOptions} from "@redis/client";
+import type {RedisSocketOptions} from "@redis/client/dist/lib/client/socket.js";
 
-
-interface AwsRedisClusterConfig extends ClusterConfig  {
-    redisConfig?: RedisClusterOptions,
-    // redisConfig: RedisClientOptions,
+interface BaseRedisClusterConfig extends ClusterConfig {
     prefix: string | {
         object: string,
         pubsub: string,
     };
     DANGEROUS_allowUnsecureConnectionToRedisServer?: boolean;
 }
+
+type ClusterMode = BaseRedisClusterConfig & {
+    redisConfig?: RedisClusterOptions,
+    clusterMode: true,
+};
+
+type NonClusterMode = BaseRedisClusterConfig & {
+    redisConfig?: RedisClientOptions,
+    clusterMode?: false,
+}
+
+export type RedisClusterConfig = ClusterMode | NonClusterMode;
 
 export enum RedisClusterEvents {
     CONNECT = "connect",
@@ -24,76 +35,118 @@ export enum RedisClusterEvents {
 
 export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
-    protected override clusterConfig: AwsRedisClusterConfig;
-    // private client: ReturnType<typeof createCluster>;
-    private client: ReturnType<typeof createClient>;
+    protected override clusterConfig: RedisClusterConfig;
+    private client: ReturnType<typeof createCluster> | ReturnType<typeof createClient>;
     private isConnectedTracker: boolean = false;
 
-    constructor(clusterConfig: AwsRedisClusterConfig) {
+    constructor(clusterConfig: RedisClusterConfig) {
         super(clusterConfig);
 
-        // Store the cluster config
-        this.clusterConfig = clusterConfig;
+        // Handle each cluster mode config differently
+        this.clusterConfig = this.isConfigClusterMode(clusterConfig) ? this.handleClusterMode(clusterConfig) : this.handleNonClusterMode(clusterConfig);
 
+        // Ensure connections are happening over TLS
+        this.ensureTlsConfig();
+
+        // Create a new redis client
+        this.client = (clusterConfig.clusterMode) ?
+            createCluster(clusterConfig.redisConfig as RedisClusterOptions) : createClient(clusterConfig.redisConfig as RedisClientOptions);
+
+        // Register event listeners
+        this.registerEventListeners();
+    }
+
+    private handleClusterMode(config: ClusterMode): ClusterMode {
         // Create a bogus config if not already specified
-        this.clusterConfig.redisConfig ??= {
+        config.redisConfig ??= {
             rootNodes: []
         };
 
+        // Generate defaults
+        const defaults = this.generateDefaults();
+
         // Set the defaults
-        this.clusterConfig.redisConfig = {
-            ...this.clusterConfig.redisConfig,
+        config.redisConfig = {
+            ...config.redisConfig,
 
             // Add a default node if none are specified
-            ...(this.clusterConfig.redisConfig.rootNodes.length === 0 && process.env["CLUSTER_REDIS_URL"]) && {
+            ...(config.redisConfig.rootNodes.length === 0 && process.env["CLUSTER_REDIS_URL"]) && {
                 rootNodes: [{
-                    url: process.env["CLUSTER_REDIS_URL"],
+                    socket: defaults['socket']
                 }]
             },
 
             // Add default connection information
             defaults: {
+                ...defaults['authentication'],
+                ...config.redisConfig.defaults,
+            },
+        }
+
+        return config;
+    }
+
+    private handleNonClusterMode(config: NonClusterMode): NonClusterMode {
+        // Create a bogus config if not already specified
+        config.redisConfig ??= {};
+
+        const defaults = this.generateDefaults();
+
+        // Set the defaults
+        config.redisConfig = {
+            ...defaults['authentication'],
+            socket: defaults['socket'],
+            ...config.redisConfig
+        }
+
+        return config;
+    }
+
+    private generateDefaults() {
+
+        const socket: RedisSocketOptions = {
+            tls: !(process.env["CLUSTER_REDIS_DANGEROUSLY_DISABLE_TLS"]?.toLowerCase() === "true"),
+            ...process.env["CLUSTER_REDIS_HOST"] && {host: process.env["CLUSTER_REDIS_HOST"]},
+            ...process.env["CLUSTER_REDIS_PORT"] && {port: +process.env["CLUSTER_REDIS_PORT"]},
+            ...process.env["CLUSTER_REDIS_TLS_SNI"] && {servername: process.env["CLUSTER_REDIS_TLS_SNI"]},
+        }
+
+        return {
+            socket: socket,
+            authentication: {
                 ...process.env["CLUSTER_REDIS_USERNAME"] && {username: process.env["CLUSTER_REDIS_USERNAME"]},
                 ...process.env["CLUSTER_REDIS_PASSWORD"] && {password: process.env["CLUSTER_REDIS_PASSWORD"]},
-                name: process.env["REDIS_CLIENT_NAME"] ?? "keycloak-connector",
-                ...this.clusterConfig.redisConfig.defaults,
-            },
+                name: process.env["CLUSTER_REDIS_CLIENT_NAME"] ?? "keycloak-connector",
+            }
         }
+    }
 
-        // Grab a reference to the redis configuration
-        const redisConfig = this.clusterConfig.redisConfig;
+    private ensureTlsConfig() {
+        const nodes = (this.isConfigClusterMode(this.clusterConfig)) ? this.clusterConfig.redisConfig?.rootNodes ?? [] : [this.clusterConfig.redisConfig];
 
         // Ensure the connections are over TLS
-        for (const node of this.clusterConfig.redisConfig.rootNodes) {
-            // Check for secure connection
+        for (const node of nodes) {
+            // Skip any undefined
+            if (node === undefined) continue;
+
+            // Ensure the connection is over TLS
             if (
                 (node.url && node.url.startsWith("rediss")) ||
-                (node.socket && node.socket.tls === true)
-            ) continue;
+                (node.socket && node.socket.tls !== true)
+            ) {
 
-            // Check for missing dangerous override flag
-            if (this.clusterConfig.DANGEROUS_allowUnsecureConnectionToRedisServer !== true) {
-                throw new Error(`Connection url does not not start with "rediss" or tls not enabled which disables the TLS connection to REDIS server. Will not connect via unsecure connection without override.`);
+                // Check for no dangerous override flag
+                if (this.clusterConfig.DANGEROUS_allowUnsecureConnectionToRedisServer !== true || process.env["CLUSTER_REDIS_DANGEROUSLY_DISABLE_TLS"]?.toLowerCase() !== "true") {
+                    throw new Error(`Connection url does not not start with "rediss" disabling TLS connection to REDIS server. Will not connect via unsecure connection without override.`);
+                }
+
+                this.clusterConfig.pinoLogger?.warn("***DANGEROUS CONFIGURATION*** Connecting to REDIS server using unsecure connection!");
             }
-
-            this.clusterConfig.pinoLogger?.warn("***DANGEROUS CONFIGURATION*** Connecting to REDIS server using unsecure connection!");
         }
+    }
 
-        // Create a new redis client
-        this.client = createClient({
-            username: process.env["CLUSTER_REDIS_USERNAME"] ?? "",
-            password: process.env["CLUSTER_REDIS_PASSWORD"] ?? "",
-            socket: {
-                tls: true,
-                host: "127.0.0.1",
-                port: 6378,
-                servername: "keycloak-connector-aws-redis-channel-v3-001.keycloak-connector-aws-redis-channel-v3.6ufjp6.usgw1.cache.amazonaws.com",
-            },
-            name: process.env["REDIS_CLIENT_NAME"] ?? "keycloak-connector",
-        });
-        // this.client = createCluster(redisConfig);
-
-        // Register the error listeners
+    private registerEventListeners() {
+        // Register the event listeners
         this.client.on(RedisClusterEvents.READY, (msg) => {
             this.clusterConfig.pinoLogger?.debug(`Redis ready to use`, msg);
             this.isConnectedTracker = true;
@@ -114,6 +167,10 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
             this.isConnectedTracker = false;
             this.emitEvent(RedisClusterEvents.RECONNECTING, msg);
         });
+    }
+
+    private isConfigClusterMode(config: RedisClusterConfig): config is ClusterMode {
+        return config.clusterMode ?? false;
     }
 
     async connectOrThrow(): Promise<true> {
@@ -145,6 +202,23 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         }
     }
 
+    publish(topic: string, args: any): boolean {
+        this.client.publish()
+    }
 
+    remove(key: string): boolean {
+        return false;
+    }
 
+    store(key: string, value: any[], ttl: number | undefined): boolean {
+        return false;
+    }
+
+    subscribe(topic: string): boolean {
+        return false;
+    }
+
+    unsubscribe(topic: string): boolean {
+        return false;
+    }
 }

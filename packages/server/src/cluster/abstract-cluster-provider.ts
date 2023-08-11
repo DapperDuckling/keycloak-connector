@@ -42,4 +42,10 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
         this.clusterConfig.pinoLogger?.debug(`Emitting an event: '${event}'`);
         this.eventEmitter.emit(event, ...args);
     }
+
+    public abstract subscribe(topic: string): boolean;
+    public abstract unsubscribe(topic: string): boolean;
+    public abstract publish(topic: string, ...args: any[]): boolean;
+    public abstract store(key: string, value: any[], ttl?: number): boolean;
+    public abstract remove(key: string): boolean;
 }

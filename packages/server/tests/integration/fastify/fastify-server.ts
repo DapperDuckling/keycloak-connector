@@ -64,16 +64,6 @@ fastify.register(fastifyStatic, {
 const awsRedisClusterProvider = new AwsRedisClusterProvider({
     prefix: "my-cool-app:*",
     pinoLogger: fastify.log as Logger,
-    redisConfig: {
-        rootNodes: [{
-            socket: {
-                ...process.env["CLUSTER_REDIS_SERVER_NAME"] && {servername: process.env["CLUSTER_REDIS_SERVER_NAME"]},
-                tls: true,
-                host: "127.0.0.1",
-                port: 6378,
-            }
-        }]
-    }
 });
 
 // Initialize the keycloak-connector
@@ -84,6 +74,9 @@ await fastify.register(keycloakConnectorFastify, {
     refreshConfigSecs: -1, // Disable for dev testing
     clusterProvider: awsRedisClusterProvider,
 });
+
+// Set and receive a cluster message
+awsRedisClusterProvider.
 
 // Register our routes
 fastify.register(routes);
