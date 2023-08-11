@@ -239,15 +239,6 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         }
     }
 
-    TODO_DELETE_ME() {
-        const test = createCluster(clusterConfig.redisConfig as RedisClusterOptions);
-        test.set("s", 2);
-        test.publish()
-
-        const test2 = createClient(clusterConfig.redisConfig as RedisClientOptions);
-        test2.set("s", 2);
-    }
-
     private channel(channel: string) {
         const prefix = (typeof this.clusterConfig.prefix === "string") ? this.clusterConfig.prefix : this.clusterConfig.prefix.channel;
         return `${prefix}${channel}`;
@@ -268,13 +259,13 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         return true;
     }
 
-    async unsubscribe(channel: string, listener?: listener): Promise<boolean> {
+    async unsubscribe(channel: string, listener: listener): Promise<boolean> {
         // Grab the correct function
         const targetFunc = (this.isClusterMode()) ? this.subscriber.sUnsubscribe : this.subscriber.unsubscribe;
 
         // Execute the request
         const channelName = this.channel(channel);
-        await (listener) ? targetFunc(channelName, listener) : targetFunc(channelName);
+        await targetFunc(channelName, listener);
 
         return true;
     }
@@ -289,12 +280,12 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         return true;
     }
 
-    async store(key: string, value: string | number | Buffer, ttl: number | null): boolean {
+    async store(key: string, value: string | number | Buffer, ttl: number | null): Promise<boolean> {
 
         const keyName = this.key(key);
-        await (ttl === null) ? this.client.set(keyName, value) :this.client.set(keyName, value, {
+        await ((ttl === null) ? this.client.set(keyName, value) : this.client.set(keyName, value, {
             EX: ttl
-        });
+        }));
 
         return true;
     }

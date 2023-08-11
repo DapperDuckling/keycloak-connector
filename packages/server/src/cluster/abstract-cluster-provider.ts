@@ -44,7 +44,7 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
     }
 
     public abstract subscribe(channel: string, listener: listener): Promise<boolean>;
-    public abstract unsubscribe(channel: string, listener?: listener): Promise<boolean>;
+    public abstract unsubscribe(channel: string, listener: listener): Promise<boolean>;
     public abstract publish(channel: string, message: string | Buffer): Promise<boolean>;
     public abstract store(key: string, value: string | number | Buffer, ttl: number | null): Promise<boolean>;
     public abstract remove(key: string): Promise<boolean>;
