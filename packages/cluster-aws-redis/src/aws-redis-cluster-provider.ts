@@ -1,6 +1,6 @@
 import type {ClusterConfig} from "keycloak-connector-server";
 import {AbstractClusterProvider, BaseClusterEvents,} from "keycloak-connector-server";
-import {createCluster} from "redis";
+import {createClient, createCluster} from "redis";
 import type {RedisClusterOptions} from "@redis/client";
 
 
@@ -25,7 +25,8 @@ export enum RedisClusterEvents {
 export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
     protected override clusterConfig: AwsRedisClusterConfig;
-    private client: ReturnType<typeof createCluster>;
+    // private client: ReturnType<typeof createCluster>;
+    private client: ReturnType<typeof createClient>;
     private isConnectedTracker: boolean = false;
 
     constructor(clusterConfig: AwsRedisClusterConfig) {
@@ -44,16 +45,16 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
             ...this.clusterConfig.redisConfig,
 
             // Add a default node if none are specified
-            ...(this.clusterConfig.redisConfig.rootNodes.length === 0 && process.env["REDIS_URL"]) && {
+            ...(this.clusterConfig.redisConfig.rootNodes.length === 0 && process.env["CLUSTER_REDIS_URL"]) && {
                 rootNodes: [{
-                    url: process.env["REDIS_URL"]
+                    url: process.env["CLUSTER_REDIS_URL"],
                 }]
             },
 
             // Add default connection information
             defaults: {
-                ...process.env["REDIS_USERNAME"] && {username: process.env["REDIS_USERNAME"]},
-                ...process.env["REDIS_PASSWORD"] && {password: process.env["REDIS_PASSWORD"]},
+                ...process.env["CLUSTER_REDIS_USERNAME"] && {username: process.env["CLUSTER_REDIS_USERNAME"]},
+                ...process.env["CLUSTER_REDIS_PASSWORD"] && {password: process.env["CLUSTER_REDIS_PASSWORD"]},
                 name: process.env["REDIS_CLIENT_NAME"] ?? "keycloak-connector",
                 ...this.clusterConfig.redisConfig.defaults,
             },
@@ -72,14 +73,25 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
 
             // Check for missing dangerous override flag
             if (this.clusterConfig.DANGEROUS_allowUnsecureConnectionToRedisServer !== true) {
-                throw new Error(`Connection url does not not start with "rediss" disabling TLS connection to REDIS server. Will not connect via unsecure connection without override.`);
+                throw new Error(`Connection url does not not start with "rediss" or tls not enabled which disables the TLS connection to REDIS server. Will not connect via unsecure connection without override.`);
             }
 
             this.clusterConfig.pinoLogger?.warn("***DANGEROUS CONFIGURATION*** Connecting to REDIS server using unsecure connection!");
         }
 
         // Create a new redis client
-        this.client = createCluster(redisConfig);
+        this.client = createClient({
+            username: process.env["CLUSTER_REDIS_USERNAME"] ?? "",
+            password: process.env["CLUSTER_REDIS_PASSWORD"] ?? "",
+            socket: {
+                tls: true,
+                host: "127.0.0.1",
+                port: 6378,
+                servername: "keycloak-connector-aws-redis-channel-v3-001.keycloak-connector-aws-redis-channel-v3.6ufjp6.usgw1.cache.amazonaws.com",
+            },
+            name: process.env["REDIS_CLIENT_NAME"] ?? "keycloak-connector",
+        });
+        // this.client = createCluster(redisConfig);
 
         // Register the error listeners
         this.client.on(RedisClusterEvents.READY, (msg) => {
