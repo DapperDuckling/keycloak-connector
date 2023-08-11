@@ -76,7 +76,18 @@ await fastify.register(keycloakConnectorFastify, {
 });
 
 // Set and receive a cluster message
-awsRedisClusterProvider.
+await awsRedisClusterProvider.store("my-token", "the one to rule them all", null);
+const myToken = await awsRedisClusterProvider.get("my-token");
+await awsRedisClusterProvider.remove("my-token");
+const myToken2 = await awsRedisClusterProvider.get("my-token");
+
+const listener = (msg: any) => {
+    console.log("got a message from my-topic");
+    console.log(msg);
+};
+await awsRedisClusterProvider.subscribe("my-topic", listener);
+await awsRedisClusterProvider.publish("my-topic", "really cool message");
+await awsRedisClusterProvider.unsubscribe('my-topic', listener);
 
 // Register our routes
 fastify.register(routes);

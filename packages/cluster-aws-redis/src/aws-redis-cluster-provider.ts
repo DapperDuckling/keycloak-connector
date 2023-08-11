@@ -280,6 +280,13 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         return true;
     }
 
+    async get(key: string): Promise<boolean> {
+        const keyName = this.key(key);
+        await this.client.get(keyName);
+
+        return true;
+    }
+
     async store(key: string, value: string | number | Buffer, ttl: number | null): Promise<boolean> {
 
         const keyName = this.key(key);
