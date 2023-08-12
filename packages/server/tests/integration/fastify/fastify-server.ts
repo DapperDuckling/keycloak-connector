@@ -62,7 +62,7 @@ fastify.register(fastifyStatic, {
 
 // Create our cluster provider
 const awsRedisClusterProvider = new AwsRedisClusterProvider({
-    prefix: "my-cool-app:*",
+    prefix: "my-cool-app:",
     pinoLogger: fastify.log as Logger,
 });
 
@@ -75,19 +75,29 @@ await fastify.register(keycloakConnectorFastify, {
     clusterProvider: awsRedisClusterProvider,
 });
 
-// Set and receive a cluster message
-await awsRedisClusterProvider.store("my-token", `the one to rule them all ${Date.now()}`, null);
-const myToken = await awsRedisClusterProvider.get("my-token");
-await awsRedisClusterProvider.remove("my-token");
-const myToken2 = await awsRedisClusterProvider.get("my-token");
-
-const listener = (msg: any) => {
-    console.log("got a message from my-topic");
-    console.log(msg);
-};
-await awsRedisClusterProvider.subscribe("my-topic", listener);
-await awsRedisClusterProvider.publish("my-topic", "really cool message");
-await awsRedisClusterProvider.unsubscribe('my-topic', listener);
+// // Set and receive a cluster message
+// await awsRedisClusterProvider.store("my-token", `the one to rule them all ${Date.now()}`, null);
+// const myToken = await awsRedisClusterProvider.get("my-token");
+// await awsRedisClusterProvider.remove("my-token");
+// const myToken2 = await awsRedisClusterProvider.get("my-token");
+//
+// const listener = (msg: any) => {
+//     console.log("got a message from my-topic");
+//     console.log(msg);
+// };
+// const listener2 = (msg: any) => {
+//     console.log("i'm a little teapots");
+//     console.log(msg);
+// };
+// await awsRedisClusterProvider.subscribe("my-topic", listener);
+// await awsRedisClusterProvider.publish("my-topic", "really cool message");
+// await awsRedisClusterProvider.unsubscribe('my-topic', listener);
+// await awsRedisClusterProvider.publish("my-topic", "really cool message2");
+//
+//
+// await awsRedisClusterProvider.subscribe("my-topic2", listener2);
+// await awsRedisClusterProvider.publish("my-topic2", "really cool message3");
+// await awsRedisClusterProvider.unsubscribe('my-topic2', listener);
 
 // Register our routes
 fastify.register(routes);

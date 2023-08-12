@@ -148,7 +148,7 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
             ) {
 
                 // Check for no dangerous override flag
-                if (this.clusterConfig.DANGEROUS_allowUnsecureConnectionToRedisServer !== true || process.env["CLUSTER_REDIS_DANGEROUSLY_DISABLE_TLS"]?.toLowerCase() !== "true") {
+                if (this.clusterConfig.DANGEROUS_allowUnsecureConnectionToRedisServer !== true && process.env["CLUSTER_REDIS_DANGEROUSLY_DISABLE_TLS"]?.toLowerCase() !== "true") {
                     throw new Error(`Connection url does not not start with "rediss" disabling TLS connection to REDIS server. Will not connect via unsecure connection without override.`);
                 }
 
@@ -251,50 +251,65 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
 
     async subscribe(channel: string, listener: listener): Promise<boolean> {
 
-        //todo: call these functions individually....
-        if (!this.isClusterMode()) {
-            this.subscriber.subscribe("test", () => {
-                console.log('listener');
-            })
+        // Grab the full channel name
+        const channelName = this.channel(channel);
+
+        this.clusterConfig.pinoLogger?.debug(`Subscribing to ${channelName}`);
+
+        if (this.isClusterMode()) {
+            // Cluster-mode
+            await this.subscriber.sSubscribe(channelName, listener);
+        } else {
+            // Non cluster-mode
+            await this.subscriber.subscribe(channelName, listener);
         }
-        // // Grab the correct function
-        // const targetFunc = (this.isClusterMode()) ? this.subscriber.sSubscribe : this.subscriber.subscribe;
-        //
-        // // Execute the request
-        // await targetFunc(this.channel(channel), listener);
 
         return true;
     }
 
     async unsubscribe(channel: string, listener: listener): Promise<boolean> {
-        // Grab the correct function
-        const targetFunc = (this.isClusterMode()) ? this.subscriber.sUnsubscribe : this.subscriber.unsubscribe;
 
-        // Execute the request
+        // Grab the full channel name
         const channelName = this.channel(channel);
-        await targetFunc(channelName, listener);
+
+        this.clusterConfig.pinoLogger?.debug(`Unsubscribing from ${channelName}`);
+
+        if (this.isClusterMode()) {
+            // Cluster-mode
+            await this.subscriber.sUnsubscribe(channelName, listener);
+        } else {
+            await this.subscriber.unsubscribe(channelName, listener);
+        }
 
         return true;
     }
 
     async publish(channel: string, message: string | Buffer): Promise<boolean> {
-        // Grab the correct function
-        const targetFunc = (this.isClusterMode()) ? this.subscriber.sPublish : this.subscriber.publish;
 
-        // Execute the request
-        await targetFunc(this.channel(channel), message);
+        // Grab the full channel name
+        const channelName = this.channel(channel);
+
+        this.clusterConfig.pinoLogger?.debug(`Publishing message to ${channelName}`);
+
+        if (this.isClusterMode()) {
+            await this.client.sPublish(channelName, message);
+        } else {
+            await this.client.publish(channelName, message);
+        }
 
         return true;
     }
 
     async get(key: string): Promise<string | null> {
         const keyName = this.key(key);
+        this.clusterConfig.pinoLogger?.debug(`Getting value of key ${keyName}`);
         return await this.client.get(keyName);
     }
 
     async store(key: string, value: string | number | Buffer, ttl: number | null): Promise<boolean> {
 
         const keyName = this.key(key);
+        this.clusterConfig.pinoLogger?.debug(`Setting value of key ${keyName}`);
         await ((ttl === null) ? this.client.set(keyName, value) : this.client.set(keyName, value, {
             EX: ttl
         }));
@@ -304,6 +319,7 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
 
     async remove(key: string): Promise<boolean> {
         const keyName = this.key(key);
+        this.clusterConfig.pinoLogger?.debug(`Deleting value of key ${keyName}`);
         await this.client.del(keyName);
         return true;
     }
