@@ -250,11 +250,18 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
     }
 
     async subscribe(channel: string, listener: listener): Promise<boolean> {
-        // Grab the correct function
-        const targetFunc = (this.isClusterMode()) ? this.subscriber.sSubscribe : this.subscriber.subscribe;
 
-        // Execute the request
-        await targetFunc(this.channel(channel), listener);
+        //todo: call these functions individually....
+        if (!this.isClusterMode()) {
+            this.subscriber.subscribe("test", () => {
+                console.log('listener');
+            })
+        }
+        // // Grab the correct function
+        // const targetFunc = (this.isClusterMode()) ? this.subscriber.sSubscribe : this.subscriber.subscribe;
+        //
+        // // Execute the request
+        // await targetFunc(this.channel(channel), listener);
 
         return true;
     }
@@ -280,11 +287,9 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         return true;
     }
 
-    async get(key: string): Promise<boolean> {
+    async get(key: string): Promise<string | null> {
         const keyName = this.key(key);
-        await this.client.get(keyName);
-
-        return true;
+        return await this.client.get(keyName);
     }
 
     async store(key: string, value: string | number | Buffer, ttl: number | null): Promise<boolean> {
