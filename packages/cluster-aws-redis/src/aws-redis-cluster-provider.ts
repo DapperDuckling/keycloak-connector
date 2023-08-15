@@ -1,12 +1,12 @@
-import type {ClusterConfig, listener} from "keycloak-connector-server";
-import {AbstractClusterProvider, BaseClusterEvents,} from "keycloak-connector-server";
+import type {ClusterConfig, listener, LockOptions} from "keycloak-connector-server";
+import {AbstractClusterProvider, BaseClusterEvents} from "keycloak-connector-server";
 import {createClient, createCluster} from "redis";
 import type {RedisClientOptions} from "redis";
 import type {RedisClusterOptions} from "@redis/client";
 import type {RedisSocketOptions} from "@redis/client/dist/lib/client/socket.js";
 
 interface BaseRedisClusterConfig extends ClusterConfig {
-    prefix: string | {
+    prefix?: string | {
         key: string,
         channel: string,
     };
@@ -42,15 +42,22 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
     private isClientConnected: boolean = false;
     private readonly subscriber: RedisClient;
     private isSubscriberConnected: boolean = false;
+    private readonly uniqueClientId: string;
 
     constructor(clusterConfig: RedisClusterConfig) {
         super(clusterConfig);
+
+        // Generate a unique id for this client
+        this.uniqueClientId = `${Date.now()}-${crypto.randomUUID()}`;
 
         // Handle each cluster mode config differently
         this.clusterConfig = this.isConfigClusterMode(clusterConfig) ? this.handleClusterMode(clusterConfig) : this.handleNonClusterMode(clusterConfig);
 
         // Ensure connections are happening over TLS
         this.ensureTlsConfig();
+
+        // Ensure there is a prefix
+        this.ensurePrefix();
 
         // Create a new redis client
         this.client = (clusterConfig.clusterMode) ?
@@ -157,6 +164,19 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         }
     }
 
+    private ensurePrefix(): void {
+
+        // Grab any environment variable prefix
+        if (process.env["CLUSTER_REDIS_PREFIX"]) this.clusterConfig.prefix ??= process.env["CLUSTER_REDIS_PREFIX"];
+
+        // Check for a prefix
+        if (this.clusterConfig.prefix !== undefined || process.env["CLUSTER_REDIS_NO_PREFIX"]?.toLowerCase() === "true") return;
+
+        // No prefix, show a warning
+        this.clusterConfig.pinoLogger?.warn("***CHECK CONFIGURATION*** It is highly recommended to set a prefix when using Redis in order to allow for easier permission management configuration.");
+
+    }
+
     private registerEventListeners(client: RedisClient, isSubscriber: boolean = false) {
 
         const clientNameTag = (isSubscriber) ? "Subscriber" : "Client";
@@ -240,12 +260,12 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
     }
 
     private channel(channel: string) {
-        const prefix = (typeof this.clusterConfig.prefix === "string") ? this.clusterConfig.prefix : this.clusterConfig.prefix.channel;
+        const prefix = (typeof this.clusterConfig.prefix === "string") ? this.clusterConfig.prefix : this.clusterConfig.prefix?.channel ?? "";
         return `${prefix}${channel}`;
     }
 
     private key(key: string) {
-        const prefix = (typeof this.clusterConfig.prefix === "string") ? this.clusterConfig.prefix : this.clusterConfig.prefix.key;
+        const prefix = (typeof this.clusterConfig.prefix === "string") ? this.clusterConfig.prefix : this.clusterConfig.prefix?.key ?? "";
         return `${prefix}${key}`;
     }
 
@@ -321,6 +341,54 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         const keyName = this.key(key);
         this.clusterConfig.pinoLogger?.debug(`Deleting value of key ${keyName}`);
         await this.client.del(keyName);
+        return true;
+    }
+
+    async lock(lockOptions: LockOptions): Promise<boolean> {
+        /**
+         * Be warned: This lock implementation does not guarantee safety and liveness in
+         * distributed systems. Read more: https://redis.io/docs/manual/patterns/distributed-locks/
+         */
+
+        // Grab the fully prefixed key
+        const keyName = this.key(lockOptions.key);
+
+        this.clusterConfig.pinoLogger?.debug(`Attempting to obtain a lock with key ${keyName}`);
+
+        // Set a key with our unique id IFF the key does not exist already
+        const result = await this.client.set(keyName, this.uniqueClientId, {
+            EX: lockOptions.ttl,
+            NX: true,
+        });
+
+        // Store the result
+        let lockCounter = 0;
+        const locks = new Map();
+
+        // Prepare the lock timeout call
+
+
+        locks.set(++lockCounter, {
+            lockOptions: lockOptions,
+            abortLockTimeout: () => {
+
+            }
+        });
+
+        return true;
+
+
+    }
+
+    async isLocked(key: string, extendLockOptions: LockOptions): Promise<boolean> {
+        return true;
+    }
+
+    async unlock(key: string): Promise<boolean> {
+        // Send command to redis server
+
+        // Abort the unlock timeout and remove entry from set
+
         return true;
     }
 }

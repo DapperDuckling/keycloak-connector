@@ -84,7 +84,7 @@ const lock = await keycloakConnectorExpress(app, {
     serverOrigin: 'http://localhost:3005',
     authServerUrl: 'http://localhost:8080/',
     realm: 'local-dev',
-    refreshConfigSecs: -1, // Disable for dev testing
+    refreshConfigMins: -1, // Disable for dev testing
 });
 
 // Start server
@@ -298,7 +298,7 @@ export interface KeycloakConnectorConfiguration {
     keycloakVersionBelow18?: boolean;
 
     /** How often should we ping the OP for an updated oidc configuration */
-    refreshConfigSecs?: number;
+    refreshConfigMins?: number;
 
     /** Pino logger reference */
     pinoLogger?: Logger;

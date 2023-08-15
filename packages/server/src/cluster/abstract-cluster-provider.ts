@@ -15,13 +15,27 @@ export interface ClusterConfig {
     pinoLogger?: Logger
 }
 
+export interface LockOptions {
+    key: string,
+    ttl: number,
+    maxWaitMs?: number,
+    retry?: boolean,
+    onTimeout?: listener,
+}
+
 export abstract class AbstractClusterProvider<CustomEvents extends string | void = void> {
 
     protected clusterConfig: ClusterConfig;
     private eventEmitter = new EventEmitter();
 
     protected constructor(clusterConfig: ClusterConfig) {
+        // Update pino logger reference
+        if (clusterConfig.pinoLogger) {
+            clusterConfig.pinoLogger = clusterConfig.pinoLogger.child({"Source": "ClusterProvider"})
+        }
+
         this.clusterConfig = clusterConfig;
+
     }
 
     abstract connectOrThrow(): Promise<true>;

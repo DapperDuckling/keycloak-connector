@@ -7,6 +7,7 @@ import {keycloakConnectorFastify} from "keycloak-connector-server";
 import {routes} from "./routes.js";
 import {AwsRedisClusterProvider} from "keycloak-connector-server-cluster-aws-redis/src/aws-redis-cluster-provider.js";
 import type {Logger} from "pino";
+import {clusterKeyProvider} from "keycloak-connector-server";
 
 const dotenv = await import('dotenv');
 dotenv.config({path: './.env.test'});
@@ -62,7 +63,6 @@ fastify.register(fastifyStatic, {
 
 // Create our cluster provider
 const awsRedisClusterProvider = new AwsRedisClusterProvider({
-    prefix: "my-cool-app:",
     pinoLogger: fastify.log as Logger,
 });
 
@@ -73,6 +73,7 @@ await fastify.register(keycloakConnectorFastify, {
     realm: 'local-dev',
     refreshConfigSecs: -1, // Disable for dev testing
     clusterProvider: awsRedisClusterProvider,
+    keyProvider: clusterKeyProvider(awsRedisClusterProvider),
 });
 
 // // Set and receive a cluster message

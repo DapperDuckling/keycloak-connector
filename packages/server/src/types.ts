@@ -11,16 +11,12 @@ import type {AbstractClusterProvider} from "./cluster/abstract-cluster-provider.
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
-//todo: remove generic if not needed
-// @ts-ignore
-export interface KeycloakConnectorInternalConfiguration<Server extends SupportedServers> {
-    // server: SupportedServers;
-    // adapter: AbstractAdapter<Server>;
+export interface KeycloakConnectorInternalConfiguration {
     oidcDiscoveryUrl: string;
     oidcConfig: IssuerMetadata;
     oidcIssuer: Issuer;
     oidcClient: Client;
-    connectorKeys: ConnectorKeys;
+    keyProvider: AbstractKeyProvider;
     remoteJWKS: () => Promise<KeyLike>;
 
 }
@@ -59,7 +55,7 @@ export interface KeycloakConnectorConfigBase {
     keycloakVersionBelow18?: boolean;
 
     /** How often should we ping the OP for an updated oidc configuration */
-    refreshConfigSecs?: number;
+    refreshConfigMins?: number;
 
     /** Pino logger reference */
     pinoLogger?: Logger;
@@ -101,11 +97,17 @@ export interface KeycloakConnectorConfigBase {
     }
 
     /** Allows you to specify a built-in or pass a custom key provider */
-    //todo: Is this no longer needed now that we have the cluster provider??
-    keyProvider?: ClassConstructor<AbstractKeyProvider>;
+    keyProvider?: KeyProvider;
 
     /** Specify a cluster provider in order to synchronize instances of the same app */
     clusterProvider?: AbstractClusterProvider;
+}
+
+export type KeyProvider = (keyProviderConfig: KeyProviderConfig) => Promise<AbstractKeyProvider>;
+
+export type KeyProviderConfig = {
+    pinoLogger?: Logger,
+    clusterProvider?: AbstractClusterProvider,
 }
 
 export enum AzpOptions {
