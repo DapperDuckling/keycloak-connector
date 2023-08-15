@@ -5,11 +5,12 @@ import type {ConnectorKeys} from "../types.js";
 import {isObject, sleep} from "../helpers/utils.js";
 
 class ClusterKeyProvider extends AbstractKeyProvider {
-
-    private readonly MAX_INITIALIZE_RETRIES = 10;
-    private readonly keyNames = {
-     _PREFIX: "key-provider:",
-     CONNECTOR_KEYS: "connector-keys",
+    
+    private readonly constants = {
+        MAX_INITIALIZE_RETRIES: 10,
+        _PREFIX: "key-provider",
+        CONNECTOR_KEYS: "connector-keys",
+        LISTENING_CHANNEL: "listening-channel"
     } as const;
 
     private clusterProvider: AbstractClusterProvider;
@@ -46,7 +47,9 @@ class ClusterKeyProvider extends AbstractKeyProvider {
 
             // Add wait period before next attempt
             await sleep(attempt *  500);
-        } while(attempt <= this.MAX_INITIALIZE_RETRIES);
+        } while(attempt <= this.constants.MAX_INITIALIZE_RETRIES);
+
+        throw new Error(`Failed to generate keys after ${this.constants.MAX_INITIALIZE_RETRIES} attempts`);
     }
 
     private async generateClusterKeys(onlyIfStoreIsEmpty = false): Promise<ConnectorKeys | null> {
@@ -64,8 +67,8 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         }
     }
 
-    private async getKeysFromCluster() {
-        const keysJSON = await this.clusterProvider.get(`${this.keyNames._PREFIX}${this.keyNames.CONNECTOR_KEYS}`);
+    private async getKeysFromCluster(): Promise<ConnectorKeys | false | null> {
+        const keysJSON = await this.clusterProvider.get(`${this.constants._PREFIX}:${this.constants.CONNECTOR_KEYS}`);
 
         // Check for any found value
         if (keysJSON === null) return null;
@@ -90,11 +93,42 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         return keys;
     }
 
+    private async setupSubscriptions() {
+        const listeningChannel = `${this.constants._PREFIX}:${this.constants.LISTENING_CHANNEL}`;
+
+        try {
+            // Clear existing subscription
+            const unsubResults = await this.clusterProvider.unsubscribe(listeningChannel, this.pubSubMessageHandler);
+
+            // Check the results of the unsubscription
+            if (!unsubResults) this.keyProviderConfig.pinoLogger?.debug(`Failed to unsubscribe from ${listeningChannel}`);
+
+            // Add subscription
+            const subResults = await this.clusterProvider.subscribe(listeningChannel, this.pubSubMessageHandler);
+
+            // Check the result of the subscription
+            if (!subResults) this.keyProviderConfig.pinoLogger?.debug(`Failed to subscribe to ${listeningChannel}`);
+
+            return subResults;
+
+        } catch (e) {
+            this.keyProviderConfig.pinoLogger?.error(`Error while subscribing to ${listeningChannel}: ${e}`);
+            return false;
+        }
+    }
+
+    private pubSubMessageHandler() {
+
+    }
+
     static async factory(keyProviderConfig: KeyProviderConfig) {
         // Create a new key provider
         const keyProvider = new ClusterKeyProvider(keyProviderConfig);
 
-        // Subscribe to
+        // Subscribe to key update channels
+        if (!await keyProvider.setupSubscriptions()) throw new Error(`Failed to subscribe to update channels, will not continue setup`);
+
+
     }
 }
 
