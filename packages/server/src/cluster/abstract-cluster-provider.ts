@@ -17,6 +17,7 @@ export interface ClusterConfig {
 
 export interface LockOptions {
     key: string,
+    // TTL in seconds
     ttl: number,
     maxWaitMs?: number,
     retry?: boolean,
@@ -63,4 +64,6 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
     public abstract get(key: string): Promise<string | null>;
     public abstract store(key: string, value: string | number | Buffer, ttl: number | null): Promise<boolean>;
     public abstract remove(key: string): Promise<boolean>;
+    public abstract lock(lockOptions: LockOptions): Promise<boolean>;
+    public abstract unlock(lockOptions: LockOptions): Promise<boolean>;
 }

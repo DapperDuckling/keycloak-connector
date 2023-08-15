@@ -347,7 +347,7 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
     async lock(lockOptions: LockOptions): Promise<boolean> {
         /**
          * Be warned: This lock implementation does not guarantee safety and liveness in
-         * distributed systems. Read more: https://redis.io/docs/manual/patterns/distributed-locks/
+         * distributed cluster systems. Read more: https://redis.io/docs/manual/patterns/distributed-locks/
          */
 
         // Grab the fully prefixed key
