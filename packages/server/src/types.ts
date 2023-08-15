@@ -22,6 +22,7 @@ export interface KeycloakConnectorInternalConfiguration {
 }
 
 export type ConnectorKeys = {
+    kid: string,
     publicJwk: JWK;
     privateJwk: JWK;
 }

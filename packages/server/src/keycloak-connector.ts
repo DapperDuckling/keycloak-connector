@@ -26,7 +26,7 @@ import {standaloneKeyProvider} from "./crypto/standalone-key-provider.js";
 
 export class KeycloakConnector<Server extends SupportedServers> {
 
-    public static readonly REQUIRED_ALGO = 'PS256';
+    public static readonly REQUIRED_ALGO = 'PS256'; // FAPI required algo, see: https://openid.net/specs/openid-financial-api-part-2-1_0.html
     private readonly _config: KeycloakConnectorConfigBase;
     private readonly components: KeycloakConnectorInternalConfiguration;
     private readonly roleHelper: RoleHelper;
