@@ -5,10 +5,11 @@ import type {GenerateKeyPairOptions} from "jose/dist/types/key/generate_key_pair
 import {KeycloakConnector} from "../keycloak-connector.js";
 import {webcrypto} from "crypto";
 import type {Logger} from "pino";
+import {is} from "typia";
 
 export abstract class AbstractKeyProvider {
 
-    private keyProviderConfig: KeyProviderConfig;
+    protected keyProviderConfig: KeyProviderConfig;
     protected connectorKeys: ConnectorKeys | null = null;
 
     protected constructor(keyProviderConfig: KeyProviderConfig) {
@@ -26,9 +27,7 @@ export abstract class AbstractKeyProvider {
         return this.connectorKeys ?? (this.connectorKeys = await this.generateKeys());
     }
 
-    private isConnectorKeys(keys: unknown): boolean {
-
-    }
+    protected isConnectorKeys = (obj: unknown): obj is ConnectorKeys => is<ConnectorKeys>(obj);
 
     protected static async createKeys(alg: string = KeycloakConnector.REQUIRED_ALGO, options?: GenerateKeyPairOptions): Promise<ConnectorKeys> {
 

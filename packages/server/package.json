@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "jose": "^4.14.4",
-    "openid-client": "^5.4.0"
+    "openid-client": "^5.4.0",
+    "typia": "^4.2.3"
   }
 }
