@@ -8,14 +8,16 @@ import {is} from "typia";
 type ClusterConnectorKeys = {
     connectorKeys: ConnectorKeys,
     currentStart: number,
-    prevConnectorKeys: ConnectorKeys,
-    prevExpire: number,
+    prevConnectorKeys?: ConnectorKeys,
+    prevExpire?: number,
 }
 
 class ClusterKeyProvider extends AbstractKeyProvider {
     
     private readonly constants = {
         MAX_INITIALIZE_RETRIES: 10,
+        PREV_JWKS_EXPIRATION_SECS: 10 * 60 * 1000, // 10 minutes
+        MAX_PREV_JWKS_EXPIRATION_SECS: 3600 * 1000, // 1 hour
         _PREFIX: "key-provider",
         CONNECTOR_KEYS: "connector-keys",
         LISTENING_CHANNEL: "listening-channel",
@@ -82,27 +84,40 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         // Check for existing keys and config flag
         if (clusterConnectorKeys && onlyIfStoreIsEmpty) return clusterConnectorKeys.connectorKeys;
 
-        // Check previous JWKS expiration time
-        if (clusterConnectorKeys?.prevExpire > ) {
+        // Check if the previous key has NOT expired AND the expiration timestamp is reasonable
+        if (clusterConnectorKeys?.prevExpire &&
+            clusterConnectorKeys?.prevExpire + 1 > Date.now()/1000 &&
+            clusterConnectorKeys?.prevExpire < Date.now()/1000 + this.constants.MAX_PREV_JWKS_EXPIRATION_SECS) {
 
+            // --> broadcast new message "CMD:update-jwks:<time>:error:cannot update, previous token does not expire until <unixtimestamp>" to <job listening channel>
+            this.keyProviderConfig.pinoLogger?.warn(`Previous key has not yet expired, will not create new cluster key`);
+            return clusterConnectorKeys?.connectorKeys;
         }
 
-        // - get the previous jwks expiration time, is it between now+1 and PREVIOUS_EXPIRATION+1 time (has it not expired AND is it a valid time, not something super far in the future)
-        // --> broadcast new message "CMD:update-jwks:<time>:error:cannot update, previous token does not expire until <unixtimestamp>" to <job listening channel>
-        //
         // - broadcast new message "CMD:update-jwks:<time>:started" to <job listening channel>
-        // - generate a new jwks
-        //
+
+        const newConnectorKeys = await AbstractKeyProvider.createKeys();
+
+        // Build new cluster connector keys object
+        const newClusterConnectorKeys: ClusterConnectorKeys = {
+            connectorKeys: newConnectorKeys,
+            currentStart: Date.now() / 1000,
+            ...clusterConnectorKeys && {
+                prevConnectorKeys: clusterConnectorKeys?.connectorKeys,
+                prevExpire: Date.now() / 1000 + this.constants.PREV_JWKS_EXPIRATION_SECS
+            }
+        }
+
+        // Convert object to string
+        const newClusterConnectorKeysJSON = JSON.stringify(newClusterConnectorKeys);
+
         // - broadcast new message "CMD:pending-new-jwks:<unique id>:<check at END OF LOCK time>"
         // --> clients that receive this should set a timeout for the above seconds to run the GET_JWKS function
-        //
-        //
-        // - store (IF THE LOCK STILL EXISTS---**will need a special lua script to do this**): {
-        //     currentJWKS: <data>
-        //         currentJwksStart: <unixtimestamp + 1 minute>
-        //     previousJWKS: <data>
-        //         previousJwksExpiration: <unixtimestamp + 10 minutes>
-        // }
+
+        // Store the keys with no expiration
+        //todo: ************ DO THIS ONLY IF LOCK EXISTS
+        await this.clusterProvider.store(`${this.constants._PREFIX}:${this.constants.CONNECTOR_KEYS}`, newClusterConnectorKeysJSON, null);
+
         //
         // - if not successful, do nothing
         // - else...
