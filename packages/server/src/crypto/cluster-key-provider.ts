@@ -1,21 +1,38 @@
 import {AbstractKeyProvider} from "./abstract-key-provider.js";
-import type {AbstractClusterProvider} from "../cluster/abstract-cluster-provider.js";
+import type {AbstractClusterProvider, LockOptions} from "../cluster/abstract-cluster-provider.js";
 import type {KeyProvider, KeyProviderConfig} from "../types.js";
 import type {ConnectorKeys} from "../types.js";
 import {sleep} from "../helpers/utils.js";
 import {is} from "typia";
+import type {ClusterJob} from "../cluster/cluster-job.js";
+import {ClusterMessenger, ClusterMessengerConfig} from "../cluster/cluster-messenger.js";
 
 type ClusterConnectorKeys = {
     connectorKeys: ConnectorKeys,
-    currentStart: number,
+    currentStart?: number,
     prevConnectorKeys?: ConnectorKeys,
     prevExpire?: number,
+}
+
+interface GenerateClusterKeysConfig {
+    onlyIfStoreIsEmpty?: boolean,
+    onNewKeyStart?: () => void,
+    clusterJob?: ClusterJob,
+}
+
+interface UpdateJwksMessage {
+    uniqueId: string,
+    event: string,
+    payload?: string,
+    clusterConnectorKeys?: ClusterConnectorKeys
 }
 
 class ClusterKeyProvider extends AbstractKeyProvider {
     
     private readonly constants = {
         MAX_INITIALIZE_RETRIES: 10,
+        CURR_JWKS_START_DELAY_SECS: 2 * 60 * 1000, // 2 minutes
+        MAX_CURR_JWKS_START_DELAY_SECS: 10 * 60 * 1000, // 10 minutes
         PREV_JWKS_EXPIRATION_SECS: 10 * 60 * 1000, // 10 minutes
         MAX_PREV_JWKS_EXPIRATION_SECS: 3600 * 1000, // 1 hour
         _PREFIX: "key-provider",
@@ -51,7 +68,7 @@ class ClusterKeyProvider extends AbstractKeyProvider {
             if (connectorKeys) return connectorKeys;
 
             // Generate cluster keys
-            connectorKeys = await this.generateClusterKeys();
+            connectorKeys = await this.generateClusterKeys({});
 
             // Return the keys from cluster generation
             if (connectorKeys) return connectorKeys;
@@ -63,14 +80,20 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         throw new Error(`Failed to generate keys after ${this.constants.MAX_INITIALIZE_RETRIES} attempts`);
     }
 
-    private async generateClusterKeys(onlyIfStoreIsEmpty = false): Promise<ConnectorKeys | null> {
+    private async generateClusterKeys(config: GenerateClusterKeysConfig): Promise<ClusterConnectorKeys | null> {
 
-        // Attempt to obtain a lock
-        const lock = await this.clusterProvider.lock({
+        // Setup lock options
+        const lockOptions: LockOptions = {
             key: `${this.constants._PREFIX}:${this.constants.UPDATE_JWKS}`,
             ttl: 60,
             maxWaitMs: 0,
-        });
+        };
+
+        // Attempt to obtain a lock
+        const lock = await this.clusterProvider.lock(lockOptions);
+
+        // Calculate end of lock time
+        const endOfLockTime = Date.now() + lockOptions.ttl;
 
         // Check for no lock
         if (!lock) {
@@ -82,27 +105,42 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         const clusterConnectorKeys = await this.getKeysFromCluster();
 
         // Check for existing keys and config flag
-        if (clusterConnectorKeys && onlyIfStoreIsEmpty) return clusterConnectorKeys.connectorKeys;
+        if (clusterConnectorKeys && config.onlyIfStoreIsEmpty) {
+            this.keyProviderConfig.pinoLogger?.debug(`Keys exists in store, using existing keys`);
+            return clusterConnectorKeys;
+        }
+
+        // Check if the current key has not yet started
+        if (clusterConnectorKeys?.currentStart &&
+            clusterConnectorKeys?.currentStart + 1 > Date.now()/1000 &&
+            clusterConnectorKeys?.currentStart < Date.now()/1000 + this.constants.MAX_CURR_JWKS_START_DELAY_SECS) {
+
+            this.keyProviderConfig.pinoLogger?.warn(`New current key has not yet started, will not create new cluster key`);
+            await config.clusterJob?.status(`New current key has not yet started (${clusterConnectorKeys.currentStart}), will not create new cluster key`);
+            return null;
+        }
 
         // Check if the previous key has NOT expired AND the expiration timestamp is reasonable
         if (clusterConnectorKeys?.prevExpire &&
             clusterConnectorKeys?.prevExpire + 1 > Date.now()/1000 &&
             clusterConnectorKeys?.prevExpire < Date.now()/1000 + this.constants.MAX_PREV_JWKS_EXPIRATION_SECS) {
 
-            // --> broadcast new message "CMD:update-jwks:<time>:error:cannot update, previous token does not expire until <unixtimestamp>" to <job listening channel>
             this.keyProviderConfig.pinoLogger?.warn(`Previous key has not yet expired, will not create new cluster key`);
-            return clusterConnectorKeys?.connectorKeys;
+            await config.clusterJob?.status(`Previous key has not yet expired (${clusterConnectorKeys.prevExpire}), will not create new cluster key`);
+            return null;
         }
 
-        // - broadcast new message "CMD:update-jwks:<time>:started" to <job listening channel>
+        // Send out start job message
+        await config.clusterJob?.start();
 
+        // Actually create the new keys
         const newConnectorKeys = await AbstractKeyProvider.createKeys();
 
         // Build new cluster connector keys object
         const newClusterConnectorKeys: ClusterConnectorKeys = {
             connectorKeys: newConnectorKeys,
-            currentStart: Date.now() / 1000,
             ...clusterConnectorKeys && {
+                currentStart: Date.now() / 1000 + this.constants.CURR_JWKS_START_DELAY_SECS, // Only add a delay if there are existing keys
                 prevConnectorKeys: clusterConnectorKeys?.connectorKeys,
                 prevExpire: Date.now() / 1000 + this.constants.PREV_JWKS_EXPIRATION_SECS
             }
@@ -111,28 +149,100 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         // Convert object to string
         const newClusterConnectorKeysJSON = JSON.stringify(newClusterConnectorKeys);
 
-        // - broadcast new message "CMD:pending-new-jwks:<unique id>:<check at END OF LOCK time>"
-        // --> clients that receive this should set a timeout for the above seconds to run the GET_JWKS function
+        // Send out status message
+        await config.clusterJob?.status(`Keys created, about to store if lock still exists`);
+
+        // Create a cluster messenger
+        const uniqueId = crypto.randomUUID();
+        const clusterMessengerConfig: ClusterMessengerConfig = {
+            command: "update-jwks", //todo: make constant
+            clusterProvider: this.clusterProvider,
+            targetChannel: `${this.constants._PREFIX}:${this.constants.LISTENING_CHANNEL}`,
+        }
+
+        // Advise all listeners of the pending update (in case the future publish is missed)
+        if (newClusterConnectorKeys.currentStart) {
+            await ClusterMessenger.messageObj<UpdateJwksMessage>(clusterMessengerConfig, {
+                uniqueId: uniqueId,
+                event: "pending-new-jwks",
+                payload: endOfLockTime.toString()
+            });
+
+            // todo: > clients that receive this should set a timeout for the above seconds to run the GET_JWKS function
+        }
 
         // Store the keys with no expiration
         //todo: ************ DO THIS ONLY IF LOCK EXISTS
-        await this.clusterProvider.store(`${this.constants._PREFIX}:${this.constants.CONNECTOR_KEYS}`, newClusterConnectorKeysJSON, null);
+        const storeResult = await this.clusterProvider.store(`${this.constants._PREFIX}:${this.constants.CONNECTOR_KEYS}`, newClusterConnectorKeysJSON, null);
 
-        //
-        // - if not successful, do nothing
-        // - else...
-        //
-        // - broadcast new message "CMD:new-jwks:<new jwks time>:<unique id>:<new jwks start time>:<previous jwks expiration time>"
-        // --> clients that receive this should cancel their earlier timeout for the same unique id. if they have a key earlier than the <start time>, then run the GET_JWKS function
-        //
-        // - broadcast new message to <job listening channel> "CMD:update-jwks:<time>:waiting until start to force update keycloak"
-        // (do i do this) set a timer until the jwksstart time to then send keycloak a message with the new key and have it get a new list of valid keys?
-        //
-        //
-        //     - broadcast new message to <job listening channel> "CMD:update-jwks:<time>:finished"
-        // - release lock
+        if (!storeResult) {
+            // Advise all listeners to cancel the pending update request
+            if (newClusterConnectorKeys.currentStart) {
+                await ClusterMessenger.messageObj<UpdateJwksMessage>(clusterMessengerConfig, {
+                    uniqueId: uniqueId,
+                    event: "cancel-pending-new-jwks",
+                });
+            }
 
+            this.keyProviderConfig.pinoLogger?.error(`Failed to store updated keys`);
+            return null;
+        }
 
+        // Advise all listeners that a new jwk is available and will be ready for use soon
+        await ClusterMessenger.messageObj<UpdateJwksMessage>(clusterMessengerConfig, {
+            uniqueId: uniqueId,
+            event: "new-jwks-available",
+            clusterConnectorKeys: newClusterConnectorKeys,
+        });
+        // todo: --> clients that receive this should cancel their earlier timeout for the same unique id. if they have a key earlier than the <start time>, then run the GET_JWKS function ///// ****OR JUST USE THIS DATA HERE
+
+        // Continuously pass the status message (if using a cluster job)
+        await (async function statusUpdateFunc() {
+
+            // Check if there is no start time for the new key
+            if (newClusterConnectorKeys.currentStart === undefined) return;
+
+            // Check if job does not exist
+            if (config.clusterJob === undefined) return;
+
+            // Check if job is finished
+            if (config.clusterJob.isFinished()) return;
+
+            // Calculate remaining time until start
+            const secondsUntilNewKeyStart = Math.max(Math.round(newClusterConnectorKeys.currentStart - Date.now() / 1000), 0);
+
+            // Sanity check seconds
+            if (secondsUntilNewKeyStart <= 0) return;
+
+            // Send status message
+            await config.clusterJob.status(`Waiting until new key start to update Keycloak cache. Time remaining: ${secondsUntilNewKeyStart} seconds`);
+
+            // Self licking ice cream cone
+            setTimeout(statusUpdateFunc, 10000);
+        })();
+
+        // Calculate remaining time until start
+        const secondsUntilNewKeyStart = Math.max(newClusterConnectorKeys.currentStart - Date.now()/1000, 0);
+
+        // Store a local reference to the callback
+        const onNewKeyStart = config.onNewKeyStart;
+
+        // Configure a timeout to pass final messages and handle callback
+        setTimeout(async() => {
+            this.keyProviderConfig.pinoLogger?.debug(`New key has started, executing callback`);
+            if (onNewKeyStart) await onNewKeyStart();
+            this.keyProviderConfig.pinoLogger?.debug(`Finished executing new key started callback`);
+            config.clusterJob?.finish();
+        }, secondsUntilNewKeyStart * 1000);
+
+        // Release the held lock
+        const unlock = await this.clusterProvider.unlock(lockOptions);
+
+        if (!unlock) {
+            this.keyProviderConfig.pinoLogger?.warn(`Failed to unlock cluster key generation lock. Lock will expire at the end of TTL.`);
+        }
+
+        return newClusterConnectorKeys;
     }
 
     private getConnectorKeysFromCluster = async (): Promise<ConnectorKeys | null> => (await this.getKeysFromCluster())?.connectorKeys ?? null;
