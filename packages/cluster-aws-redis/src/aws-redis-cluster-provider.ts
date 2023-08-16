@@ -4,6 +4,10 @@ import {createClient, createCluster} from "redis";
 import type {RedisClientOptions} from "redis";
 import type {RedisClusterOptions} from "@redis/client";
 import type {RedisSocketOptions} from "@redis/client/dist/lib/client/socket.js";
+import {webcrypto} from "crypto";
+import * as fs from "fs/promises";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
 interface BaseRedisClusterConfig extends ClusterConfig {
     prefix?: string | {
@@ -48,7 +52,7 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         super(clusterConfig);
 
         // Generate a unique id for this client
-        this.uniqueClientId = `${Date.now()}-${crypto.randomUUID()}`;
+        this.uniqueClientId = `${Date.now()}-${webcrypto.randomUUID()}`;
 
         // Handle each cluster mode config differently
         this.clusterConfig = this.isConfigClusterMode(clusterConfig) ? this.handleClusterMode(clusterConfig) : this.handleNonClusterMode(clusterConfig);
@@ -59,9 +63,14 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         // Ensure there is a prefix
         this.ensurePrefix();
 
+        //todo: remove
+        // clusterConfig.redisConfig?.functions
+
         // Create a new redis client
         this.client = (clusterConfig.clusterMode) ?
             createCluster(clusterConfig.redisConfig as RedisClusterOptions) : createClient(clusterConfig.redisConfig as RedisClientOptions);
+
+        // Add our custom
 
         // Create the pub sub client
         this.subscriber = this.client.duplicate();
@@ -326,13 +335,36 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         return await this.client.get(keyName);
     }
 
-    async store(key: string, value: string | number | Buffer, ttl: number | null): Promise<boolean> {
+    async store(key: string, value: string | number | Buffer, ttl: number | null, lockKey?: string): Promise<boolean> {
 
         const keyName = this.key(key);
         this.clusterConfig.pinoLogger?.debug(`Setting value of key ${keyName}`);
-        await ((ttl === null) ? this.client.set(keyName, value) : this.client.set(keyName, value, {
-            EX: ttl
-        }));
+
+        const baseArgs = [keyName, value] as const;
+        const args = (ttl === null) ? baseArgs : [...baseArgs, {EX: ttl}] as const;
+
+        try {
+            // grab the script
+            const scriptPath = dirname(fileURLToPath(import.meta.url)) + '/lua-scripts/set-if-locked.lua';
+            const script = await fs.readFile(scriptPath, 'utf8');
+
+            // @ts-ignore
+            const test = await this.client.sendCommand(['FUNCTION', 'LOAD', 'REPLACE', script]); // 'OK'
+            // @ts-ignore
+            const test2 = await this.client.sendCommand(['FUNCTION', 'LIST', 'LIBRARYNAME', 'redis_cluster_provider']); // 'OK'
+            // const test2 = await this.client.sendCommand(['FCALL', 'myfunc', '0', 'hello']); // 'OK'
+
+            debugger;
+        } catch (e) {
+            debugger;
+        }
+        // const result = await this.client.get('mycoolkey');
+
+        await this.client.set(...args);
+
+        // await ((ttl === null) ? this.client.set(keyName, value) : this.client.set(keyName, value, {
+        //     EX: ttl
+        // }));
 
         return true;
     }
@@ -384,7 +416,7 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         return true;
     }
 
-    async unlock(key: string): Promise<boolean> {
+    async unlock(lockOptions: LockOptions): Promise<boolean> {
         // Send command to redis server
 
         // Abort the unlock timeout and remove entry from set

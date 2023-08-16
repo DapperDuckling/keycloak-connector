@@ -423,7 +423,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     private handleClientJWKS = async (): Promise<ConnectorResponse<Server>> => {
         const keys = {
-            "keys": [this.components.keyProvider.publicJwk]
+            "keys": [await this.components.keyProvider.getKeys().then(keys => keys.privateJwk)]
         };
 
         return {
@@ -611,7 +611,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 ({
                     oidcIssuer: this.components.oidcIssuer,
                     oidcClient: this.components.oidcClient
-                } = await KeycloakConnector.createOidcClients(newOidcConfig, this._config.oidcClientMetadata, this.components.keyProvider.privateJwk));
+                } = await KeycloakConnector.createOidcClients(newOidcConfig, this._config.oidcClientMetadata, await this.components.keyProvider.getKeys().then(keys => keys.privateJwk)));
             }
 
             this._config.pinoLogger?.debug(`OIDC update complete`);

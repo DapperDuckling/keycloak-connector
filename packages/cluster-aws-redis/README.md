@@ -8,7 +8,6 @@ When scaling a project that uses `keycloak-connector-server`, each instance will
 
 This plugin is written in order to synchronize this and other activities, such as backdoor logouts from Keycloak.
 
-
 ### AWS ElastiCache Setup
 
 1. Create a new EC2 security group to link Redis to EC2 instances
@@ -40,7 +39,7 @@ This plugin is written in order to synchronize this and other activities, such a
      - The above allows read/write access to keys & pub/sub channels that match the `my-cool-app:*` glob and allows commands in the `FAST` category.
 
 ### Connecting through EC2 (bastion) instance
-1. Copy the _(primary or configuration??)_ endpoint
+1. Copy the endpoint url
 2. Install redis
     ```shell 
     sudo yum install -y redis

@@ -5,7 +5,9 @@ import type {ConnectorKeys} from "../types.js";
 import {sleep} from "../helpers/utils.js";
 import {is} from "typia";
 import type {ClusterJob} from "../cluster/cluster-job.js";
-import {ClusterMessenger, ClusterMessengerConfig} from "../cluster/cluster-messenger.js";
+import {ClusterMessenger} from "../cluster/cluster-messenger.js";
+import type {ClusterMessengerConfig} from "../cluster/cluster-messenger.js";
+import {webcrypto} from "crypto";
 
 type ClusterConnectorKeys = {
     connectorKeys: ConnectorKeys,
@@ -59,19 +61,20 @@ class ClusterKeyProvider extends AbstractKeyProvider {
 
         // Keep track of the number of attempts
         let attempt = 1;
-        let connectorKeys;
 
         do {
-            connectorKeys = await this.getConnectorKeysFromCluster();
+            //todo: change this to handle keys that aren't active yet
+            const connectorKeys = await this.getConnectorKeysFromCluster();
 
             // Return the keys from the cluster
             if (connectorKeys) return connectorKeys;
 
             // Generate cluster keys
-            connectorKeys = await this.generateClusterKeys({});
+            const clusterConnectorKeys = await this.generateClusterKeys({});
 
             // Return the keys from cluster generation
-            if (connectorKeys) return connectorKeys;
+            //todo: change this to handle keys that aren't active yet
+            if (clusterConnectorKeys) return clusterConnectorKeys.connectorKeys;
 
             // Add wait period before next attempt
             await sleep(attempt *  500);
@@ -93,7 +96,7 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         const lock = await this.clusterProvider.lock(lockOptions);
 
         // Calculate end of lock time
-        const endOfLockTime = Date.now() + lockOptions.ttl;
+        const endOfLockTime = Date.now()/1000 + lockOptions.ttl;
 
         // Check for no lock
         if (!lock) {
@@ -153,7 +156,7 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         await config.clusterJob?.status(`Keys created, about to store if lock still exists`);
 
         // Create a cluster messenger
-        const uniqueId = crypto.randomUUID();
+        const uniqueId = webcrypto.randomUUID();
         const clusterMessengerConfig: ClusterMessengerConfig = {
             command: "update-jwks", //todo: make constant
             clusterProvider: this.clusterProvider,
@@ -222,7 +225,7 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         })();
 
         // Calculate remaining time until start
-        const secondsUntilNewKeyStart = Math.max(newClusterConnectorKeys.currentStart - Date.now()/1000, 0);
+        const secondsUntilNewKeyStart = (newClusterConnectorKeys.currentStart) ? Math.max(newClusterConnectorKeys.currentStart - Date.now()/1000, 0) : 0;
 
         // Store a local reference to the callback
         const onNewKeyStart = config.onNewKeyStart;
@@ -230,8 +233,13 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         // Configure a timeout to pass final messages and handle callback
         setTimeout(async() => {
             this.keyProviderConfig.pinoLogger?.debug(`New key has started, executing callback`);
+
+            // Execute the callback
             if (onNewKeyStart) await onNewKeyStart();
+
             this.keyProviderConfig.pinoLogger?.debug(`Finished executing new key started callback`);
+
+            // Send job finish notification
             config.clusterJob?.finish();
         }, secondsUntilNewKeyStart * 1000);
 
@@ -239,7 +247,9 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         const unlock = await this.clusterProvider.unlock(lockOptions);
 
         if (!unlock) {
-            this.keyProviderConfig.pinoLogger?.warn(`Failed to unlock cluster key generation lock. Lock will expire at the end of TTL.`);
+            const lockExpiresIn = Math.round(endOfLockTime - Date.now() / 1000);
+            const warnMsg = (lockExpiresIn > 0) ? `Lock will expire in ${lockExpiresIn} seconds` : `Lock already expired ${Math.abs(lockExpiresIn)} seconds ago.`;
+            this.keyProviderConfig.pinoLogger?.warn(`Failed to unlock cluster key generation lock. ${warnMsg}`);
         }
 
         return newClusterConnectorKeys;
@@ -270,7 +280,7 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         }
 
         // Return the correct keys
-        return keys.connectorKeys;
+        return keys;
     }
 
     private async setupSubscriptions() {
@@ -308,7 +318,7 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         // Subscribe to key update channels
         if (!await keyProvider.setupSubscriptions()) throw new Error(`Failed to subscribe to update channels, will not continue setup`);
 
-
+        return keyProvider;
     }
 }
 

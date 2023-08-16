@@ -66,14 +66,19 @@ const awsRedisClusterProvider = new AwsRedisClusterProvider({
     pinoLogger: fastify.log as Logger,
 });
 
+//todo: remove
+await awsRedisClusterProvider.connectOrThrow();
+await awsRedisClusterProvider.store("my-token", `the one to rule them all ${Date.now()}`, null);
+
+
 // Initialize the keycloak-connector
 await fastify.register(keycloakConnectorFastify, {
     serverOrigin: 'http://localhost:3005',
     authServerUrl: 'http://localhost:8080/',
     realm: 'local-dev',
-    refreshConfigSecs: -1, // Disable for dev testing
+    refreshConfigMins: -1, // Disable for dev testing
     clusterProvider: awsRedisClusterProvider,
-    keyProvider: clusterKeyProvider(awsRedisClusterProvider),
+    keyProvider: clusterKeyProvider,
 });
 
 // // Set and receive a cluster message

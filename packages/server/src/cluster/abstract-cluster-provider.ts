@@ -62,7 +62,7 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
     public abstract unsubscribe(channel: string, listener: listener): Promise<boolean>;
     public abstract publish(channel: string, message: string | Buffer): Promise<boolean>;
     public abstract get(key: string): Promise<string | null>;
-    public abstract store(key: string, value: string | number | Buffer, ttl: number | null): Promise<boolean>;
+    public abstract store(key: string, value: string | number | Buffer, ttl: number | null, lockKey?: string): Promise<boolean>;
     public abstract remove(key: string): Promise<boolean>;
     public abstract lock(lockOptions: LockOptions): Promise<boolean>;
     public abstract unlock(lockOptions: LockOptions): Promise<boolean>;

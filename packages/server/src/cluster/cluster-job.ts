@@ -1,5 +1,6 @@
 import type {AbstractClusterProvider} from "./abstract-cluster-provider.js";
-import {ClusterMessenger, ClusterMessengerConfig} from "./cluster-messenger.js";
+import {ClusterMessenger} from "./cluster-messenger.js";
+import type {ClusterMessengerConfig} from "./cluster-messenger.js";
 
 export type ClusterJobConfig = ClusterMessengerConfig & {
     initTime: number;
