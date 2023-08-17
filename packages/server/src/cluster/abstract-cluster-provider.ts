@@ -17,11 +17,7 @@ export interface ClusterConfig {
 
 export interface LockOptions {
     key: string,
-    // TTL in seconds
-    ttl: number,
-    maxWaitMs?: number,
-    retry?: boolean,
-    onTimeout?: listener,
+    ttl: number, // TTL in seconds
 }
 
 export abstract class AbstractClusterProvider<CustomEvents extends string | void = void> {

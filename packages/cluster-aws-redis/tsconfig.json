@@ -32,7 +32,7 @@
     "target": "es2022",
     "types": ["node"]
   },
-  "include": ["./src/**/*"],
+  "include": ["./src/**/*", "./src/lua-scripts/*.lua"],
   "exclude": ["./tests/**/*", "./dist/**/*"],
-  "baseUrl": "src"
+  "baseUrl": "src",
 }

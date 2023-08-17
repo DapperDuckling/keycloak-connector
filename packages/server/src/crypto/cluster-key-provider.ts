@@ -89,7 +89,6 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         const lockOptions: LockOptions = {
             key: `${this.constants._PREFIX}:${this.constants.UPDATE_JWKS}`,
             ttl: 60,
-            maxWaitMs: 0,
         };
 
         // Attempt to obtain a lock
@@ -174,9 +173,24 @@ class ClusterKeyProvider extends AbstractKeyProvider {
             // todo: > clients that receive this should set a timeout for the above seconds to run the GET_JWKS function
         }
 
+        // // Double check lock status
+        // const lockStatus = await this.clusterProvider.isLocked(lockOptions);
+        //
+        // // Check no longer have lock
+        // if (!lockStatus) {
+        //     if (newClusterConnectorKeys.currentStart) {
+        //         await ClusterMessenger.messageObj<UpdateJwksMessage>(clusterMessengerConfig, {
+        //             uniqueId: uniqueId,
+        //             event: "cancel-pending-new-jwks",
+        //         });
+        //     }
+        //
+        //     this.keyProviderConfig.pinoLogger?.warn(`No longer have lock, will not store new keys`);
+        //     return null;
+        // }
+
         // Store the keys with no expiration
-        //todo: ************ DO THIS ONLY IF LOCK EXISTS
-        const storeResult = await this.clusterProvider.store(`${this.constants._PREFIX}:${this.constants.CONNECTOR_KEYS}`, newClusterConnectorKeysJSON, null);
+        const storeResult = await this.clusterProvider.store(`${this.constants._PREFIX}:${this.constants.CONNECTOR_KEYS}`, newClusterConnectorKeysJSON, null, lockOptions.key);
 
         if (!storeResult) {
             // Advise all listeners to cancel the pending update request
@@ -307,8 +321,10 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         }
     }
 
-    private pubSubMessageHandler() {
-
+    private pubSubMessageHandler(a: any,b: any,c: any,d: any) {
+        console.log(a,b,c,d);
+        debugger;
+        //todo: handle messages
     }
 
     static async factory(keyProviderConfig: KeyProviderConfig) {

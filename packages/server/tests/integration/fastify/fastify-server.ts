@@ -68,8 +68,20 @@ const awsRedisClusterProvider = new AwsRedisClusterProvider({
 
 //todo: remove
 await awsRedisClusterProvider.connectOrThrow();
-await awsRedisClusterProvider.store("my-token", `the one to rule them all ${Date.now()}`, null);
-
+const result0 = await awsRedisClusterProvider.store("abc1", `just start ${Date.now()}`, null);
+const result1 = await awsRedisClusterProvider.store("abc1", `no lock ${Date.now()}`, null, "no-lock");
+const result2 = await awsRedisClusterProvider.get("abc1");
+const result25 = await awsRedisClusterProvider.lock({
+    key: "no-lock",
+    ttl: 1,
+});
+const result3 = await awsRedisClusterProvider.store("abc1", `with lock ${Date.now()}`, null, "no-lock");
+const result4 = await awsRedisClusterProvider.get("abc1");
+const result5 = await awsRedisClusterProvider.remove("abc1", "no-lock");
+const result55 = await awsRedisClusterProvider.get("abc1");
+const result6 = await awsRedisClusterProvider.remove("abc1");
+const result7 = await awsRedisClusterProvider.get("abc1");
+console.log('done');
 
 // Initialize the keycloak-connector
 await fastify.register(keycloakConnectorFastify, {

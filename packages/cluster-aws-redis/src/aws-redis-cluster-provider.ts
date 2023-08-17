@@ -1,11 +1,13 @@
 import type {ClusterConfig, listener, LockOptions} from "keycloak-connector-server";
 import {AbstractClusterProvider, BaseClusterEvents} from "keycloak-connector-server";
-import {createClient, createCluster} from "redis";
-import type {RedisClientOptions} from "redis";
+import {createClient, createCluster, defineScript} from "redis";
+import type {RedisClientOptions, RedisFunctions, RedisModules} from "redis";
 import type {RedisClusterOptions} from "@redis/client";
 import type {RedisSocketOptions} from "@redis/client/dist/lib/client/socket.js";
 import {webcrypto} from "crypto";
-import * as fs from "fs/promises";
+import type {RedisCommandArguments, RedisScript} from "@redis/client/dist/lib/commands/index.js";
+import {transformArguments as transformArgumentsForSET} from "@redis/client/dist/lib/commands/SET.js";
+import * as fs from "fs";
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
@@ -37,7 +39,19 @@ export enum RedisClusterEvents {
     RECONNECTING = "reconnecting",
 }
 
-type RedisClient = ReturnType<typeof createCluster> | ReturnType<typeof createClient>;
+type RedisClient = ReturnType<typeof createCluster<RedisModules, RedisFunctions, RedisClusterScripts>> | ReturnType<typeof createClient<RedisModules, RedisFunctions, RedisClusterScripts>>;
+
+
+
+interface RedisClusterScripts {
+    setIfLocked: RedisScript & {
+        transformArguments(lockKey: string, lockValue: string, ...args: Parameters<typeof transformArgumentsForSET>): RedisCommandArguments;
+    },
+    deleteIfLocked: RedisScript & {
+        transformArguments(lockKey: string, lockValue: string, key: string): RedisCommandArguments;
+    },
+    [script: string]: RedisScript,
+}
 
 export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
@@ -63,14 +77,42 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         // Ensure there is a prefix
         this.ensurePrefix();
 
-        //todo: remove
-        // clusterConfig.redisConfig?.functions
+        // Get lua script directory
+        const scriptDir = dirname(fileURLToPath(import.meta.url)) + '/lua-scripts/';
+
+        // Build the custom scripts
+        const clusterScripts: RedisClusterScripts = {
+            setIfLocked: defineScript({
+                NUMBER_OF_KEYS: 2,
+                SCRIPT: fs.readFileSync(`${scriptDir}/set-if-locked.lua`, 'utf8'),
+                transformArguments(lockKey: string, lockValue: string, ...args: Parameters<typeof transformArgumentsForSET>) {
+                    const value = (typeof args[1] === "number") ? args[1].toString() : args[1];
+                    const baseArgs = [lockKey, args[0], lockValue, value];
+                    if (args[2]) baseArgs.push(JSON.stringify(args[2]));
+                    return baseArgs;
+                }
+            }),
+            deleteIfLocked: defineScript({
+                NUMBER_OF_KEYS: 2,
+                SCRIPT: fs.readFileSync(`${scriptDir}/del-if-locked.lua`, 'utf8'),
+                transformArguments(lockKey: string, lockValue: string, key: string) {
+                    return [lockKey, key, lockValue];
+                }
+            })
+        }
+
+        // Add custom scripts
+        clusterConfig.redisConfig ??= {};
+        clusterConfig.redisConfig.scripts = {
+            ...clusterConfig.redisConfig.scripts,
+            ...clusterScripts,
+        }
+
 
         // Create a new redis client
+        // Note -- Much less code to just cast to RedisClient
         this.client = (clusterConfig.clusterMode) ?
-            createCluster(clusterConfig.redisConfig as RedisClusterOptions) : createClient(clusterConfig.redisConfig as RedisClientOptions);
-
-        // Add our custom
+            createCluster(clusterConfig.redisConfig as RedisClusterOptions) as unknown as RedisClient : createClient(clusterConfig.redisConfig as RedisClientOptions) as unknown as RedisClient;
 
         // Create the pub sub client
         this.subscriber = this.client.duplicate();
@@ -293,6 +335,7 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
             await this.subscriber.subscribe(channelName, listener);
         }
 
+        //todo: will this return null??
         return true;
     }
 
@@ -310,6 +353,7 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
             await this.subscriber.unsubscribe(channelName, listener);
         }
 
+        //todo: will this return null??
         return true;
     }
 
@@ -326,6 +370,7 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
             await this.client.publish(channelName, message);
         }
 
+        //todo: will this return null??
         return true;
     }
 
@@ -343,37 +388,22 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         const baseArgs = [keyName, value] as const;
         const args = (ttl === null) ? baseArgs : [...baseArgs, {EX: ttl}] as const;
 
-        try {
-            // grab the script
-            const scriptPath = dirname(fileURLToPath(import.meta.url)) + '/lua-scripts/set-if-locked.lua';
-            const script = await fs.readFile(scriptPath, 'utf8');
-
-            // @ts-ignore
-            const test = await this.client.sendCommand(['FUNCTION', 'LOAD', 'REPLACE', script]); // 'OK'
-            // @ts-ignore
-            const test2 = await this.client.sendCommand(['FUNCTION', 'LIST', 'LIBRARYNAME', 'redis_cluster_provider']); // 'OK'
-            // const test2 = await this.client.sendCommand(['FCALL', 'myfunc', '0', 'hello']); // 'OK'
-
-            debugger;
-        } catch (e) {
-            debugger;
+        // Check if we are only setting with a lock
+        let result;
+        if (lockKey) {
+            result = await this.client.setIfLocked(this.key(lockKey), this.uniqueClientId, ...args);
+        } else {
+            result = await this.client.set(...args);
         }
-        // const result = await this.client.get('mycoolkey');
 
-        await this.client.set(...args);
-
-        // await ((ttl === null) ? this.client.set(keyName, value) : this.client.set(keyName, value, {
-        //     EX: ttl
-        // }));
-
-        return true;
+        return (result !== null);
     }
 
-    async remove(key: string): Promise<boolean> {
+    async remove(key: string, lockKey?: string): Promise<boolean> {
         const keyName = this.key(key);
         this.clusterConfig.pinoLogger?.debug(`Deleting value of key ${keyName}`);
-        await this.client.del(keyName);
-        return true;
+        const result = (lockKey) ? this.client.deleteIfLocked(this.key(lockKey), this.uniqueClientId, keyName) : this.client.del(keyName);
+        return (await result !== null);
     }
 
     async lock(lockOptions: LockOptions): Promise<boolean> {
@@ -393,34 +423,12 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
             NX: true,
         });
 
-        // Store the result
-        let lockCounter = 0;
-        const locks = new Map();
-
-        // Prepare the lock timeout call
-
-
-        locks.set(++lockCounter, {
-            lockOptions: lockOptions,
-            abortLockTimeout: () => {
-
-            }
-        });
-
-        return true;
-
-
-    }
-
-    async isLocked(key: string, extendLockOptions: LockOptions): Promise<boolean> {
-        return true;
+        return (result !== null);
     }
 
     async unlock(lockOptions: LockOptions): Promise<boolean> {
-        // Send command to redis server
+        const result = await this.remove(lockOptions.key, lockOptions.key);
 
-        // Abort the unlock timeout and remove entry from set
-
-        return true;
+        return (result !== null);
     }
 }
