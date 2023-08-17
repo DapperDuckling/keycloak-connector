@@ -64,10 +64,10 @@ class ClusterKeyProvider extends AbstractKeyProvider {
 
         do {
             //todo: change this to handle keys that aren't active yet
-            const connectorKeys = await this.getConnectorKeysFromCluster();
-
-            // Return the keys from the cluster
-            if (connectorKeys) return connectorKeys;
+            // const connectorKeys = await this.getConnectorKeysFromCluster();
+            //
+            // // Return the keys from the cluster
+            // if (connectorKeys) return connectorKeys;
 
             // Generate cluster keys
             const clusterConnectorKeys = await this.generateClusterKeys({});

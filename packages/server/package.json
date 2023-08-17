@@ -20,7 +20,8 @@
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "npm run build",
-    "start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts"
+    "start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts",
+    "postinstall": "ts-patch install"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -35,7 +36,9 @@
     "@types/jest": "^29.5.1",
     "keycloak-connector-server-cluster-aws-redis": "file:../cluster-aws-redis",
     "nodemon": "^3.0.1",
-    "typescript": "^5.0.4"
+    "ts-node": "^10.9.1",
+    "ts-patch": "^3.0.2",
+    "typescript": "^5.1.6"
   },
   "dependencies": {
     "jose": "^4.14.4",

@@ -27,7 +27,7 @@ const fastify = Fastify({
             },
         },
     },
-    pluginTimeout: 30000,
+    pluginTimeout: 120000,
 
     // // Adds option to enable fastify https for testing
     // https: {

@@ -25,14 +25,29 @@
     "noEmitOnError": true,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
-    "lib": ["es2020", "DOM"],
+    "lib": [
+      "es2020",
+      "DOM"
+    ],
     "module": "es2022",
     "preserveConstEnums": true,
     "moduleResolution": "node",
     "target": "es2022",
-    "types": ["node"]
+    "types": [
+      "node"
+    ],
+    "plugins": [
+      {
+        "transform": "typia/lib/transform"
+      }
+    ]
   },
-  "include": ["./src/**/*"],
-  "exclude": ["./tests/**/*", "./dist/**/*"],
+  "include": [
+    "./src/**/*"
+  ],
+  "exclude": [
+    "./tests/**/*",
+    "./dist/**/*"
+  ],
   "baseUrl": "src"
 }
