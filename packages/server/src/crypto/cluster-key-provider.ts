@@ -173,22 +173,6 @@ class ClusterKeyProvider extends AbstractKeyProvider {
             // todo: > clients that receive this should set a timeout for the above seconds to run the GET_JWKS function
         }
 
-        // // Double check lock status
-        // const lockStatus = await this.clusterProvider.isLocked(lockOptions);
-        //
-        // // Check no longer have lock
-        // if (!lockStatus) {
-        //     if (newClusterConnectorKeys.currentStart) {
-        //         await ClusterMessenger.messageObj<UpdateJwksMessage>(clusterMessengerConfig, {
-        //             uniqueId: uniqueId,
-        //             event: "cancel-pending-new-jwks",
-        //         });
-        //     }
-        //
-        //     this.keyProviderConfig.pinoLogger?.warn(`No longer have lock, will not store new keys`);
-        //     return null;
-        // }
-
         // Store the keys with no expiration
         const storeResult = await this.clusterProvider.store(`${this.constants._PREFIX}:${this.constants.CONNECTOR_KEYS}`, newClusterConnectorKeysJSON, null, lockOptions.key);
 
