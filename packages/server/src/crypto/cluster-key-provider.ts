@@ -1,13 +1,14 @@
+import type {KeyProviderConfig} from "./abstract-key-provider.js";
 import {AbstractKeyProvider} from "./abstract-key-provider.js";
 import type {AbstractClusterProvider, LockOptions} from "../cluster/abstract-cluster-provider.js";
-import type {KeyProvider, KeyProviderConfig} from "../types.js";
-import type {ConnectorKeys} from "../types.js";
+import type {ConnectorKeys, KeyProvider} from "../types.js";
 import {sleep} from "../helpers/utils.js";
 import {is} from "typia";
-import type {ClusterJob} from "../cluster/cluster-job.js";
-import {ClusterMessenger} from "../cluster/cluster-messenger.js";
+import {ClusterJob} from "../cluster/cluster-job.js";
 import type {ClusterMessengerConfig} from "../cluster/cluster-messenger.js";
+import {ClusterMessenger} from "../cluster/cluster-messenger.js";
 import {webcrypto} from "crypto";
+import type {JWK} from "jose";
 
 type ClusterConnectorKeys = {
     connectorKeys: ConnectorKeys,
@@ -18,11 +19,10 @@ type ClusterConnectorKeys = {
 
 interface GenerateClusterKeysConfig {
     onlyIfStoreIsEmpty?: boolean,
-    onNewKeyStart?: () => void,
     clusterJob?: ClusterJob,
 }
 
-interface UpdateJwksMessage {
+export interface UpdateJwksMessage {
     uniqueId: string,
     event: string,
     payload?: string,
@@ -43,7 +43,8 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         UPDATE_JWKS: "update-jwks",
     } as const;
 
-    private clusterProvider: AbstractClusterProvider;
+    private readonly clusterProvider: AbstractClusterProvider;
+    private clusterConnectorKeys: ClusterConnectorKeys | null = null;
 
     private constructor(keyProviderConfig: KeyProviderConfig) {
         super(keyProviderConfig);
@@ -57,24 +58,49 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         this.clusterProvider = keyProviderConfig.clusterProvider;
     }
 
+    public async getPublicKeys(): Promise<JWK[]> {
+        const publicKeys: JWK[] = [];
+
+        // Add the current key
+        if (this.clusterConnectorKeys) publicKeys.push(this.clusterConnectorKeys.connectorKeys.publicJwk);
+
+        // Add the previous key
+        if (this.clusterConnectorKeys?.prevConnectorKeys) publicKeys.push(this.clusterConnectorKeys.prevConnectorKeys.publicJwk);
+
+        return publicKeys;
+    }
+
+    public override async getActiveKeys(): Promise<ConnectorKeys> {
+        // Get existing keys or generate & save then return new keys
+        return (this.clusterConnectorKeys) ? this.getActiveConnectorKeys(this.clusterConnectorKeys) : await this.generateKeys();
+    }
+
+    private getActiveConnectorKeys(clusterConnectorKeys: ClusterConnectorKeys): ConnectorKeys {
+        // Check if current start time is in the future and we have previous keys
+        if ((clusterConnectorKeys.currentStart ?? 0) > Date.now()/1000 &&
+            clusterConnectorKeys.prevConnectorKeys) return clusterConnectorKeys.prevConnectorKeys;
+
+        // Just return the current keys
+        return clusterConnectorKeys.connectorKeys;
+    }
+
     protected async generateKeys(): Promise<ConnectorKeys> {
 
         // Keep track of the number of attempts
         let attempt = 1;
 
         do {
-            //todo: change this to handle keys that aren't active yet
-            // const connectorKeys = await this.getConnectorKeysFromCluster();
-            //
-            // // Return the keys from the cluster
-            // if (connectorKeys) return connectorKeys;
+            // Grab keys from the cluster
+            this.clusterConnectorKeys = await this.getKeysFromCluster();
+
+            // Return the keys from the cluster
+            if (this.clusterConnectorKeys) return this.getActiveConnectorKeys(this.clusterConnectorKeys);
 
             // Generate cluster keys
-            const clusterConnectorKeys = await this.generateClusterKeys({});
+            this.clusterConnectorKeys = await this.generateClusterKeys();
 
             // Return the keys from cluster generation
-            //todo: change this to handle keys that aren't active yet
-            if (clusterConnectorKeys) return clusterConnectorKeys.connectorKeys;
+            if (this.clusterConnectorKeys) return this.getActiveConnectorKeys(this.clusterConnectorKeys);
 
             // Add wait period before next attempt
             await sleep(attempt *  500);
@@ -83,7 +109,7 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         throw new Error(`Failed to generate keys after ${this.constants.MAX_INITIALIZE_RETRIES} attempts`);
     }
 
-    private async generateClusterKeys(config: GenerateClusterKeysConfig): Promise<ClusterConnectorKeys | null> {
+    private async generateClusterKeys(config: GenerateClusterKeysConfig = {}): Promise<ClusterConnectorKeys | null> {
 
         // Setup lock options
         const lockOptions: LockOptions = {
@@ -189,6 +215,9 @@ class ClusterKeyProvider extends AbstractKeyProvider {
             return null;
         }
 
+        // Store the new keys
+        this.clusterConnectorKeys = newClusterConnectorKeys;
+
         // Advise all listeners that a new jwk is available and will be ready for use soon
         await ClusterMessenger.messageObj<UpdateJwksMessage>(clusterMessengerConfig, {
             uniqueId: uniqueId,
@@ -225,20 +254,26 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         // Calculate remaining time until start
         const secondsUntilNewKeyStart = (newClusterConnectorKeys.currentStart) ? Math.max(newClusterConnectorKeys.currentStart - Date.now()/1000, 0) : 0;
 
-        // Store a local reference to the callback
-        const onNewKeyStart = config.onNewKeyStart;
-
         // Configure a timeout to pass final messages and handle callback
         setTimeout(async() => {
-            this.keyProviderConfig.pinoLogger?.debug(`New key has started, executing callback`);
 
-            // Execute the callback
-            if (onNewKeyStart) await onNewKeyStart();
+            this.keyProviderConfig.pinoLogger?.debug(`New key has started`);
 
-            this.keyProviderConfig.pinoLogger?.debug(`Finished executing new key started callback`);
+            // Execute the on active key update callback
+            if (this.onActiveKeyUpdate) {
+                this.keyProviderConfig.pinoLogger?.debug(`Executing the on active key update callback`);
+                await this.onActiveKeyUpdate();
+            }
+
+            // Update the oidc server
+            if (this.updateOidcServer) {
+                this.keyProviderConfig.pinoLogger?.debug(`Executing the update oidc server callback`);
+                await this.updateOidcServer();
+            }
 
             // Send job finish notification
             config.clusterJob?.finish();
+            this.keyProviderConfig.pinoLogger?.debug(`Finished update`);
         }, secondsUntilNewKeyStart * 1000);
 
         // Release the held lock
@@ -252,8 +287,6 @@ class ClusterKeyProvider extends AbstractKeyProvider {
 
         return newClusterConnectorKeys;
     }
-
-    private getConnectorKeysFromCluster = async (): Promise<ConnectorKeys | null> => (await this.getKeysFromCluster())?.connectorKeys ?? null;
 
     private async getKeysFromCluster(): Promise<ClusterConnectorKeys | null> {
         const keysJSON = await this.clusterProvider.get(`${this.constants._PREFIX}:${this.constants.CONNECTOR_KEYS}`);
@@ -305,11 +338,37 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         }
     }
 
-    private pubSubMessageHandler(a: any,b: any,c: any,d: any) {
-        console.log(a,b,c,d);
-        debugger;
-        //todo: handle messages
-    }
+    private pubSubMessageHandler = async (message: string) => {
+
+        // Decode the message
+        const decodedMessage = ClusterMessenger.decode(message);
+
+        // Ignore erroneous messages
+        if (decodedMessage === null || is<UpdateJwksMessage>(decodedMessage)) {
+            this.keyProviderConfig.pinoLogger?.warn(`Invalid pub/sub message received, could not decode`);
+            return
+        }
+
+        const messageObj = JSON.parse(decodedMessage.message ?? "");
+
+        switch (decodedMessage.command) {
+            case "update-system-jwks":
+                await this.generateClusterKeys({
+                    clusterJob: new ClusterJob({
+                        clusterProvider: this.clusterProvider,
+                        targetChannel: "cool-channel",
+                        command: "update-system-jwks",
+                        initTime: messageObj.payload,
+                    })
+                });
+                break;
+            //todo: handle messages
+            default:
+                this.keyProviderConfig.pinoLogger?.warn(`No handler for command: ${decodedMessage.command}`);
+        }
+
+
+    };
 
     static async factory(keyProviderConfig: KeyProviderConfig) {
         // Create a new key provider

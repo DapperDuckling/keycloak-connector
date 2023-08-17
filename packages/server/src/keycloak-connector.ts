@@ -7,8 +7,7 @@ import type {
     CookieParams,
     KeycloakConnectorConfigBase,
     KeycloakConnectorConfigCustom,
-    KeycloakConnectorInternalConfiguration, KeyProviderConfig,
-    SupportedServers,
+    KeycloakConnectorInternalConfiguration, SupportedServers,
     UserData
 } from "./types.js";
 import {AzpOptions, RouteEnum, StateOptions} from "./types.js";
@@ -23,6 +22,8 @@ import {RoleHelper} from "./helpers/role-helper.js";
 import RPError = errors.RPError;
 import OPError = errors.OPError;
 import {standaloneKeyProvider} from "./crypto/standalone-key-provider.js";
+import type {KeyProviderConfig} from "./crypto/abstract-key-provider.js";
+import {webcrypto} from "crypto";
 
 export class KeycloakConnector<Server extends SupportedServers> {
 
@@ -70,6 +71,12 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Register the routes using the connector adapter
         this.registerRoutes(adapter);
+
+        // Register the on key update listener
+        this.components.keyProvider.registerCallbacks(
+            this.updateOpenIdConfig,
+            this.updateOidcServer
+        );
     }
 
     private registerRoutes(adapter: AbstractAdapter<Server>): void {
@@ -423,7 +430,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     private handleClientJWKS = async (): Promise<ConnectorResponse<Server>> => {
         const keys = {
-            "keys": [await this.components.keyProvider.getKeys().then(keys => keys.privateJwk)]
+            "keys": await this.components.keyProvider.getPublicKeys(),
         };
 
         return {
@@ -573,7 +580,26 @@ export class KeycloakConnector<Server extends SupportedServers> {
             responseText: 'unauthorized',
         }
     }
-    private async updateOpenIdConfig() {
+
+    private updateOidcServer = async () => {
+        const updateId = webcrypto.randomUUID();
+
+        for (let retries= 0; retries<4; retries++) {
+            try {
+                await this.components.oidcClient.introspect("");
+                this._config.pinoLogger?.debug(`(id: ${updateId}) Successfully updated oidc server`);
+                return;
+            } catch (e) {
+                this._config.pinoLogger?.debug(`(id: ${updateId}) Failed to introspect during oidc server update: ${Date.now()}`);
+            }
+
+            this._config.pinoLogger?.debug(`(id: ${updateId}) Waiting until next introspect`);
+            await sleep(10 * 2500);
+            this._config.pinoLogger?.debug(`(id: ${updateId}) Retrying introspect`);
+        }
+    }
+
+    private updateOpenIdConfig = async () => {
 
         // Return the existing pending promise
         if (this.updateOidcConfigPending) {
@@ -585,14 +611,17 @@ export class KeycloakConnector<Server extends SupportedServers> {
         if (this.updateOidcConfig) {
             this._config.pinoLogger?.debug(`OIDC update in progress, creating pending update`);
             this.updateOidcConfigPending = this.updateOidcConfig.then(async (): Promise<void> => {
-                await this.updateOpenIdConfig.bind(this);
+                this._config.pinoLogger?.debug(`Starting pending OIDC update`);
+
+                // Clear the pending promise
+                this.updateOidcConfigPending = null;
+
+                // Call the script again
+                await this.updateOpenIdConfig();
             });
 
             return this.updateOidcConfigPending;
         }
-
-        // Clear the pending promise
-        this.updateOidcConfigPending = null;
 
         // Store the update promise
         this.updateOidcConfig = new Promise<void>(async resolve => {
@@ -603,25 +632,31 @@ export class KeycloakConnector<Server extends SupportedServers> {
             const newOidcConfig = await KeycloakConnector.fetchOpenIdConfig(this.components.oidcDiscoveryUrl, this._config);
 
             // Check for a configuration and check it is an update to the existing one
-            if (newOidcConfig && JSON.stringify(newOidcConfig) !== JSON.stringify(this.components.oidcConfig)) {
+            if (newOidcConfig) {
                 // Store the configuration
                 this.components.oidcConfig = newOidcConfig;
-
-                // Handle configuration change
-                ({
-                    oidcIssuer: this.components.oidcIssuer,
-                    oidcClient: this.components.oidcClient
-                } = await KeycloakConnector.createOidcClients(newOidcConfig, this._config.oidcClientMetadata, await this.components.keyProvider.getKeys().then(keys => keys.privateJwk)));
             }
 
+            // Grab the latest connector keys
+            const connectorKeys = await this.components.keyProvider.getActiveKeys();
+
+            // Handle configuration change
+            ({
+                oidcIssuer: this.components.oidcIssuer,
+                oidcClient: this.components.oidcClient
+            } = await KeycloakConnector.createOidcClients(this.components.oidcConfig, this._config.oidcClientMetadata, connectorKeys.privateJwk));
+
             this._config.pinoLogger?.debug(`OIDC update complete`);
+
+            // Clear the active update promise
+            this.updateOidcConfig = null;
 
             resolve();
         });
 
         // Await the function call
         return await this.updateOidcConfig;
-    }
+    };
 
     static async init<Server extends SupportedServers>(adapter: AbstractAdapter<Server>, customConfig: KeycloakConnectorConfigCustom) {
 
@@ -694,7 +729,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             ...config.clusterProvider && {clusterProvider: config.clusterProvider},
         }
         const keyProvider = await (config.keyProvider ?? standaloneKeyProvider)(keyProviderConfig)
-        const connectorKeys = await keyProvider.getKeys();
+        const connectorKeys = await keyProvider.getActiveKeys();
 
         // Grab the oidc clients
         const oidcClients = await KeycloakConnector.createOidcClients(openIdConfig, config.oidcClientMetadata, connectorKeys.privateJwk);

@@ -1,14 +1,14 @@
-### keycloak-connector-server-cluster-aws-redis
+### keycloak-connector-server-cluster-redis
 
 ### Description
-Provides cluster communications through an AWS ElastiCache Redis cluster, enabling synchronized scaling without interruption to security nor user experience.
+Provides cluster communications through Redis, enabling synchronized scaling without interruption to security nor user experience.
 
 _**Why?**_
 When scaling a project that uses `keycloak-connector-server`, each instance will have its own set of generated client JWKs and when polled a single public key will be given to Keycloak. This will likely result in failed logins as Keycloak doesn't know all the live public keys.
 
 This plugin is written in order to synchronize this and other activities, such as backdoor logouts from Keycloak.
 
-### AWS ElastiCache Setup
+### Redis on AWS ElastiCache Setup
 
 1. Create a new EC2 security group to link Redis to EC2 instances
    - Allow inbound connections on tcp/6379

@@ -5,9 +5,11 @@ import * as path from "path";
 
 import {keycloakConnectorFastify} from "keycloak-connector-server";
 import {routes} from "./routes.js";
-import {AwsRedisClusterProvider} from "keycloak-connector-server-cluster-aws-redis/src/aws-redis-cluster-provider.js";
 import type {Logger} from "pino";
 import {clusterKeyProvider} from "keycloak-connector-server";
+import {RedisClusterProvider} from "keycloak-connector-server-cluster-redis";
+import {ClusterMessenger} from "keycloak-connector-server";
+import type {UpdateJwksMessage} from "keycloak-connector-server";
 
 const dotenv = await import('dotenv');
 dotenv.config({path: './.env.test'});
@@ -62,7 +64,7 @@ fastify.register(fastifyStatic, {
 });
 
 // Create our cluster provider
-const awsRedisClusterProvider = new AwsRedisClusterProvider({
+const clusterProvider = new RedisClusterProvider({
     pinoLogger: fastify.log as Logger,
 });
 
@@ -89,7 +91,7 @@ await fastify.register(keycloakConnectorFastify, {
     authServerUrl: 'http://localhost:8080/',
     realm: 'local-dev',
     refreshConfigMins: -1, // Disable for dev testing
-    clusterProvider: awsRedisClusterProvider,
+    clusterProvider: clusterProvider,
     keyProvider: clusterKeyProvider,
 });
 
@@ -119,6 +121,34 @@ await fastify.register(keycloakConnectorFastify, {
 
 // Register our routes
 fastify.register(routes);
+
+// Test key update service
+let okay = false
+const updateKeys = async () => {
+    console.log("Deleting old keys");
+    await clusterProvider.remove('key-provider:connector-keys');
+    console.log("SENDING MESSAGE");
+    await ClusterMessenger.messageObj<UpdateJwksMessage>({
+        clusterProvider: clusterProvider,
+        targetChannel: "key-provider:listening-channel",
+        command: "update-system-jwks",
+    }, {
+        uniqueId: "random-uuid",
+        event: "job-requested",
+        payload: (Date.now() / 1000).toString()
+    });
+    console.log("UPDATE MESSAGE BROADCAST");
+
+    if (!okay) {
+        okay = true;
+        setTimeout(async () => {
+            await updateKeys();
+        }, 2500);
+    }
+}
+setTimeout(async () => {
+    await updateKeys();
+}, 2500);
 
 try {
     await fastify.listen({ port: 3005, host: '0.0.0.0'});

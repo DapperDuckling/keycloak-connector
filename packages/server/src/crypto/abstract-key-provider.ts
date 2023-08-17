@@ -1,16 +1,24 @@
-import type {ConnectorKeys, KeyProviderConfig} from "../types.js";
-import type {GenerateKeyPairResult} from "jose";
+import type {ConnectorKeys, Listener} from "../types.js";
+import type {JWK} from "jose";
 import * as jose from "jose";
 import type {GenerateKeyPairOptions} from "jose/dist/types/key/generate_key_pair.js";
 import {KeycloakConnector} from "../keycloak-connector.js";
 import {webcrypto} from "crypto";
 import type {Logger} from "pino";
 import {is} from "typia";
+import {AbstractClusterProvider} from "../cluster/abstract-cluster-provider.js";
+
+export type KeyProviderConfig = {
+    pinoLogger?: Logger,
+    clusterProvider?: AbstractClusterProvider,
+}
 
 export abstract class AbstractKeyProvider {
 
     protected keyProviderConfig: KeyProviderConfig;
     protected connectorKeys: ConnectorKeys | null = null;
+    protected onActiveKeyUpdate: Listener<Promise<void>> | null = null;
+    protected updateOidcServer: Listener<Promise<void>> | null = null;
 
     protected constructor(keyProviderConfig: KeyProviderConfig) {
         // Update the pino logger
@@ -22,10 +30,12 @@ export abstract class AbstractKeyProvider {
 
     protected abstract generateKeys(): Promise<ConnectorKeys>;
 
-    public async getKeys(): Promise<ConnectorKeys> {
+    public async getActiveKeys(): Promise<ConnectorKeys> {
         // Get existing keys or generate & save then return new keys
         return this.connectorKeys ?? (this.connectorKeys = await this.generateKeys());
     }
+
+    public abstract getPublicKeys(): Promise<JWK[]>;
 
     protected isConnectorKeys = (obj: unknown): obj is ConnectorKeys => is<ConnectorKeys>(obj);
 
@@ -59,5 +69,10 @@ export abstract class AbstractKeyProvider {
             privateJwk: privateJwk,
             publicJwk: publicJwk,
         };
+    }
+
+    public registerCallbacks(onActiveKeyUpdate: Listener<Promise<void>>, updateOidcServer: Listener<Promise<void>>) {
+        this.onActiveKeyUpdate = onActiveKeyUpdate;
+        this.updateOidcServer = updateOidcServer;
     }
 }

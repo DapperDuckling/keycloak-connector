@@ -1,5 +1,7 @@
-import { EventEmitter } from 'node:events';
+import {EventEmitter} from 'node:events';
 import type {Logger} from "pino";
+
+import type {Listener} from "../types.js";
 
 export enum BaseClusterEvents {
     ERROR = "error",
@@ -9,7 +11,6 @@ export enum BaseClusterEvents {
 }
 
 type AllEvents<T extends string | void> = T extends void ? BaseClusterEvents : BaseClusterEvents | T;
-export type listener = (...args: any[]) => void;
 
 export interface ClusterConfig {
     pinoLogger?: Logger
@@ -39,12 +40,12 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
     abstract isConnected(isSubscriber: boolean): boolean;
     abstract disconnect(): Promise<boolean>;
 
-    public addListener(event: AllEvents<CustomEvents>, listener: listener) {
+    public addListener(event: AllEvents<CustomEvents>, listener: Listener) {
         this.clusterConfig.pinoLogger?.debug(`Adding a listener for '${event}' event`);
         this.eventEmitter.addListener(event, listener);
     }
 
-    public removeListener(event: AllEvents<CustomEvents>, listener: listener) {
+    public removeListener(event: AllEvents<CustomEvents>, listener: Listener) {
         this.clusterConfig.pinoLogger?.debug(`Removing a listener for '${event}' event`);
         this.eventEmitter.removeListener(event, listener);
     }
@@ -54,8 +55,8 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
         this.eventEmitter.emit(event, ...args);
     }
 
-    public abstract subscribe(channel: string, listener: listener): Promise<boolean>;
-    public abstract unsubscribe(channel: string, listener: listener): Promise<boolean>;
+    public abstract subscribe(channel: string, listener: Listener): Promise<boolean>;
+    public abstract unsubscribe(channel: string, listener: Listener): Promise<boolean>;
     public abstract publish(channel: string, message: string | Buffer): Promise<boolean>;
     public abstract get(key: string): Promise<string | null>;
     public abstract store(key: string, value: string | number | Buffer, ttl: number | null, lockKey?: string): Promise<boolean>;

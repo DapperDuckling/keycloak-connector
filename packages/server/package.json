@@ -34,7 +34,7 @@
     "@types/express-serve-static-core": "^4.17.34",
     "@types/fastify-static": "^2.2.1",
     "@types/jest": "^29.5.1",
-    "keycloak-connector-server-cluster-aws-redis": "file:../cluster-aws-redis",
+    "keycloak-connector-server-cluster-redis": "file:../cluster-redis",
     "nodemon": "^3.0.1",
     "ts-node": "^10.9.1",
     "ts-patch": "^3.0.2",

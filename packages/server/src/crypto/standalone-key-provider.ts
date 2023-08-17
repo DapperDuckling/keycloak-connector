@@ -1,14 +1,20 @@
 import {AbstractKeyProvider} from "./abstract-key-provider.js";
+import type {KeyProviderConfig} from "./abstract-key-provider.js";
 import type {ConnectorKeys, KeyProvider} from "../types.js";
-import type {KeyProviderConfig} from "../types.js";
+import type {JWK} from "jose";
 
 class StandaloneKeyProvider extends AbstractKeyProvider {
-    static async factory(keyProviderConfig: KeyProviderConfig) {
-        return new StandaloneKeyProvider(keyProviderConfig);
-    }
 
     protected generateKeys(): Promise<ConnectorKeys> {
         return AbstractKeyProvider.createKeys();
+    }
+
+    public async getPublicKeys(): Promise<JWK[]> {
+        return (this.connectorKeys?.publicJwk) ? [this.connectorKeys.publicJwk] : [];
+    }
+
+    static async factory(keyProviderConfig: KeyProviderConfig) {
+        return new StandaloneKeyProvider(keyProviderConfig);
     }
 }
 

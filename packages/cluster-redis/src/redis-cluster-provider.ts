@@ -1,4 +1,4 @@
-import type {ClusterConfig, listener, LockOptions} from "keycloak-connector-server";
+import type {ClusterConfig, Listener, LockOptions} from "keycloak-connector-server";
 import {AbstractClusterProvider, BaseClusterEvents} from "keycloak-connector-server";
 import {createClient, createCluster, defineScript} from "redis";
 import type {RedisClientOptions, RedisFunctions, RedisModules} from "redis";
@@ -53,7 +53,7 @@ interface RedisClusterScripts {
     [script: string]: RedisScript,
 }
 
-export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
+export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
     protected override clusterConfig: RedisClusterConfig;
     private readonly client: RedisClient;
@@ -320,7 +320,7 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         return `${prefix}${key}`;
     }
 
-    async subscribe(channel: string, listener: listener): Promise<boolean> {
+    async subscribe(channel: string, listener: Listener): Promise<boolean> {
 
         // Grab the full channel name
         const channelName = this.channel(channel);
@@ -339,7 +339,7 @@ export class AwsRedisClusterProvider extends AbstractClusterProvider<RedisCluste
         return true;
     }
 
-    async unsubscribe(channel: string, listener: listener): Promise<boolean> {
+    async unsubscribe(channel: string, listener: Listener): Promise<boolean> {
 
         // Grab the full channel name
         const channelName = this.channel(channel);
