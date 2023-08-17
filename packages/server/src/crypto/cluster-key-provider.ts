@@ -363,6 +363,7 @@ class ClusterKeyProvider extends AbstractKeyProvider {
                 });
                 break;
             //todo: handle messages
+
             default:
                 this.keyProviderConfig.pinoLogger?.warn(`No handler for command: ${decodedMessage.command}`);
         }
