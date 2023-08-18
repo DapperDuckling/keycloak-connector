@@ -1,16 +1,22 @@
 import type {KeyProviderConfig} from "./abstract-key-provider.js";
 import {AbstractKeyProvider} from "./abstract-key-provider.js";
-import type {AbstractClusterProvider, LockOptions} from "../cluster/abstract-cluster-provider.js";
+import type {
+    AbstractClusterProvider,
+    ClusterMessage,
+    LockOptions
+} from "../cluster/abstract-cluster-provider.js";
 import type {ConnectorKeys, KeyProvider} from "../types.js";
 import {sleep} from "../helpers/utils.js";
 import {is} from "typia";
 import {ClusterJob} from "../cluster/cluster-job.js";
-import type {ClusterMessengerConfig} from "../cluster/cluster-messenger.js";
-import {ClusterMessenger} from "../cluster/cluster-messenger.js";
-import {webcrypto} from "crypto";
 import type {JWK} from "jose";
+import type {
+    CancelPendingJwksUpdate,
+    ClusterKeyProviderMessages, NewJwksAvailable,
+    PendingJwksUpdate
+} from "./cluster-key-provider-message-types.js";
 
-type ClusterConnectorKeys = {
+export type ClusterConnectorKeys = {
     connectorKeys: ConnectorKeys,
     currentStart?: number,
     prevConnectorKeys?: ConnectorKeys,
@@ -20,13 +26,6 @@ type ClusterConnectorKeys = {
 interface GenerateClusterKeysConfig {
     onlyIfStoreIsEmpty?: boolean,
     clusterJob?: ClusterJob,
-}
-
-export interface UpdateJwksMessage {
-    uniqueId: string,
-    event: string,
-    payload?: string,
-    clusterConnectorKeys?: ClusterConnectorKeys
 }
 
 class ClusterKeyProvider extends AbstractKeyProvider {
@@ -57,6 +56,8 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         // Store reference to the cluster provider
         this.clusterProvider = keyProviderConfig.clusterProvider;
     }
+
+    private listeningChannel = () => `${this.constants._PREFIX}${this.constants.LISTENING_CHANNEL}`;
 
     public async getPublicKeys(): Promise<JWK[]> {
         const publicKeys: JWK[] = [];
@@ -144,7 +145,7 @@ class ClusterKeyProvider extends AbstractKeyProvider {
             clusterConnectorKeys?.currentStart < Date.now()/1000 + this.constants.MAX_CURR_JWKS_START_DELAY_SECS) {
 
             this.keyProviderConfig.pinoLogger?.warn(`New current key has not yet started, will not create new cluster key`);
-            await config.clusterJob?.status(`New current key has not yet started (${clusterConnectorKeys.currentStart}), will not create new cluster key`);
+            await config.clusterJob?.heartbeat(`New current key has not yet started (${clusterConnectorKeys.currentStart}), will not create new cluster key`);
             return null;
         }
 
@@ -154,7 +155,7 @@ class ClusterKeyProvider extends AbstractKeyProvider {
             clusterConnectorKeys?.prevExpire < Date.now()/1000 + this.constants.MAX_PREV_JWKS_EXPIRATION_SECS) {
 
             this.keyProviderConfig.pinoLogger?.warn(`Previous key has not yet expired, will not create new cluster key`);
-            await config.clusterJob?.status(`Previous key has not yet expired (${clusterConnectorKeys.prevExpire}), will not create new cluster key`);
+            await config.clusterJob?.heartbeat(`Previous key has not yet expired (${clusterConnectorKeys.prevExpire}), will not create new cluster key`);
             return null;
         }
 
@@ -178,25 +179,14 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         const newClusterConnectorKeysJSON = JSON.stringify(newClusterConnectorKeys);
 
         // Send out status message
-        await config.clusterJob?.status(`Keys created, about to store if lock still exists`);
-
-        // Create a cluster messenger
-        const uniqueId = webcrypto.randomUUID();
-        const clusterMessengerConfig: ClusterMessengerConfig = {
-            command: "update-jwks", //todo: make constant
-            clusterProvider: this.clusterProvider,
-            targetChannel: `${this.constants._PREFIX}:${this.constants.LISTENING_CHANNEL}`,
-        }
+        await config.clusterJob?.heartbeat(`Keys created, about to store if lock still exists`);
 
         // Advise all listeners of the pending update (in case the future publish is missed)
         if (newClusterConnectorKeys.currentStart) {
-            await ClusterMessenger.messageObj<UpdateJwksMessage>(clusterMessengerConfig, {
-                uniqueId: uniqueId,
-                event: "pending-new-jwks",
-                payload: endOfLockTime.toString()
+            await this.clusterProvider.publish<PendingJwksUpdate>(this.listeningChannel(), {
+                event: "pending-jwks-update",
+                endOfLockTime: endOfLockTime
             });
-
-            // todo: > clients that receive this should set a timeout for the above seconds to run the GET_JWKS function
         }
 
         // Store the keys with no expiration
@@ -205,9 +195,8 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         if (!storeResult) {
             // Advise all listeners to cancel the pending update request
             if (newClusterConnectorKeys.currentStart) {
-                await ClusterMessenger.messageObj<UpdateJwksMessage>(clusterMessengerConfig, {
-                    uniqueId: uniqueId,
-                    event: "cancel-pending-new-jwks",
+                await this.clusterProvider.publish<CancelPendingJwksUpdate>(this.listeningChannel(), {
+                    event: "cancel-pending-jwks-update",
                 });
             }
 
@@ -219,12 +208,10 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         this.clusterConnectorKeys = newClusterConnectorKeys;
 
         // Advise all listeners that a new jwk is available and will be ready for use soon
-        await ClusterMessenger.messageObj<UpdateJwksMessage>(clusterMessengerConfig, {
-            uniqueId: uniqueId,
+        await this.clusterProvider.publish<NewJwksAvailable>(this.listeningChannel(), {
             event: "new-jwks-available",
             clusterConnectorKeys: newClusterConnectorKeys,
         });
-        // todo: --> clients that receive this should cancel their earlier timeout for the same unique id. if they have a key earlier than the <start time>, then run the GET_JWKS function ///// ****OR JUST USE THIS DATA HERE
 
         // Continuously pass the status message (if using a cluster job)
         await (async function statusUpdateFunc() {
@@ -245,7 +232,7 @@ class ClusterKeyProvider extends AbstractKeyProvider {
             if (secondsUntilNewKeyStart <= 0) return;
 
             // Send status message
-            await config.clusterJob.status(`Waiting until new key start to update Keycloak cache. Time remaining: ${secondsUntilNewKeyStart} seconds`);
+            await config.clusterJob.heartbeat(`Waiting until new key start to update Keycloak cache. Time remaining: ${secondsUntilNewKeyStart} seconds`);
 
             // Self licking ice cream cone
             setTimeout(statusUpdateFunc, 10000);
@@ -319,13 +306,13 @@ class ClusterKeyProvider extends AbstractKeyProvider {
 
         try {
             // Clear existing subscription
-            const unsubResults = await this.clusterProvider.unsubscribe(listeningChannel, this.pubSubMessageHandler);
+            const unsubResults = await this.clusterProvider.unsubscribe(listeningChannel, this.pubSubMessageHandler, true);
 
             // Check the results of the unsubscription
             if (!unsubResults) this.keyProviderConfig.pinoLogger?.debug(`Failed to unsubscribe from ${listeningChannel}`);
 
             // Add subscription
-            const subResults = await this.clusterProvider.subscribe(listeningChannel, this.pubSubMessageHandler);
+            const subResults = await this.clusterProvider.subscribe(listeningChannel, this.pubSubMessageHandler, true);
 
             // Check the result of the subscription
             if (!subResults) this.keyProviderConfig.pinoLogger?.debug(`Failed to subscribe to ${listeningChannel}`);
@@ -338,37 +325,40 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         }
     }
 
-    private pubSubMessageHandler = async (message: string) => {
+    private pubSubMessageHandler = async (message: ClusterMessage<ClusterKeyProviderMessages>, senderId: string) => {
 
-        // Decode the message
-        const decodedMessage = ClusterMessenger.decode(message);
-
-        // Ignore erroneous messages
-        if (decodedMessage === null || is<UpdateJwksMessage>(decodedMessage)) {
-            this.keyProviderConfig.pinoLogger?.warn(`Invalid pub/sub message received, could not decode`);
-            return
+        // Ensure we have the correct message back
+        if (!is<ClusterKeyProviderMessages>(message)) {
+            this.keyProviderConfig.pinoLogger?.warn(`Unexpected pub/sub message`);
+            return;
         }
 
-        const messageObj = JSON.parse(decodedMessage.message ?? "");
-
-        switch (decodedMessage.command) {
-            case "update-system-jwks":
+        // Determine which handler should accept this message
+        switch (message.event) {
+            case "request-update-system-jwks":
                 await this.generateClusterKeys({
                     clusterJob: new ClusterJob({
                         clusterProvider: this.clusterProvider,
-                        targetChannel: "cool-channel",
-                        command: "update-system-jwks",
-                        initTime: messageObj.payload,
+                        targetChannel: message.listeningChannel,
+                        requestTimestamp: message.requestTime,
+                        ...message.jobName && {jobName: message.jobName},
                     })
                 });
                 break;
-            //todo: handle messages
-
+            case "pending-jwks-update":
+                // todo: record sender's id
+                // todo: > clients that receive this should set a timeout for the above seconds to run the GET_JWKS function
+                break;
+            case "cancel-pending-jwks-update":
+                // todo: cancel timeout based on sender's id
+                break;
+            case "new-jwks-available":
+                // todo: cancel timeout based on sender's id
+                // todo: pass to handler to update jwks
+                break;
             default:
-                this.keyProviderConfig.pinoLogger?.warn(`No handler for command: ${decodedMessage.command}`);
+                this.keyProviderConfig.pinoLogger?.warn(`Unexpected event received, cannot process message`);
         }
-
-
     };
 
     static async factory(keyProviderConfig: KeyProviderConfig) {

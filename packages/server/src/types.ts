@@ -105,7 +105,7 @@ export interface KeycloakConnectorConfigBase {
 
 export type KeyProvider = (keyProviderConfig: KeyProviderConfig) => Promise<AbstractKeyProvider>;
 
-export type Listener<T = void> = (...args: any[]) => T;
+export type Listener<R = void, A extends any[] | [] = any[]> = (...args: A) => R;
 
 export enum AzpOptions {
     MUST_MATCH_CLIENT_ID = 0,

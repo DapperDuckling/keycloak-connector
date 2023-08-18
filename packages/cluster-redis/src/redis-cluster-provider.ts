@@ -1,15 +1,15 @@
-import type {ClusterConfig, Listener, LockOptions} from "keycloak-connector-server";
+import type {ClusterConfig, ClusterMessage, Listener, LockOptions} from "keycloak-connector-server";
 import {AbstractClusterProvider, BaseClusterEvents} from "keycloak-connector-server";
-import {createClient, createCluster, defineScript} from "redis";
 import type {RedisClientOptions, RedisFunctions, RedisModules} from "redis";
+import {createClient, createCluster, defineScript} from "redis";
 import type {RedisClusterOptions} from "@redis/client";
 import type {RedisSocketOptions} from "@redis/client/dist/lib/client/socket.js";
 import {webcrypto} from "crypto";
 import type {RedisCommandArguments, RedisScript} from "@redis/client/dist/lib/commands/index.js";
 import {transformArguments as transformArgumentsForSET} from "@redis/client/dist/lib/commands/SET.js";
 import * as fs from "fs";
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import {fileURLToPath} from 'url';
+import {dirname} from 'path';
 
 interface BaseRedisClusterConfig extends ClusterConfig {
     prefix?: string | {
@@ -119,7 +119,7 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
         // Register event listeners
         this.registerEventListeners(this.client);
-        this.registerEventListeners(this.subscriber);
+        this.registerEventListeners(this.subscriber, true);
 
         //todo: Test cluster mode
         // Add cluster mode warning
@@ -320,7 +320,7 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
         return `${prefix}${key}`;
     }
 
-    async subscribe(channel: string, listener: Listener): Promise<boolean> {
+    async handleSubscribe(channel: string, listener: Listener): Promise<boolean> {
 
         // Grab the full channel name
         const channelName = this.channel(channel);
@@ -339,7 +339,7 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
         return true;
     }
 
-    async unsubscribe(channel: string, listener: Listener): Promise<boolean> {
+    async handleUnsubscribe(channel: string, listener: Listener): Promise<boolean> {
 
         // Grab the full channel name
         const channelName = this.channel(channel);
@@ -357,7 +357,7 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
         return true;
     }
 
-    async publish(channel: string, message: string | Buffer): Promise<boolean> {
+    protected async handlePublish(channel: string, message: string): Promise<boolean> {
 
         // Grab the full channel name
         const channelName = this.channel(channel);

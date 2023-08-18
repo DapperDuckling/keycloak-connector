@@ -1,80 +1,89 @@
 import type {AbstractClusterProvider} from "./abstract-cluster-provider.js";
-import {ClusterMessenger} from "./cluster-messenger.js";
-import type {ClusterMessengerConfig} from "./cluster-messenger.js";
 
-export type ClusterJobConfig = ClusterMessengerConfig & {
-    initTime: number;
+export type ClusterJobConfig = {
+    requestTimestamp: number;
+    clusterProvider: AbstractClusterProvider;
+    targetChannel: string;
+    jobName?: string;
 }
 
 export enum ClusterJobEvents {
     START = "start",
-    STATUS = "status",
+    HEARTBEAT = "status",
     FINISH = "finish",
     FATAL_ERROR = "fatal_error",
 }
 
-export class ClusterJob extends ClusterMessenger {
+export type ClusterJobMessage = {
+    event: string;
+    timestamp: number;
+    duration: number;
+    jobName?: string;
+    remarks?: string;
+}
+
+export class ClusterJob {
     private config: ClusterJobConfig;
-    private startTime: number | null = null;
-    private endTime: number | null = null;
+    private startTimestamp: number | null = null;
+    private endTimestamp: number | null = null;
 
     constructor(config: ClusterJobConfig) {
-        super();
         this.config = config;
+    }
+
+    private async publishMessage(event: string, remarks?: string) {
+        const timestamp = Date.now() / 1000;
+        const duration = Math.max(timestamp - this.config.requestTimestamp, -1);
+        await this.config.clusterProvider.publish<ClusterJobMessage>(this.config.targetChannel,
+            {
+                event: event,
+                timestamp: Date.now() / 1000,
+                duration: duration,
+                ...this.config.jobName && {jobName: this.config.jobName},
+                ...remarks && {remarks: remarks},
+            }
+        );
     }
 
     async start() {
 
         // Check for existing start time
-        if (this.startTime) throw new Error(`Cluster job already started, cannot start again!`);
+        if (this.startTimestamp) throw new Error(`Cluster job already started, cannot start again!`);
 
         // Store the start time
-        this.startTime = Date.now();
+        this.startTimestamp = Date.now();
 
         // Send the start message
-        await this.config.clusterProvider.publish(
-            this.config.targetChannel,
-            `${this.config.command}:${ClusterJobEvents.START}`
-        );
+        await this.publishMessage(ClusterJobEvents.START);
     }
 
-    async status(msg: string) {
-        // Send the status message
-        await this.config.clusterProvider.publish(
-            this.config.targetChannel,
-            `${this.config.command}:${ClusterJobEvents.STATUS}:${msg}`
-        );
+    async heartbeat(remarks: string) {
+        await this.publishMessage(ClusterJobEvents.HEARTBEAT, remarks);
     }
 
     async finish() {
         // Check for existing end time
-        if (this.endTime) throw new Error(`Cluster job already finished or errored, cannot finish again!`);
+        if (this.endTimestamp) throw new Error(`Cluster job already finished or errored, cannot finish again!`);
 
         // Store the end time
-        this.endTime = Date.now();
+        this.endTimestamp = Date.now();
 
         // Send the finish message
-        await this.config.clusterProvider.publish(
-            this.config.targetChannel,
-            `${this.config.command}:${ClusterJobEvents.FINISH}`
-        );
+        await this.publishMessage(ClusterJobEvents.FINISH);
     }
 
     async fatalError(msg: string) {
         // Check for existing end time
-        if (this.endTime) throw new Error(`Cluster job already finished or errored, cannot error again!`);
+        if (this.endTimestamp) throw new Error(`Cluster job already finished or errored, cannot error again!`);
 
         // Store the end time
-        this.endTime = Date.now();
+        this.endTimestamp = Date.now();
 
         // Send the fatal error message
-        await this.config.clusterProvider.publish(
-            this.config.targetChannel,
-            `${this.config.command}:${ClusterJobEvents.FATAL_ERROR}:${msg}`
-        );
+        await this.publishMessage(ClusterJobEvents.FATAL_ERROR);
     }
 
     isFinished() {
-        return (this.endTime !== null);
+        return (this.endTimestamp !== null);
     }
 }
