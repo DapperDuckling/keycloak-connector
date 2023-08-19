@@ -1,6 +1,7 @@
 import {isDev, sleep} from "./helpers/utils.js";
 import {type ClientMetadata, errors, generators, Issuer, type IssuerMetadata} from "openid-client";
 import type {
+    ConnectorKeys,
     ConnectorRequest,
     ConnectorResponse,
     CookieOptionsBase,
@@ -34,7 +35,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private oidcConfigTimer: ReturnType<typeof setTimeout> | null = null;
     private updateOidcConfig: Promise<void> | null = null;
     private updateOidcConfigPending: Promise<void> | null = null;
-
 
     private readonly CookieOptions: CookieOptionsBase<Server> = {
         sameSite: "strict",
@@ -624,35 +624,48 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         // Store the update promise
-        this.updateOidcConfig = new Promise<void>(async resolve => {
+        this.updateOidcConfig = (async () => {
 
             this._config.pinoLogger?.debug(`Starting OIDC update`);
+
+            let shouldUpdate = false;
 
             // Attempt to grab a new configuration
             const newOidcConfig = await KeycloakConnector.fetchOpenIdConfig(this.components.oidcDiscoveryUrl, this._config);
 
             // Check for a configuration and check it is an update to the existing one
-            if (newOidcConfig) {
+            if (newOidcConfig && JSON.stringify(newOidcConfig) !== JSON.stringify(this.components.oidcConfig)) {
                 // Store the configuration
                 this.components.oidcConfig = newOidcConfig;
+                shouldUpdate = true;
             }
 
             // Grab the latest connector keys
-            const connectorKeys = await this.components.keyProvider.getActiveKeys();
+            const newConnectorKeys = await this.components.keyProvider.getActiveKeys();
+
+            if (newConnectorKeys !== this.components.connectorKeys) {
+                // Store the new keys
+                this.components.connectorKeys = newConnectorKeys;
+                shouldUpdate = true;
+            }
+
+            // Check if we should update
+            if (!shouldUpdate) {
+                this._config.pinoLogger?.debug(`No changes to OIDC keys or configuration, not updating!`);
+                return;
+            }
 
             // Handle configuration change
             ({
                 oidcIssuer: this.components.oidcIssuer,
                 oidcClient: this.components.oidcClient
-            } = await KeycloakConnector.createOidcClients(this.components.oidcConfig, this._config.oidcClientMetadata, connectorKeys.privateJwk));
+            } = await KeycloakConnector.createOidcClients(this.components.oidcConfig, this._config.oidcClientMetadata, this.components.connectorKeys.privateJwk));
 
             this._config.pinoLogger?.debug(`OIDC update complete`);
 
             // Clear the active update promise
             this.updateOidcConfig = null;
-
-            resolve();
-        });
+        })();
 
         // Await the function call
         return await this.updateOidcConfig;
@@ -732,7 +745,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const connectorKeys = await keyProvider.getActiveKeys();
 
         // Grab the oidc clients
-        const oidcClients = await KeycloakConnector.createOidcClients(openIdConfig, config.oidcClientMetadata, connectorKeys.privateJwk);
+        const oidcClients = await KeycloakConnector.createOidcClients(openIdConfig, config.oidcClientMetadata, connectorKeys);
 
         // Ensure we have a JWKS uri
         if (oidcClients.oidcIssuer.metadata.jwks_uri === undefined) {
@@ -748,6 +761,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             keyProvider: keyProvider,
             ...oidcClients,
             remoteJWKS: remoteJWKS,
+            connectorKeys: connectorKeys
         }
 
         // Return the new connector

@@ -445,8 +445,22 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
             this.clusterConnectorKeys = storeKeys;
         }
 
-        // Run the main active key update callback
-        await this.onActiveKeyUpdate?.()
+        // Update the active key when the new key becomes active
+        setTimeout(async () => {
+            const storeKeys = await this.getKeysFromCluster();
+
+            if (!storeKeys) {
+                this.keyProviderConfig.pinoLogger?.error(`New key should be active, but could not find any keys in the cluster`);
+                return;
+            }
+
+            // Store the keys again (in case they changed rapidly)
+            this.clusterConnectorKeys = storeKeys;
+
+            // Run the main active key update callback
+            await this.onActiveKeyUpdate?.();
+        }, this.clusterConnectorKeys.currentStart ?? 0);
+
     }
 
     static async factory(keyProviderConfig: KeyProviderConfig) {

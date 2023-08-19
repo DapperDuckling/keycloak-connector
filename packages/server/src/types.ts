@@ -17,7 +17,7 @@ export interface KeycloakConnectorInternalConfiguration {
     oidcClient: Client;
     keyProvider: AbstractKeyProvider;
     remoteJWKS: () => Promise<KeyLike>;
-
+    connectorKeys: ConnectorKeys;
 }
 
 export type ConnectorKeys = {
