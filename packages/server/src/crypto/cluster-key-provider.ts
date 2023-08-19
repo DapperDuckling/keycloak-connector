@@ -13,10 +13,11 @@ import type {JWK} from "jose";
 import type {
     CancelPendingJwksUpdateMsg,
     ClusterKeyProviderMsgs, NewJwksAvailableMsg,
-    PendingJwksUpdateMsg
+    PendingJwksUpdateMsg, ServerActiveKey
 } from "./cluster-key-provider-message-types.js";
 import {webcrypto} from "crypto";
 import {LRUCache} from "lru-cache";
+import {createHash} from "node:crypto";
 
 export type ClusterConnectorKeys = {
     connectorKeys: ConnectorKeys,
@@ -40,10 +41,10 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
     
     private readonly constants = {
         MAX_INITIALIZE_RETRIES: 10,
-        CURR_JWKS_START_DELAY_SECS: 2 * 60 * 1000, // 2 minutes
-        MAX_CURR_JWKS_START_DELAY_SECS: 10 * 60 * 1000, // 10 minutes
-        PREV_JWKS_EXPIRATION_SECS: 10 * 60 * 1000, // 10 minutes
-        MAX_PREV_JWKS_EXPIRATION_SECS: 3600 * 1000, // 1 hour
+        CURR_JWKS_START_DELAY_SECS: 2 * 60,         // 2 minutes
+        MAX_CURR_JWKS_START_DELAY_SECS: 10 * 60,    // 10 minutes
+        PREV_JWKS_EXPIRATION_SECS: 10 * 60,         // 10 minutes
+        MAX_PREV_JWKS_EXPIRATION_SECS: 3600,        // 1 hour
         _PREFIX: "key-provider",
         CONNECTOR_KEYS: "connector-keys",
         LISTENING_CHANNEL: "listening-channel",
@@ -69,7 +70,7 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
         this.clusterProvider = keyProviderConfig.clusterProvider;
     }
 
-    private listeningChannel = () => `${this.constants._PREFIX}${this.constants.LISTENING_CHANNEL}`;
+    private listeningChannel = () => `${this.constants._PREFIX}:${this.constants.LISTENING_CHANNEL}`;
 
     public async getPublicKeys(): Promise<JWK[]> {
         const publicKeys: JWK[] = [];
@@ -152,6 +153,9 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
             return null;
         }
 
+        // Send out start job message
+        await config.clusterJob?.start();
+
         // Grab the latest existing keys
         const clusterConnectorKeys = await this.getKeysFromCluster();
 
@@ -167,7 +171,7 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
             clusterConnectorKeys?.currentStart < Date.now()/1000 + this.constants.MAX_CURR_JWKS_START_DELAY_SECS) {
 
             logger?.warn(`New current key has not yet started, will not create new cluster key`);
-            await config.clusterJob?.heartbeat(`New current key has not yet started (${clusterConnectorKeys.currentStart}), will not create new cluster key`);
+            await config.clusterJob?.fatalError(`New current key has not yet started (${clusterConnectorKeys.currentStart}), will not create new cluster key`);
             return null;
         }
 
@@ -177,12 +181,10 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
             clusterConnectorKeys?.prevExpire < Date.now()/1000 + this.constants.MAX_PREV_JWKS_EXPIRATION_SECS) {
 
             logger?.warn(`Previous key has not yet expired, will not create new cluster key`);
-            await config.clusterJob?.heartbeat(`Previous key has not yet expired (${clusterConnectorKeys.prevExpire}), will not create new cluster key`);
+            await config.clusterJob?.fatalError(`Previous key has not yet expired (${clusterConnectorKeys.prevExpire}), will not create new cluster key`);
             return null;
         }
 
-        // Send out start job message
-        await config.clusterJob?.start();
 
         // Actually create the new keys
         const newConnectorKeys = await AbstractKeyProvider.createKeys();
@@ -332,7 +334,8 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
     }
 
     private async setupSubscriptions() {
-        const listeningChannel = `${this.constants._PREFIX}:${this.constants.LISTENING_CHANNEL}`;
+        // Grab the listening channel
+        const listeningChannel = this.listeningChannel();
 
         try {
             // Clear existing subscription
@@ -408,6 +411,20 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
             case "new-jwks-available":
                 // Handle the new jwks
                 await this.handleNewJwks(message.processId, message.clusterConnectorKeys);
+                break;
+            case "request-active-key":
+                // Grab the active keys
+                const activeKeys = await this.getActiveKeys();
+
+                // String version the public key
+                const publicKeyString = JSON.stringify(activeKeys.publicJwk);
+
+                // Reply with the active key
+                await this.clusterProvider.publish<ServerActiveKey>(message.listeningChannel, {
+                    event: "server-active-key",
+                    publicKeyMd5: createHash('md5').update(publicKeyString).digest('hex')
+                });
+
                 break;
             default:
                 this.keyProviderConfig.pinoLogger?.warn(`Unexpected event received, cannot process message`);

@@ -24,8 +24,19 @@ export interface RequestUpdateSystemJwksMsg {
     jobName?: string,
 }
 
+export interface RequestActiveKey {
+    event: "request-active-key",
+    listeningChannel: string,
+}
+
+export interface ServerActiveKey {
+    event: "server-active-key",
+    publicKeyMd5: string,
+}
+
 export type ClusterKeyProviderMsgs =
     | PendingJwksUpdateMsg
     | CancelPendingJwksUpdateMsg
     | NewJwksAvailableMsg
-    | RequestUpdateSystemJwksMsg;
+    | RequestUpdateSystemJwksMsg
+    | RequestActiveKey;
