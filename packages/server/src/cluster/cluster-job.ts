@@ -20,12 +20,14 @@ export type ClusterJobMessage = {
     duration: number;
     jobName?: string;
     remarks?: string;
+    processId?: string;
 }
 
 export class ClusterJob {
     private config: ClusterJobConfig;
     private startTimestamp: number | null = null;
     private endTimestamp: number | null = null;
+    public processId: string | null = null;
 
     constructor(config: ClusterJobConfig) {
         this.config = config;
@@ -41,6 +43,7 @@ export class ClusterJob {
                 duration: duration,
                 ...this.config.jobName && {jobName: this.config.jobName},
                 ...remarks && {remarks: remarks},
+                ...this.processId && {processId: this.processId},
             }
         );
     }

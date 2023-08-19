@@ -11,10 +11,12 @@ import {is} from "typia";
 import {ClusterJob} from "../cluster/cluster-job.js";
 import type {JWK} from "jose";
 import type {
-    CancelPendingJwksUpdate,
-    ClusterKeyProviderMessages, NewJwksAvailable,
-    PendingJwksUpdate
+    CancelPendingJwksUpdateMsg,
+    ClusterKeyProviderMsgs, NewJwksAvailableMsg,
+    PendingJwksUpdateMsg
 } from "./cluster-key-provider-message-types.js";
+import {webcrypto} from "crypto";
+import {LRUCache} from "lru-cache";
 
 export type ClusterConnectorKeys = {
     connectorKeys: ConnectorKeys,
@@ -26,6 +28,12 @@ export type ClusterConnectorKeys = {
 interface GenerateClusterKeysConfig {
     onlyIfStoreIsEmpty?: boolean,
     clusterJob?: ClusterJob,
+}
+
+interface PendingNewJwks {
+    senderId: string,
+    lockExpiration: number,
+    timeout: ReturnType<typeof setTimeout>,
 }
 
 class ClusterKeyProvider extends AbstractKeyProvider {
@@ -44,6 +52,10 @@ class ClusterKeyProvider extends AbstractKeyProvider {
 
     private readonly clusterProvider: AbstractClusterProvider;
     private clusterConnectorKeys: ClusterConnectorKeys | null = null;
+    private pendingNewJwksLru = new LRUCache<string, PendingNewJwks>({
+        max: 100,
+        dispose: this.pendingNewJwksDispose,
+    });
 
     private constructor(keyProviderConfig: KeyProviderConfig) {
         super(keyProviderConfig);
@@ -112,6 +124,15 @@ class ClusterKeyProvider extends AbstractKeyProvider {
 
     private async generateClusterKeys(config: GenerateClusterKeysConfig = {}): Promise<ClusterConnectorKeys | null> {
 
+        // Generate a process id
+        const processId = webcrypto.randomUUID();
+
+        // Create a sub-logger with the new process id
+        const logger = this.keyProviderConfig.pinoLogger?.child({"Source": `KeyProvider:Process:${processId}`});
+
+        // Store the id on the associate job
+        if (config.clusterJob) config.clusterJob.processId = processId;
+
         // Setup lock options
         const lockOptions: LockOptions = {
             key: `${this.constants._PREFIX}:${this.constants.UPDATE_JWKS}`,
@@ -126,7 +147,8 @@ class ClusterKeyProvider extends AbstractKeyProvider {
 
         // Check for no lock
         if (!lock) {
-            this.keyProviderConfig.pinoLogger?.debug(`Could not obtain lock, cannot generate cluster keys`);
+            logger?.debug(`Could not obtain lock, cannot generate cluster keys`);
+            await config.clusterJob?.heartbeat(`Could not obtain lock, cannot generate cluster keys`);
             return null;
         }
 
@@ -135,7 +157,7 @@ class ClusterKeyProvider extends AbstractKeyProvider {
 
         // Check for existing keys and config flag
         if (clusterConnectorKeys && config.onlyIfStoreIsEmpty) {
-            this.keyProviderConfig.pinoLogger?.debug(`Keys exists in store, using existing keys`);
+            logger?.debug(`Keys exists in store, using existing keys`);
             return clusterConnectorKeys;
         }
 
@@ -144,7 +166,7 @@ class ClusterKeyProvider extends AbstractKeyProvider {
             clusterConnectorKeys?.currentStart + 1 > Date.now()/1000 &&
             clusterConnectorKeys?.currentStart < Date.now()/1000 + this.constants.MAX_CURR_JWKS_START_DELAY_SECS) {
 
-            this.keyProviderConfig.pinoLogger?.warn(`New current key has not yet started, will not create new cluster key`);
+            logger?.warn(`New current key has not yet started, will not create new cluster key`);
             await config.clusterJob?.heartbeat(`New current key has not yet started (${clusterConnectorKeys.currentStart}), will not create new cluster key`);
             return null;
         }
@@ -154,7 +176,7 @@ class ClusterKeyProvider extends AbstractKeyProvider {
             clusterConnectorKeys?.prevExpire + 1 > Date.now()/1000 &&
             clusterConnectorKeys?.prevExpire < Date.now()/1000 + this.constants.MAX_PREV_JWKS_EXPIRATION_SECS) {
 
-            this.keyProviderConfig.pinoLogger?.warn(`Previous key has not yet expired, will not create new cluster key`);
+            logger?.warn(`Previous key has not yet expired, will not create new cluster key`);
             await config.clusterJob?.heartbeat(`Previous key has not yet expired (${clusterConnectorKeys.prevExpire}), will not create new cluster key`);
             return null;
         }
@@ -183,9 +205,10 @@ class ClusterKeyProvider extends AbstractKeyProvider {
 
         // Advise all listeners of the pending update (in case the future publish is missed)
         if (newClusterConnectorKeys.currentStart) {
-            await this.clusterProvider.publish<PendingJwksUpdate>(this.listeningChannel(), {
+            await this.clusterProvider.publish<PendingJwksUpdateMsg>(this.listeningChannel(), {
                 event: "pending-jwks-update",
-                endOfLockTime: endOfLockTime
+                endOfLockTime: endOfLockTime,
+                processId: processId,
             });
         }
 
@@ -195,12 +218,13 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         if (!storeResult) {
             // Advise all listeners to cancel the pending update request
             if (newClusterConnectorKeys.currentStart) {
-                await this.clusterProvider.publish<CancelPendingJwksUpdate>(this.listeningChannel(), {
+                await this.clusterProvider.publish<CancelPendingJwksUpdateMsg>(this.listeningChannel(), {
                     event: "cancel-pending-jwks-update",
+                    processId: processId,
                 });
             }
 
-            this.keyProviderConfig.pinoLogger?.error(`Failed to store updated keys`);
+            logger?.error(`Failed to store updated keys`);
             return null;
         }
 
@@ -208,9 +232,10 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         this.clusterConnectorKeys = newClusterConnectorKeys;
 
         // Advise all listeners that a new jwk is available and will be ready for use soon
-        await this.clusterProvider.publish<NewJwksAvailable>(this.listeningChannel(), {
+        await this.clusterProvider.publish<NewJwksAvailableMsg>(this.listeningChannel(), {
             event: "new-jwks-available",
             clusterConnectorKeys: newClusterConnectorKeys,
+            processId: processId,
         });
 
         // Continuously pass the status message (if using a cluster job)
@@ -244,23 +269,23 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         // Configure a timeout to pass final messages and handle callback
         setTimeout(async() => {
 
-            this.keyProviderConfig.pinoLogger?.debug(`New key has started`);
+            logger?.debug(`New key has started`);
 
             // Execute the on active key update callback
             if (this.onActiveKeyUpdate) {
-                this.keyProviderConfig.pinoLogger?.debug(`Executing the on active key update callback`);
+                logger?.debug(`Executing the on active key update callback`);
                 await this.onActiveKeyUpdate();
             }
 
             // Update the oidc server
             if (this.updateOidcServer) {
-                this.keyProviderConfig.pinoLogger?.debug(`Executing the update oidc server callback`);
+                logger?.debug(`Executing the update oidc server callback`);
                 await this.updateOidcServer();
             }
 
             // Send job finish notification
             config.clusterJob?.finish();
-            this.keyProviderConfig.pinoLogger?.debug(`Finished update`);
+            logger?.debug(`Finished update`);
         }, secondsUntilNewKeyStart * 1000);
 
         // Release the held lock
@@ -269,7 +294,7 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         if (!unlock) {
             const lockExpiresIn = Math.round(endOfLockTime - Date.now() / 1000);
             const warnMsg = (lockExpiresIn > 0) ? `Lock will expire in ${lockExpiresIn} seconds` : `Lock already expired ${Math.abs(lockExpiresIn)} seconds ago.`;
-            this.keyProviderConfig.pinoLogger?.warn(`Failed to unlock cluster key generation lock. ${warnMsg}`);
+            logger?.warn(`Failed to unlock cluster key generation lock. ${warnMsg}`);
         }
 
         return newClusterConnectorKeys;
@@ -325,10 +350,10 @@ class ClusterKeyProvider extends AbstractKeyProvider {
         }
     }
 
-    private pubSubMessageHandler = async (message: ClusterMessage<ClusterKeyProviderMessages>, senderId: string) => {
+    private pubSubMessageHandler = async (message: ClusterMessage<ClusterKeyProviderMsgs>, senderId: string) => {
 
         // Ensure we have the correct message back
-        if (!is<ClusterKeyProviderMessages>(message)) {
+        if (!is<ClusterKeyProviderMsgs>(message)) {
             this.keyProviderConfig.pinoLogger?.warn(`Unexpected pub/sub message`);
             return;
         }
@@ -346,20 +371,78 @@ class ClusterKeyProvider extends AbstractKeyProvider {
                 });
                 break;
             case "pending-jwks-update":
-                // todo: record sender's id
-                // todo: > clients that receive this should set a timeout for the above seconds to run the GET_JWKS function
+
+                // Calculate the timeout length
+                const timeoutSecs = Math.max(Date.now()/1000 - message.endOfLockTime, 0);
+
+                // Build the new timeout
+                const timeoutKey = setTimeout(
+                    () => this.handleNewJwks(message.processId),
+                    timeoutSecs * 1000
+                );
+
+                // Record the pending update
+                this.pendingNewJwksLru.set(message.processId, {
+                    timeout: timeoutKey,
+                    senderId: senderId,
+                    lockExpiration: message.endOfLockTime,
+                });
+
                 break;
             case "cancel-pending-jwks-update":
-                // todo: cancel timeout based on sender's id
+                // Clear existing entry (it will auto-dispose of the timeout)
+                const cancelResult = this.pendingNewJwksLru.delete(message.processId);
+
+                // No match
+                if (!cancelResult) {
+                    this.keyProviderConfig.pinoLogger?.debug(`No pending new jwks entry matching process ID ${message.processId} from sender ${senderId}. This is okay if this instance just recently started.`);
+                    return;
+                }
+
                 break;
             case "new-jwks-available":
-                // todo: cancel timeout based on sender's id
-                // todo: pass to handler to update jwks
+                // Handle the new jwks
+                await this.handleNewJwks(message.processId, message.clusterConnectorKeys);
                 break;
             default:
                 this.keyProviderConfig.pinoLogger?.warn(`Unexpected event received, cannot process message`);
         }
-    };
+    }
+
+    private pendingNewJwksDispose(pendingNewJwks: PendingNewJwks, key: string, reason: LRUCache.DisposeReason): void {
+        // Log an eviction
+        if (reason === "evict") {
+            this.keyProviderConfig.pinoLogger?.error(`Too many pending jwks messages, purging LRU request (${key}) with sender (${pendingNewJwks.senderId}). Is there a rogue message sender flooding the channel?!`);
+        }
+
+        // Clear the timeout
+        clearTimeout(pendingNewJwks.timeout);
+    }
+
+    private async handleNewJwks(processId: string, newClusterConnectorKeys?: ClusterConnectorKeys) {
+
+        // Clear existing entry (it will auto-dispose of the timeout)
+        this.pendingNewJwksLru.delete(processId);
+
+        // Grab and store the new keys
+        if (newClusterConnectorKeys) {
+            // Grab the keys from the params
+            this.clusterConnectorKeys = newClusterConnectorKeys;
+        } else {
+            // Grab keys from the store
+            const storeKeys = await this.getKeysFromCluster();
+
+            if (!storeKeys) {
+                this.keyProviderConfig.pinoLogger?.debug(`Expected to update keys, but no keys found in store`);
+                return;
+            }
+
+            this.clusterConnectorKeys = storeKeys;
+        }
+
+        // Run the main active key update callback
+        await this.onActiveKeyUpdate?.()
+    }
 
     static async factory(keyProviderConfig: KeyProviderConfig) {
         // Create a new key provider
