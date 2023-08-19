@@ -85,13 +85,13 @@ const mainRedisClusterProvider = new RedisClusterProvider({
 });
 await mainRedisClusterProvider.connectOrThrow();
 console.log("Deleting old keys");
-await mainRedisClusterProvider.remove('key-provider:connector-keys');
+const deleteResult = await mainRedisClusterProvider.remove('key-provider:connector-keys');
 
 // Make all our fastify servers
 const makeFastifyServerPromises: any[] = [];
 const fastifyServerPromises: any[] = [];
 for (let i= 0; i<40; i++) {
-    console.log(`Build ${i} make server promise`);
+    console.log(`${i} :: Making build promise`);
 
     // Build our make fastify server promises
     makeFastifyServerPromises.push(
@@ -99,7 +99,7 @@ for (let i= 0; i<40; i++) {
             // Create the fastify server
             const fastifyServer = await makeFastifyServer(i);
 
-            console.log(`${i} server created`);
+            console.log(`${i} :: Created`);
 
             fastifyServerPromises.push(
                 (async () => {
@@ -108,10 +108,10 @@ for (let i= 0; i<40; i++) {
                             await fastifyServer.listen({
                                 port: 3000 + i,
                                 host: '0.0.0.0',
-                            }), (async () => console.log(`Listening ${i}`))()
+                            }), (async () => console.log(`${i} :: Listening`))()
                         ]);
                     } catch (err) {
-                        fastifyServer.log.error(`*****Server crashed. Id: ${i}`, err);
+                        fastifyServer.log.error(`${i}:: Server crashed **********************`, err);
                         console.log(err);
                     }
                 })()

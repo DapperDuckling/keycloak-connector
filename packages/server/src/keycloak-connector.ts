@@ -745,7 +745,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const connectorKeys = await keyProvider.getActiveKeys();
 
         // Grab the oidc clients
-        const oidcClients = await KeycloakConnector.createOidcClients(openIdConfig, config.oidcClientMetadata, connectorKeys);
+        const oidcClients = await KeycloakConnector.createOidcClients(openIdConfig, config.oidcClientMetadata, connectorKeys.privateJwk);
 
         // Ensure we have a JWKS uri
         if (oidcClients.oidcIssuer.metadata.jwks_uri === undefined) {
