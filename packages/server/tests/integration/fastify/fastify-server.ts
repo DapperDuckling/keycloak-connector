@@ -8,8 +8,7 @@ import {routes} from "./routes.js";
 import type {Logger} from "pino";
 import {clusterKeyProvider} from "keycloak-connector-server";
 import {RedisClusterProvider} from "keycloak-connector-server-cluster-redis";
-import {ClusterMessenger} from "keycloak-connector-server";
-import type {UpdateJwksMessage} from "keycloak-connector-server";
+import type {ClusterJobMessage, RequestUpdateSystemJwksMsg, SubscriberListener} from "keycloak-connector-server";
 
 const dotenv = await import('dotenv');
 dotenv.config({path: './.env.test'});
@@ -128,14 +127,18 @@ const updateKeys = async () => {
     console.log("Deleting old keys");
     await clusterProvider.remove('key-provider:connector-keys');
     console.log("SENDING MESSAGE");
-    await ClusterMessenger.messageObj<UpdateJwksMessage>({
-        clusterProvider: clusterProvider,
-        targetChannel: "key-provider:listening-channel",
-        command: "update-system-jwks",
-    }, {
-        uniqueId: "random-uuid",
-        event: "job-requested",
-        payload: (Date.now() / 1000).toString()
+    const requestTime = Date.now()/1000;
+    const listeningChannel = `listen-to-me:${requestTime}`;
+
+    const listener: SubscriberListener<ClusterJobMessage> = (message, senderId) => {
+        console.log(`Received message from ${senderId}`, message);
+    };
+    await clusterProvider.subscribe<ClusterJobMessage>(listeningChannel, listener);
+    await clusterProvider.publish<RequestUpdateSystemJwksMsg>("key-provider:listening-channel", {
+        event: "request-update-system-jwks",
+        listeningChannel: listeningChannel,
+        jobName: `The coolest job name::${requestTime}`,
+        requestTime: requestTime,
     });
     console.log("UPDATE MESSAGE BROADCAST");
 
@@ -145,6 +148,9 @@ const updateKeys = async () => {
             await updateKeys();
         }, 2500);
     }
+
+    // Unsubscribe from our listener
+    setTimeout(async () => await clusterProvider.unsubscribe(listeningChannel, listener, true), 60000);
 }
 setTimeout(async () => {
     await updateKeys();

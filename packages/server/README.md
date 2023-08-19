@@ -18,7 +18,9 @@ import Fastify from 'fastify';
 import {keycloakConnectorFastify} from 'keycloak-connector';
 
 // Configure fastify
-const fastify = Fastify();
+const fastify = Fastify({
+    pluginTimeout: 120000, // Recommended to allow for up to two minutes 
+});
 
 // Initialize the connector
 fastify.register(keycloakConnectorFastify, {

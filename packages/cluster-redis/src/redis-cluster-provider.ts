@@ -62,7 +62,8 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
     private isSubscriberConnected: boolean = false;
     private readonly uniqueClientId: string;
 
-    constructor(clusterConfig: RedisClusterConfig) {
+    constructor(clusterConfig?: RedisClusterConfig) {
+        clusterConfig ??= {};
         super(clusterConfig);
 
         // Generate a unique id for this client

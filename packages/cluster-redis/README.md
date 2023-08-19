@@ -8,6 +8,14 @@ When scaling a project that uses `keycloak-connector-server`, each instance will
 
 This plugin is written in order to synchronize this and other activities, such as backdoor logouts from Keycloak.
 
+### Fastify Configuration
+```javascript
+const fastify = Fastify({
+   // Extend the fastify plugin timeout in order to allow for key negotiation
+   pluginTimeout: 120000, 
+});
+```
+
 ### Redis on AWS ElastiCache Setup
 
 1. Create a new EC2 security group to link Redis to EC2 instances

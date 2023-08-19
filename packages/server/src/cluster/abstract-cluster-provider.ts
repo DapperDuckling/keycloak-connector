@@ -31,7 +31,7 @@ export interface LockOptions {
     ttl: number, // TTL in seconds
 }
 
-type SubscriberListener<T = unknown> = Listener<Promise<void> | void, [ClusterMessage<T>, SenderId]>;
+export type SubscriberListener<T = unknown> = Listener<Promise<void> | void, [ClusterMessage<T>, SenderId]>;
 
 export abstract class AbstractClusterProvider<CustomEvents extends string | void = void> {
 
@@ -70,8 +70,15 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
     }
 
     public async publish<T = unknown>(channel: string, message: T): Promise<boolean> {
+
+        // Create the internal message
+        const internalClusterMessage: InternalClusterMessage<T> = {
+            senderId: this.senderId,
+            data: message,
+        }
+
         // Stringify the message
-        const encodedMessage = JSON.stringify(message);
+        const encodedMessage = JSON.stringify(internalClusterMessage);
 
         // Publish the message
         return this.handlePublish(channel, encodedMessage);

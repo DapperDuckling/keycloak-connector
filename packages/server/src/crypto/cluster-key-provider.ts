@@ -36,7 +36,7 @@ interface PendingNewJwks {
     timeout: ReturnType<typeof setTimeout>,
 }
 
-class ClusterKeyProvider extends AbstractKeyProvider {
+export class ClusterKeyProvider extends AbstractKeyProvider {
     
     private readonly constants = {
         MAX_INITIALIZE_RETRIES: 10,
@@ -224,7 +224,12 @@ class ClusterKeyProvider extends AbstractKeyProvider {
                 });
             }
 
-            logger?.error(`Failed to store updated keys`);
+            // Check if the lock expired
+            if (Date.now()/1000 > endOfLockTime) {
+                logger?.error(`Failed to store updated keys. Unknown issue.`);
+            } else {
+                logger?.error(`Failed to store updated keys. Likely due to lock expiration.`);
+            }
             return null;
         }
 
