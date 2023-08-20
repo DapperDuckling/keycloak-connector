@@ -19,8 +19,8 @@ EventEmitter.setMaxListeners(1000);
 EventEmitter.defaultMaxListeners = 1000;
 
 const numberOfServers = {
-    express: 20,
-    fastify: 0,
+    express: 40,
+    fastify: 40,
 } as const;
 
 export const loggerOpts = {
@@ -170,7 +170,7 @@ async function syncCheck() {
 }
 
 // Start the sync check
-// syncCheck();
+syncCheck();
 
 function buildServer(port: number, serverType: string) {
     let makeServerPromise;
