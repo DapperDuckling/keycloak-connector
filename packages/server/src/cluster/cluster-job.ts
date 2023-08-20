@@ -75,7 +75,7 @@ export class ClusterJob {
         await this.publishMessage(ClusterJobEvents.FINISH);
     }
 
-    async fatalError(msg: string) {
+    async fatalError(remarks: string) {
         // Check for existing end time
         if (this.endTimestamp) throw new Error(`Cluster job already finished or errored, cannot error again!`);
 
@@ -83,7 +83,7 @@ export class ClusterJob {
         this.endTimestamp = Date.now();
 
         // Send the fatal error message
-        await this.publishMessage(ClusterJobEvents.FATAL_ERROR);
+        await this.publishMessage(ClusterJobEvents.FATAL_ERROR, remarks);
     }
 
     isFinished() {

@@ -38,14 +38,14 @@ export async function makeExpressServer(serverId: number) {
     return app;
 }
 
-export async function startExpressServer(portId: number, app: Express) {
-    return new Promise<void>(resolve => {
+export function startExpressServer(portId: number, app: Express) {
+    // Convert sync function into async
+    return new Promise<void>(() => {
         setTimeout(() => {
             // Start server
             const port = portId;
             app.listen(port, () => {
                 console.log(`${port} :: Listening`);
-                resolve();
             });
         }, 0);
     });

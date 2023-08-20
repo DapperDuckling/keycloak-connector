@@ -1,3 +1,4 @@
+import './dot-env.js'; // Must be the first import
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import {fastifyStatic} from "@fastify/static";
@@ -9,12 +10,6 @@ import type {Logger} from "pino";
 import {clusterKeyProvider} from "keycloak-connector-server";
 import {RedisClusterProvider} from "keycloak-connector-server-cluster-redis";
 import type {ClusterJobMessage, RequestUpdateSystemJwksMsg, SubscriberListener} from "keycloak-connector-server";
-
-const dotenv = await import('dotenv');
-dotenv.config({path: './.env.test'});
-dotenv.config({path: './.env.test.local'});
-// dotenv.config({path: './tests/integration/fastify/.env.test'});
-// dotenv.config({path: './tests/integration/fastify/.env.test.local'});
 
 // Configure fastify
 const fastify = Fastify({

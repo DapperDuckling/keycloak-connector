@@ -10,31 +10,12 @@ import {clusterKeyProvider} from "keycloak-connector-server";
 import {RedisClusterProvider} from "keycloak-connector-server-cluster-redis";
 import {loggerOpts} from "./main.test.js";
 
-const dotenv = await import('dotenv');
-dotenv.config({path: './.env.test'});
-dotenv.config({path: './.env.test.local'});
-
-const baseFastifyOpts = Object.freeze({
-    logger: {
-        msgPrefix: "base",
-        level: "debug",
-        transport: {
-            target: 'pino-pretty',
-            options: {
-                translateTime: 'HH:MM:ss Z',
-                ignore: 'pid,hostname',
-            },
-        },
-    },
-    pluginTimeout: 120000,
-});
-
 export async function makeFastifyServer(serverId: number) {
     const loggerOptsCloned = structuredClone(loggerOpts);
     loggerOptsCloned['msgPrefix'] = `fastify-${serverId} :: `;
     const fastifyOptions = {
         logger: loggerOptsCloned,
-        pluginTimeout: 120000,
+        pluginTimeout: 0,
     }
     const fastify = Fastify(fastifyOptions);
 
