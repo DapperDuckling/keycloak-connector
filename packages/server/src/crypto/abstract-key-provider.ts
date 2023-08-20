@@ -7,6 +7,7 @@ import {webcrypto} from "crypto";
 import type {Logger} from "pino";
 import {is} from "typia";
 import {AbstractClusterProvider} from "../cluster/abstract-cluster-provider.js";
+import {setImmediate} from "timers";
 
 export type KeyProviderConfig = {
     pinoLogger?: Logger,
@@ -18,7 +19,8 @@ export abstract class AbstractKeyProvider {
     protected keyProviderConfig: KeyProviderConfig;
     protected connectorKeys: ConnectorKeys | null = null;
     protected onActiveKeyUpdate: Listener<Promise<void>> | null = null;
-    protected updateOidcServer: Listener<Promise<void>> | null = null;
+    protected updateOidcServer: Listener<Promise<void>> | (() => boolean) = () => this.initPendingOidcServerUpdate = true;
+    private initPendingOidcServerUpdate = false;
 
     protected constructor(keyProviderConfig: KeyProviderConfig) {
         // Update the pino logger
@@ -74,5 +76,11 @@ export abstract class AbstractKeyProvider {
     public registerCallbacks(onActiveKeyUpdate: Listener<Promise<void>>, updateOidcServer: Listener<Promise<void>>) {
         this.onActiveKeyUpdate = onActiveKeyUpdate;
         this.updateOidcServer = updateOidcServer;
+
+        // Check if we have a pending oidc update
+        // (this patches a race condition caused on initial startup)
+        if (this.initPendingOidcServerUpdate) {
+            setImmediate(this.onActiveKeyUpdate);
+        }
     }
 }

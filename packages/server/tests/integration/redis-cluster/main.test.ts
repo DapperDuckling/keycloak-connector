@@ -9,7 +9,8 @@ EventEmitter.defaultMaxListeners = 1000;
 
 export const loggerOpts = {
     msgPrefix: "base",
-    level: "debug",
+    // level: "debug",
+    level: "warn",
     transport: {
         target: 'pino-pretty',
         options: {

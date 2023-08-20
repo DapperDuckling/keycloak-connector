@@ -42,9 +42,7 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
     
     private readonly constants = {
         MAX_INITIALIZE_RETRIES: 10,
-        //todo: restore 2 minutes
-        CURR_JWKS_START_DELAY_SECS: 2 * 15,         // todo: remove
-        // CURR_JWKS_START_DELAY_SECS: 2 * 60,         // 2 minutes
+        CURR_JWKS_START_DELAY_SECS: 2 * 60,         // 2 minutes
         MAX_CURR_JWKS_START_DELAY_SECS: 10 * 60,    // 10 minutes
         PREV_JWKS_EXPIRATION_SECS: 10 * 60,         // 10 minutes
         MAX_PREV_JWKS_EXPIRATION_SECS: 3600,        // 1 hour
@@ -388,7 +386,7 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
             case "pending-jwks-update":
 
                 // Calculate the timeout length
-                const timeoutSecs = Math.max(Date.now()/1000 - message.endOfLockTime, 0);
+                const timeoutSecs = Math.max(message.endOfLockTime - Date.now()/1000, 0);
 
                 // Build the new timeout
                 const timeoutKey = setTimeout(
