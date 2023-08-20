@@ -246,6 +246,7 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
         });
 
         // Continuously pass the status message (if using a cluster job)
+        //todo: should this be awaited? we're holding the lock for a while
         await (async function statusUpdateFunc() {
 
             // Check if there is no start time for the new key

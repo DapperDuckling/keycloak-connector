@@ -21,7 +21,7 @@
     "build": "tsc",
     "prepublishOnly": "npm run build",
     "test:start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts",
-    "test:start:fastify-redis-cluster": "npm run build && cd ./tests/integration/fastify-redis-cluster/ && nodemon ./fastify-server.ts",
+    "test:start:redis-cluster": "npm run build && cd ./tests/integration/redis-cluster/ && nodemon ./main.test.ts",
     "postinstall": "ts-patch install"
   },
   "main": "dist/index.js",
@@ -37,6 +37,7 @@
     "@types/jest": "^29.5.1",
     "keycloak-connector-server-cluster-redis": "file:../cluster-redis",
     "nodemon": "^3.0.1",
+    "pino-http": "^8.4.0",
     "readline-sync": "^1.4.10",
     "ts-node": "^10.9.1",
     "ts-patch": "^3.0.2",

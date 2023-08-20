@@ -1,17 +1,7 @@
-import Fastify from 'fastify';
-import cookie from '@fastify/cookie';
-import {fastifyStatic} from "@fastify/static";
-import * as path from "path";
-
-import {keycloakConnectorFastify} from "keycloak-connector-server";
-import {routes} from "./routes.js";
-import type {Logger} from "pino";
-import {clusterKeyProvider} from "keycloak-connector-server";
 import {RedisClusterProvider} from "keycloak-connector-server-cluster-redis";
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from 'node:process';
 import * as process from "process";
-
 import { EventEmitter } from 'node:events';
 import type {ClusterMessage, RequestActiveKey, ServerActiveKey} from "keycloak-connector-server";
 import {is} from "typia";
@@ -22,65 +12,28 @@ import type {
     RequestUpdateSystemJwksMsg
 } from "keycloak-connector-server";
 import {AbstractKeyProvider} from "keycloak-connector-server";
+import {makeFastifyServer, startFastifyServer} from "./fastify-server.js";
+import {makeExpressServer, startExpressServer} from "./express-server.js";
 
 EventEmitter.setMaxListeners(1000);
 EventEmitter.defaultMaxListeners = 1000;
 
-const numberOfServers = 40;
+const numberOfServers = {
+    express: 20,
+    fastify: 0,
+} as const;
 
-const dotenv = await import('dotenv');
-dotenv.config({path: './.env.test'});
-dotenv.config({path: './.env.test.local'});
-
-const baseFastifyOpts = Object.freeze({
-    logger: {
-        msgPrefix: "base",
-        level: "debug",
-        transport: {
-            target: 'pino-pretty',
-            options: {
-                translateTime: 'HH:MM:ss Z',
-                ignore: 'pid,hostname',
-            },
+export const loggerOpts = {
+    msgPrefix: "base",
+    level: "debug",
+    transport: {
+        target: 'pino-pretty',
+        options: {
+            translateTime: 'HH:MM:ss Z',
+            ignore: 'pid,hostname',
         },
     },
-    pluginTimeout: 120000,
-});
-
-async function makeFastifyServer(serverId: number) {
-    const fastifyOptions = structuredClone(baseFastifyOpts);
-    fastifyOptions.logger['msgPrefix'] = `fastify-${serverId} :: `;
-    const fastify = Fastify(fastifyOptions);
-
-    // To store the session state cookie
-    fastify.register(cookie, {
-        prefix: "keycloak-connector_",
-    });
-
-    fastify.register(fastifyStatic, {
-        root: path.join(path.resolve(), 'public'),
-        prefix: '/public/', // optional: default '/'
-    });
-
-    const clusterProvider = new RedisClusterProvider({
-        pinoLogger: fastify.log as Logger,
-    });
-
-    // Initialize the keycloak-connector
-    await fastify.register(keycloakConnectorFastify, {
-        serverOrigin: 'http://localhost:3005',
-        authServerUrl: 'http://localhost:8080/',
-        realm: 'local-dev',
-        refreshConfigMins: -1, // Disable for dev testing
-        clusterProvider: clusterProvider,
-        keyProvider: clusterKeyProvider,
-    });
-
-    // Register our routes
-    fastify.register(routes);
-
-    return fastify;
-}
+};
 
 // Remove existing keys
 const prefix = process.env["CLUSTER_REDIS_PREFIX"];
@@ -92,41 +45,6 @@ await mainRedisClusterProvider.connectOrThrow();
 console.log("Deleting old keys");
 const deleteResult = await mainRedisClusterProvider.remove('key-provider:connector-keys');
 
-// Make all our fastify servers
-const makeFastifyServerPromises: any[] = [];
-const fastifyServerPromises: any[] = [];
-for (let i= 0; i<40; i++) {
-    console.log(`${i} :: Making build promise`);
-
-    // Build our make fastify server promises
-    makeFastifyServerPromises.push(
-        (async () => {
-            // Create the fastify server
-            const fastifyServer = await makeFastifyServer(i);
-
-            console.log(`${i} :: Created`);
-
-            fastifyServerPromises.push(
-                (async () => {
-                    try {
-                        await Promise.all([
-                            await fastifyServer.listen({
-                                port: 3000 + i,
-                                host: '0.0.0.0',
-                            }), (async () => console.log(`${i} :: Listening`))()
-                        ]);
-                    } catch (err) {
-                        fastifyServer.log.error(`${i}:: Server crashed **********************`, err);
-                        console.log(err);
-                    }
-                })()
-            );
-        })()
-    );
-}
-
-// Wait for the servers to get created
-await Promise.all(makeFastifyServerPromises);
 
 // Build the prompt loop promise
 const promptPromise = (async () => {
@@ -194,6 +112,7 @@ const promptPromise = (async () => {
 })();
 
 // Periodic sync check
+const totalNumberOfServers = Object.values(numberOfServers).reduce((sum: number, value: number) => sum + value, 0);
 async function syncCheck() {
     const results: Record<string, number> = {};
     const listeningChannel = `key-sync-check-${Date.now()/1000}`;
@@ -236,12 +155,12 @@ async function syncCheck() {
         }
 
         // Check for responding servers
-        if (totalAccountedFor !== numberOfServers) {
-            console.log(`SYNC-CHECK :: ${numberOfServers - totalAccountedFor} did not respond!! All others are synced!!`);
+        if (totalAccountedFor !== totalNumberOfServers) {
+            console.log(`SYNC-CHECK :: ${totalNumberOfServers - totalAccountedFor} did not respond!! All others are synced!!`);
         }
 
         // Check for everything good
-        if (syncCheckMessages.length === 1 && totalAccountedFor === numberOfServers) {
+        if (syncCheckMessages.length === 1 && totalAccountedFor === totalNumberOfServers) {
             console.log(`SYNC-CHECK :: All servers check good!`);
         }
 
@@ -253,10 +172,65 @@ async function syncCheck() {
 // Start the sync check
 // syncCheck();
 
+function buildServer(port: number, serverType: string) {
+    let makeServerPromise;
+    let startServerPromise;
+
+    let makeServerFunc;
+    let startServerFunc;
+
+    switch (serverType) {
+        case 'fastify':
+            makeServerFunc = makeFastifyServer;
+            startServerFunc = startFastifyServer;
+            break;
+        case 'express':
+            makeServerFunc = makeExpressServer;
+            startServerFunc = startExpressServer;
+            break;
+        default:
+            throw new Error('Unknown server type');
+    }
+
+    makeServerPromise = (async () => {
+        // Create the fastify server
+        const server = await makeServerFunc(port);
+
+        console.log(`${port} :: Created`);
+
+        startServerPromise = startServerFunc(port, server as any);
+    })();
+
+    return {
+        makeServerPromise,
+        startServerPromise,
+    };
+}
+
+// Make all our fastify servers
+const makeServerPromises: any[] = [];
+const startServerPromises: any[] = [];
+let portNumber = 3000;
+for (let i= 0; i<numberOfServers.fastify; i++) {
+    const {makeServerPromise, startServerPromise} = buildServer(portNumber++, 'fastify');
+    makeServerPromises.push(makeServerPromise);
+    startServerPromises.push(startServerPromise);
+}
+
+for (let i=0; i<numberOfServers.express; i++) {
+    const {makeServerPromise, startServerPromise} = buildServer(portNumber++, 'express');
+    makeServerPromises.push(makeServerPromise);
+    startServerPromises.push(startServerPromise);
+}
+
+
+// Wait for the servers to get created
+await Promise.all(makeServerPromises);
+
 // Start all servers
 try {
     console.log(`Let it rip`);
-    await Promise.all([...fastifyServerPromises, promptPromise]);
+    await Promise.all([...startServerPromises, promptPromise]);
     console.log('fin');
 } catch (e) {
     console.log('error fin');
