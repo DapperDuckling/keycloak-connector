@@ -119,6 +119,7 @@ export type CustomRouteUrl = {
     loginPost?: string;
     callback?: string;
     publicKeys?: string;
+    backChannelLogout?: string;
     loginStatus?: string;
 }
 
@@ -127,6 +128,7 @@ export enum RouteEnum {
     LOGIN_POST = 1,
     CALLBACK = 2,
     PUBLIC_KEYS = 3,
+    BACK_CHANNEL_LOGOUT = 3,
     LOGIN_STATUS = 4,
 }
 

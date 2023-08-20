@@ -7,6 +7,7 @@ export const RouteUrlDefaults: CustomRouteUrl = {
     loginPost: '/login',
     callback: '/callback',
     publicKeys: '/k_jwks',
+    backChannelLogout: '/k_logout',
     loginStatus: '/login_status',
 }
 

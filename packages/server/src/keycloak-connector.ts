@@ -120,6 +120,15 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }, this.handleClientJWKS);
 
         /**
+         * Serves the JWK set containing the client's public key
+         */
+        this.registerRoute(adapter, {
+            url: this.getRoutePath(RouteEnum.BACK_CHANNEL_LOGOUT),
+            method: "GET",
+            isPublic: true,
+        }, this.handleBackChannelLogout);
+
+        /**
          * Provides a quick endpoint for client side scripts to check status of authentication
          */
         this.registerRoute(adapter, {
@@ -426,7 +435,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             throw new LoginError(ErrorHints.CODE_500);
         }
-    };
+    }
 
     private handleClientJWKS = async (): Promise<ConnectorResponse<Server>> => {
         const keys = {
@@ -436,6 +445,16 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return {
             statusCode: 200,
             responseText: JSON.stringify(keys),
+        };
+    }
+
+    private handleBackChannelLogout = async (): Promise<ConnectorResponse<Server>> => {
+
+        //todo: finish backchannel logout. what does keycloak send us???
+
+        return {
+            statusCode: 200,
+            responseText: "TODO: finish",
         };
     };
 
@@ -850,6 +869,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 return `${prefix}${config.routePaths?.callback ?? RouteUrlDefaults.callback}`;
             case RouteEnum.PUBLIC_KEYS:
                 return `${prefix}${config.routePaths?.publicKeys ?? RouteUrlDefaults.publicKeys}`;
+            case RouteEnum.BACK_CHANNEL_LOGOUT:
+                return `${prefix}${config.routePaths?.backChannelLogout ?? RouteUrlDefaults.backChannelLogout}`;
             case RouteEnum.LOGIN_STATUS:
                 return `${prefix}${config.routePaths?.loginStatus ?? RouteUrlDefaults.loginStatus}`;
         }
