@@ -1,10 +1,7 @@
 import type {KeyProviderConfig} from "./abstract-key-provider.js";
 import {AbstractKeyProvider} from "./abstract-key-provider.js";
-import type {
-    AbstractClusterProvider,
-    ClusterMessage,
-    LockOptions
-} from "../cluster/abstract-cluster-provider.js";
+import type {AbstractClusterProvider, ClusterMessage, LockOptions} from "../cluster/abstract-cluster-provider.js";
+import {BaseClusterEvents} from "../cluster/abstract-cluster-provider.js";
 import type {ConnectorKeys, KeyProvider} from "../types.js";
 import {sleep} from "../helpers/utils.js";
 import {is} from "typia";
@@ -12,8 +9,10 @@ import {ClusterJob} from "../cluster/cluster-job.js";
 import type {JWK} from "jose";
 import type {
     CancelPendingJwksUpdateMsg,
-    ClusterKeyProviderMsgs, NewJwksAvailableMsg,
-    PendingJwksUpdateMsg, ServerActiveKey
+    ClusterKeyProviderMsgs,
+    NewJwksAvailableMsg,
+    PendingJwksUpdateMsg,
+    ServerActiveKey
 } from "./cluster-key-provider-message-types.js";
 import {webcrypto} from "crypto";
 import {LRUCache} from "lru-cache";
@@ -69,6 +68,9 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
 
         // Store reference to the cluster provider
         this.clusterProvider = keyProviderConfig.clusterProvider;
+
+        // Listen for reconnections
+        this.clusterProvider.addListener(BaseClusterEvents.FULLY_RECONNECTED, () => this.onActiveKeyUpdate);
     }
 
     private listeningChannel = () => `${this.constants._PREFIX}:${this.constants.LISTENING_CHANNEL}`;

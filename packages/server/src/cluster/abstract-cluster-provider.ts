@@ -11,6 +11,7 @@ export enum BaseClusterEvents {
     BASE = "BASE",
     PRE_CONNECTION = "PRE_CONNECTION",
     CONNECTED = "CONNECTED",
+    FULLY_RECONNECTED = "FULLY_RECONNECTED",
 }
 
 type InternalClusterMessage<T = unknown> = {
@@ -90,7 +91,7 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
     public async subscribe<T = unknown>(channel: string, listener: SubscriberListener<T>, ignoreOwnMessages = false): Promise<boolean> {
 
         // Wrap the listener
-        const wrappedListener = (encodedMessage: string, channel: string, c: any, d: any) => setImmediate(async () => {
+        const wrappedListener = (encodedMessage: string, channel: string) => setImmediate(async () => {
             try {
                 // Decode the message
                 const clusterMessage: InternalClusterMessage<T> = JSON.parse(encodedMessage);
@@ -104,6 +105,7 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
                 // Check if this message is from ourselves
                 if (ignoreOwnMessages && clusterMessage.senderId === this.senderId) {
                     this.clusterConfig.pinoLogger?.debug(`Ignoring message sent from ourself`);
+                    return;
                 }
 
                 // Call the listener function
