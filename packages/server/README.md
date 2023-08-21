@@ -168,6 +168,8 @@ router.get('/not-public', (req, res) => {
     // Send the response
     res.send('hey, but hidden behind login!');
 });
+
+app.use(router);
 ```
 
 ## Specifying Role Requirements

@@ -21,8 +21,8 @@ export const loggerOpts = {
 };
 
 function buildServer(port: number, serverType: string) {
-    let makeServerPromise;
-    let startServerPromise;
+    let makeServerPromise: Promise<any>;
+    let startServerPromiseFunc;
 
     let makeServerFunc;
     let startServerFunc: (port: number, server: any) => Promise<void>;
@@ -41,33 +41,34 @@ function buildServer(port: number, serverType: string) {
     }
 
     makeServerPromise = makeServerFunc(port);
-    startServerPromise = makeServerPromise.then(server => startServerFunc(port, server));
+    startServerPromiseFunc = () => makeServerPromise.then(server => startServerFunc(port, server));
 
     return {
         makeServerPromise,
-        startServerPromise,
+        startServerPromiseFunc,
     }
 }
 
 // Make all our servers
 const makeServerPromises: any[] = [];
-const startServerPromises: any[] = [];
+const startServerPromiseFuncs: any[] = [];
 let portNumber = 3005;
 for (const [serverType, count] of Object.entries(numberOfServers)) {
     for (let i=0; i<count; i++) {
-        const {makeServerPromise, startServerPromise} = buildServer(portNumber++, serverType);
+        const {makeServerPromise, startServerPromiseFunc} = buildServer(portNumber++, serverType);
         makeServerPromises.push(makeServerPromise);
-        startServerPromises.push(startServerPromise);
+        startServerPromiseFuncs.push(startServerPromiseFunc);
     }
 }
 
 // Wait for the servers to get created
 await Promise.all(makeServerPromises);
 
+
 // Start all servers
 try {
-    console.log(`Let it rip`);
-    await Promise.all([...startServerPromises, promptPromise]);
+    console.log('Starting servers...');
+    await Promise.all([promptPromise, ...startServerPromiseFuncs.map(fn => fn())]);
     console.log('fin');
 } catch (e) {
     console.log('error fin');

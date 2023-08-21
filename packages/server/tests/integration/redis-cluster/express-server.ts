@@ -62,7 +62,7 @@ export async function makeExpressServer(serverId: number) {
     });
 
     // Define the basic route
-    router.get('/coolguy', lock({roles: ['no_chance_role']}), (req, res) => {
+    router.get('/coolguy', lock({roles: ['COOL_GUY']}), (req, res) => {
         // Send the response
         res.send({ hello: 'PROTECTED BOI -- must have COOL_GUY role' });
     });
@@ -80,15 +80,8 @@ export async function makeExpressServer(serverId: number) {
     return app;
 }
 
-export function startExpressServer(portId: number, app: Express) {
-    // Convert sync function into async
-    return new Promise<void>(() => {
-        setTimeout(() => {
-            // Start server
-            const port = portId;
-            app.listen(port, () => {
-                console.log(`${port} :: Listening`);
-            });
-        }, 0);
+export async function startExpressServer(portId: number, app: Express) {
+    app.listen(portId, () => {
+        console.log(`${portId} :: Listening`);
     });
 }

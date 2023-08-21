@@ -1,14 +1,14 @@
 import {isDev, sleep} from "./helpers/utils.js";
 import {type ClientMetadata, errors, generators, Issuer, type IssuerMetadata} from "openid-client";
 import type {
-    ConnectorKeys,
     ConnectorRequest,
     ConnectorResponse,
     CookieOptionsBase,
     CookieParams,
     KeycloakConnectorConfigBase,
     KeycloakConnectorConfigCustom,
-    KeycloakConnectorInternalConfiguration, SupportedServers,
+    KeycloakConnectorInternalConfiguration,
+    SupportedServers,
     UserData
 } from "./types.js";
 import {AzpOptions, RouteEnum, StateOptions} from "./types.js";
@@ -20,11 +20,11 @@ import {CookieNames, Cookies, CookiesToKeep} from "./helpers/cookies.js";
 import {RouteUrlDefaults, UserDataDefault} from "./helpers/defaults.js";
 import type {JWTVerifyResult} from "jose/dist/types/types.js";
 import {RoleHelper} from "./helpers/role-helper.js";
-import RPError = errors.RPError;
-import OPError = errors.OPError;
 import {standaloneKeyProvider} from "./crypto/standalone-key-provider.js";
 import type {KeyProviderConfig} from "./crypto/abstract-key-provider.js";
 import {webcrypto} from "crypto";
+import RPError = errors.RPError;
+import OPError = errors.OPError;
 
 export class KeycloakConnector<Server extends SupportedServers> {
 
@@ -118,11 +118,20 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }, this.handleClientJWKS);
 
         /**
-         * Serves the JWK set containing the client's public key
+         * Handles any back channel logout messages from keycloak
+         */
+        this.registerRoute(adapter, {
+            url: this.getRoutePath(RouteEnum.ADMIN_URL),
+            method: "POST",
+            isPublic: true,
+        }, this.handleAdminMessages);
+
+        /**
+         * Handles any back channel logout messages from keycloak
          */
         this.registerRoute(adapter, {
             url: this.getRoutePath(RouteEnum.BACK_CHANNEL_LOGOUT),
-            method: "GET",
+            method: "POST",
             isPublic: true,
         }, this.handleBackChannelLogout);
 
@@ -446,6 +455,17 @@ export class KeycloakConnector<Server extends SupportedServers> {
         };
     }
 
+    private handleAdminMessages = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
+
+        //todo: what does keycloak send us???
+        console.log(req);
+
+        return {
+            statusCode: 200,
+            responseText: "TODO: finish1",
+        };
+    };
+
     private handleBackChannelLogout = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
         //todo: finish backchannel logout. what does keycloak send us???
@@ -453,7 +473,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         return {
             statusCode: 200,
-            responseText: "TODO: finish",
+            responseText: "TODO: finish2",
         };
     };
 
@@ -643,46 +663,48 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Store the update promise
         this.updateOidcConfig = (async () => {
+            try {
+                this._config.pinoLogger?.debug(`Starting OIDC update`);
 
-            this._config.pinoLogger?.debug(`Starting OIDC update`);
+                let shouldUpdate = false;
 
-            let shouldUpdate = false;
+                // Attempt to grab a new configuration
+                const newOidcConfig = await KeycloakConnector.fetchOpenIdConfig(this.components.oidcDiscoveryUrl, this._config);
 
-            // Attempt to grab a new configuration
-            const newOidcConfig = await KeycloakConnector.fetchOpenIdConfig(this.components.oidcDiscoveryUrl, this._config);
+                // Check for a configuration and check it is an update to the existing one
+                if (newOidcConfig && JSON.stringify(newOidcConfig) !== JSON.stringify(this.components.oidcConfig)) {
+                    // Store the configuration
+                    this.components.oidcConfig = newOidcConfig;
+                    shouldUpdate = true;
+                }
 
-            // Check for a configuration and check it is an update to the existing one
-            if (newOidcConfig && JSON.stringify(newOidcConfig) !== JSON.stringify(this.components.oidcConfig)) {
-                // Store the configuration
-                this.components.oidcConfig = newOidcConfig;
-                shouldUpdate = true;
+                // Grab the latest connector keys
+                const newConnectorKeys = await this.components.keyProvider.getActiveKeys();
+
+                if (newConnectorKeys !== this.components.connectorKeys) {
+                    // Store the new keys
+                    this.components.connectorKeys = newConnectorKeys;
+                    shouldUpdate = true;
+                }
+
+                // Check if we should update
+                if (!shouldUpdate) {
+                    this._config.pinoLogger?.debug(`No changes to OIDC keys or configuration, not updating!`);
+                    return;
+                }
+
+                // Handle configuration change
+                ({
+                    oidcIssuer: this.components.oidcIssuer,
+                    oidcClient: this.components.oidcClient
+                } = await KeycloakConnector.createOidcClients(this.components.oidcConfig, this._config.oidcClientMetadata, this.components.connectorKeys.privateJwk));
+
+                this._config.pinoLogger?.debug(`OIDC update complete`);
+
+            } finally {
+                // Clear the active update promise
+                this.updateOidcConfig = null;
             }
-
-            // Grab the latest connector keys
-            const newConnectorKeys = await this.components.keyProvider.getActiveKeys();
-
-            if (newConnectorKeys !== this.components.connectorKeys) {
-                // Store the new keys
-                this.components.connectorKeys = newConnectorKeys;
-                shouldUpdate = true;
-            }
-
-            // Check if we should update
-            if (!shouldUpdate) {
-                this._config.pinoLogger?.debug(`No changes to OIDC keys or configuration, not updating!`);
-                return;
-            }
-
-            // Handle configuration change
-            ({
-                oidcIssuer: this.components.oidcIssuer,
-                oidcClient: this.components.oidcClient
-            } = await KeycloakConnector.createOidcClients(this.components.oidcConfig, this._config.oidcClientMetadata, this.components.connectorKeys.privateJwk));
-
-            this._config.pinoLogger?.debug(`OIDC update complete`);
-
-            // Clear the active update promise
-            this.updateOidcConfig = null;
         })();
 
         // Await the function call
@@ -868,6 +890,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 return `${prefix}${config.routePaths?.callback ?? RouteUrlDefaults.callback}`;
             case RouteEnum.PUBLIC_KEYS:
                 return `${prefix}${config.routePaths?.publicKeys ?? RouteUrlDefaults.publicKeys}`;
+            case RouteEnum.ADMIN_URL:
+                return `${prefix}${config.routePaths?.adminUrl ?? RouteUrlDefaults.adminUrl}`;
             case RouteEnum.BACK_CHANNEL_LOGOUT:
                 return `${prefix}${config.routePaths?.backChannelLogout ?? RouteUrlDefaults.backChannelLogout}`;
             case RouteEnum.LOGIN_STATUS:

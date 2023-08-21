@@ -48,6 +48,9 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
 
         this.clusterConfig = clusterConfig;
 
+        // Setup a NO-OP function for the on error listener on our own event emitter
+        this.eventEmitter.on('error', () => {});
+
     }
 
     abstract connectOrThrow(): Promise<true>;
