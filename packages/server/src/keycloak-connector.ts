@@ -81,8 +81,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     private registerRoutes(adapter: AbstractAdapter<Server>): void {
 
-        // todo: make these routes dynamic
-
         /**
          * Shows the client provided login page
          */
@@ -448,9 +446,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
         };
     }
 
-    private handleBackChannelLogout = async (): Promise<ConnectorResponse<Server>> => {
+    private handleBackChannelLogout = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
         //todo: finish backchannel logout. what does keycloak send us???
+        console.log(req);
 
         return {
             statusCode: 200,

@@ -33,7 +33,49 @@ export async function makeExpressServer(serverId: number) {
         refreshConfigMins: -1, // Disable for dev testing
         clusterProvider: clusterProvider,
         keyProvider: clusterKeyProvider,
+        pinoLogger: loggerHttp.logger,
     });
+
+    const router = express.Router();
+
+    // Public route
+    router.get('/', lock(false), (req, res) => {
+        // Send the response
+        res.send({ hello: 'world1' });
+    });
+
+    // Lock all routes in this router behind a login page
+    // (must place before declaring any other routes for it to be effective)
+    router.use(lock());
+
+    // Public route
+    router.get('/public', lock(false), (req, res) => {
+        // Send the response
+        res.send({ hello: 'world1' });
+    });
+
+
+    // Define protected routes
+    router.get('/protected', (req, res) => {
+        // Send the response
+        res.send({ hello: 'PROTECTED BOI -- but no role requirement' });
+    });
+
+    // Define the basic route
+    router.get('/coolguy', lock({roles: ['no_chance_role']}), (req, res) => {
+        // Send the response
+        res.send({ hello: 'PROTECTED BOI -- must have COOL_GUY role' });
+    });
+    router.get('/no_chance', lock({roles: ['no_chance_role']}), (req, res) => {
+        // Send the response
+        res.send({ hello: 'PROTECTED BOI -- must have no_chance_role role' });
+    });
+    router.get('/roles_only', lock(['no_chance_role']), (req, res) => {
+        // Send the response
+        res.send({ hello: 'PROTECTED BOI -- must have no_chance_role role' });
+    });
+
+    app.use(router);
 
     return app;
 }

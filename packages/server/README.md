@@ -1,9 +1,27 @@
 ### keycloak-connector-server
 
 ### Description
-Keycloak Connector Server is a utility library built to ease integration of keycloak into existing nodejs express servers
+Keycloak Connector Server is an opinionated utility library built to ease integration of keycloak into existing nodejs Express or Fastify servers following the FAPI Security Profile 1.0 (baseline & advanced).
 
 Simple [Keycloak](https://keycloak.org/) connector for [Node.js](https://nodejs.org/) projects using [Fastify](https://www.fastify.io/) or [Express](https://expressjs.com/)
+
+## Securing Keycloak Clients
+**It is imperative to enable `fapi-1-baseline` and `fapi-1-advanced` client profiles to ensure complete FAPI compliance.**
+### Activate Client Profiles
+1. Select realm -> Configure -> Realm Settings
+2. Client policies tab
+3. Policies tab
+4. Create client policy -> Save
+5. Add Condition
+   - Condition Type: client-access-type
+   - Client Access Type: confidential
+6. Add Client Profile
+    - `fapi-1-baseline`
+    - `fapi-1-advanced`
+
+Once complete, navigate to any client's settings page and hit `save`. Fix any save errors that are a result of the new policy.
+
+Final step: Disable mTLS via `OAuth 2.0 Mutual TLS Certificate Bound Access Tokens Enabled` option on the `Advanced` tab.
 
 ## Getting started with Fastify
 
@@ -74,6 +92,7 @@ fastify.get('/cool-person', {config: {roles: {[RoleLocations.REALM_ACCESS]: ['re
 import express from 'express';
 import {keycloakConnectorExpress} from "keycloak-connector-server";
 import cookieParser from "cookie-parser";
+import logger from "pino-http"; // Optional, see below
 
 // Grab express app
 const app = express();
@@ -87,6 +106,7 @@ const lock = await keycloakConnectorExpress(app, {
     authServerUrl: 'http://localhost:8080/',
     realm: 'local-dev',
     refreshConfigMins: -1, // Disable for dev testing
+    pinoLogger: logger().logger, // Optional, but without pinologger, log messages are supressed (ie. error, warn, etc...)
 });
 
 // Start server
@@ -135,7 +155,7 @@ const router = express.Router();
 
 // Lock all routes in this router behind a login page
 // (must place before declaring any other routes for it to be effective)
-router.use(lock);
+router.use(lock());
 
 // Public route  ***will not work since entire router is locked!
 router.get('/', lock(false), (req, res) => {

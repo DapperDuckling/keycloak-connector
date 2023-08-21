@@ -122,9 +122,9 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
         this.registerEventListeners(this.client);
         this.registerEventListeners(this.subscriber, true);
 
-        //todo: Test cluster mode
         // Add cluster mode warning
-        this.clusterConfig.pinoLogger?.warn("**WARNING** Using Redis in cluster mode has not been thoroughly tested.");
+        //todo: Test cluster mode
+        if (clusterConfig.clusterMode) this.clusterConfig.pinoLogger?.warn("**WARNING** Using Redis in cluster mode has not been thoroughly tested.");
     }
 
     private handleClusterMode(config: ClusterMode): ClusterMode {

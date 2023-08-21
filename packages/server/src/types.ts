@@ -124,12 +124,12 @@ export type CustomRouteUrl = {
 }
 
 export enum RouteEnum {
-    LOGIN_PAGE = 0,
-    LOGIN_POST = 1,
-    CALLBACK = 2,
-    PUBLIC_KEYS = 3,
-    BACK_CHANNEL_LOGOUT = 3,
-    LOGIN_STATUS = 4,
+    LOGIN_PAGE,
+    LOGIN_POST,
+    CALLBACK,
+    PUBLIC_KEYS,
+    BACK_CHANNEL_LOGOUT,
+    LOGIN_STATUS,
 }
 
 export type Cookies = { [cookieName: string]: string | undefined };

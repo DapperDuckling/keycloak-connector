@@ -4,7 +4,7 @@ import cookie from '@fastify/cookie';
 import {fastifyStatic} from "@fastify/static";
 import * as path from "path";
 import {keycloakConnectorFastify} from "keycloak-connector-server";
-import {routes} from "./routes.js";
+import {fastifyRoutes} from "./fastify-routes.js";
 import type {Logger} from "pino";
 import {clusterKeyProvider} from "keycloak-connector-server";
 import {RedisClusterProvider} from "keycloak-connector-server-cluster-redis";
@@ -44,7 +44,7 @@ export async function makeFastifyServer(serverId: number) {
     });
 
     // Register our routes
-    fastify.register(routes);
+    fastify.register(fastifyRoutes);
 
     return fastify;
 }

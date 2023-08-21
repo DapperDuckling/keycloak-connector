@@ -12,8 +12,8 @@ import {AbstractKeyProvider} from "keycloak-connector-server";
 
 
 export const numberOfServers = {
-    express: 75,
-    fastify: 75,
+    express: 1,
+    fastify: 0,
 } as const;
 
 // Remove existing keys
@@ -152,5 +152,5 @@ async function syncCheck() {
 }
 
 // Start the sync check
-setImmediate(syncCheck);
+// setImmediate(syncCheck);
 
