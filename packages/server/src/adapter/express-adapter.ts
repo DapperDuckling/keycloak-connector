@@ -13,6 +13,7 @@ import type {Express, NextFunction, Request, RequestHandler, Response} from "exp
 import {RouteConfigDefault} from "../helpers/defaults.js";
 import type {Logger} from "pino";
 import {KeycloakConnector} from "../keycloak-connector.js";
+import bodyParser from "body-parser";
 
 export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 
@@ -50,6 +51,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
                 ...routeConfig,
             },
             ...request.keycloak && {keycloak: request.keycloak},
+            ...request.body && {body: request.body},
         });
     };
 
@@ -114,8 +116,11 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         // Build any required lock
         const lockHandler = this.lock(options.isPublic ? false : []);
 
+        // Parse application/x-www-form-urlencoded
+        const urlencodedParser = bodyParser.urlencoded({ extended: false })
+
         // Register the route with route handler
-        routerMethod(options.url, lockHandler, async (req, res, next) => {
+        routerMethod(options.url, lockHandler, urlencodedParser, async (req, res, next) => {
             const connectorReq = await this.buildConnectorRequest(req, {public: options.isPublic});
             const response = await connectorCallback(connectorReq);
             await this.handleResponse(response, req, res, next);

@@ -24,6 +24,8 @@ Once complete, navigate to any client's settings page and hit `save`. Fix any sa
 Final step: Disable mTLS via `OAuth 2.0 Mutual TLS Certificate Bound Access Tokens Enabled` option on the `Advanced` tab.
 
 ## Getting started with Fastify
+### Required packages
+[//]: # (todo)
 
 ### Install (for Fastify)
 ```shell
@@ -86,6 +88,8 @@ fastify.get('/cool-person', {config: {roles: {[RoleLocations.REALM_ACCESS]: ['re
 ```
 
 ## Getting started with Express
+### Required packages
+[//]: # (todo)
 
 ### Setup the server
 ```typescript

@@ -146,6 +146,7 @@ export interface ConnectorRequest {
     routeConfig: KeycloakRouteConfig;
 
     keycloak?: UserData;
+    body?: unknown;
 }
 
 export interface ConnectorResponse<Server extends SupportedServers> {
