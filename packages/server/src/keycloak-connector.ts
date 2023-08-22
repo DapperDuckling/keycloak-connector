@@ -533,6 +533,12 @@ export class KeycloakConnector<Server extends SupportedServers> {
             }
         }
 
+        // Validate IAT is not too early
+        const jwtIat = verifyResult.payload['iat'];
+        if (jwtIat === undefined || isNaN(jwtIat) || jwtIat < this.components.notBefore) {
+            throw new Error(`Invalid IAT claim. Claim is missing, not a number, or before "notBefore" time declared by OP`);
+        }
+
         return verifyResult;
     }
 
@@ -801,7 +807,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
             keyProvider: keyProvider,
             ...oidcClients,
             remoteJWKS: remoteJWKS,
-            connectorKeys: connectorKeys
+            connectorKeys: connectorKeys,
+            notBefore: 0, //todo: test if keycloak reports this initially
         }
 
         // Return the new connector

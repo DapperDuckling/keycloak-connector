@@ -18,6 +18,7 @@ export interface KeycloakConnectorInternalConfiguration {
     keyProvider: AbstractKeyProvider;
     remoteJWKS: () => Promise<KeyLike>;
     connectorKeys: ConnectorKeys;
+    notBefore: number;
 }
 
 export type ConnectorKeys = {
