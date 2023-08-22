@@ -64,8 +64,8 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
     private readonly uniqueClientId: string;
     private reconnectData = {
         hadToReconnect: false,
-        lastReconnectingMessageTimestamp: -1,
-        corkReconnects: false,
+        // lastReconnectingMessageTimestamp: -1,
+        // corkReconnects: false,
     }
 
     constructor(clusterConfig?: RedisClusterConfig) {
@@ -127,50 +127,50 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
         this.registerEventListeners(this.client);
         this.registerEventListeners(this.subscriber, true);
 
-        // Setup the reconnect watchdog
-        setImmediate(() => this.reconnectWatchDog());
+        // // Setup the reconnect watchdog
+        // setImmediate(() => this.reconnectWatchDog());
 
         // Add cluster mode warning
         //todo: Test cluster mode
         if (clusterConfig.clusterMode) this.clusterConfig.pinoLogger?.warn("**WARNING** Using Redis in cluster mode has not been thoroughly tested.");
     }
 
-    private async reconnectWatchDog() {
-        try {
-            console.log(`WATCH DOG CHECKING!`);
-
-            // Check if we had to reconnect
-            if (!this.reconnectData.hadToReconnect) return;
-
-            // Check the last reconnecting message was recent
-            const maxReconnectMessageAge = 15;
-            if (this.reconnectData.lastReconnectingMessageTimestamp < Date.now()/1000 - maxReconnectMessageAge) {
-                this.clusterConfig.pinoLogger?.warn(`Reconnect watchdog has seen no reconnect messages in the last ${maxReconnectMessageAge} seconds!`);
-                try {
-                    // Disconnect
-                    this.clusterConfig.pinoLogger?.warn(`Disconnecting client and subscriber`);
-                    await this.client.disconnect();
-                    await this.subscriber.disconnect();
-                } catch (e) {}
-
-                // Sleep for a bit
-                await sleep(15000);
-
-                try {
-                    // Reconnect
-                    this.clusterConfig.pinoLogger?.warn(`Attempting to reconnect client and subscriber`);
-                    await this.connectOrThrow();
-                    this.clusterConfig.pinoLogger?.warn(`Successfully reconnected client and subscriber`);
-                    this.reconnectData.hadToReconnect = false;
-                }  catch (e)  {
-                    this.clusterConfig.pinoLogger?.warn(`Failed to reconnect client and subscriber`);
-                    this.reconnectData.lastReconnectingMessageTimestamp = Date.now()/1000;
-                }
-            }
-        } finally {
-            setTimeout(async () => this.reconnectWatchDog(), 10000);
-        }
-    }
+    // private async reconnectWatchDog() {
+    //     try {
+    //         console.log(`WATCH DOG CHECKING!`);
+    //
+    //         // Check if we had to reconnect
+    //         if (!this.reconnectData.hadToReconnect) return;
+    //
+    //         // Check the last reconnecting message was recent
+    //         const maxReconnectMessageAge = 15;
+    //         if (this.reconnectData.lastReconnectingMessageTimestamp < Date.now()/1000 - maxReconnectMessageAge) {
+    //             this.clusterConfig.pinoLogger?.warn(`Reconnect watchdog has seen no reconnect messages in the last ${maxReconnectMessageAge} seconds!`);
+    //             try {
+    //                 // Disconnect
+    //                 this.clusterConfig.pinoLogger?.warn(`Disconnecting client and subscriber`);
+    //                 await this.client.disconnect();
+    //                 await this.subscriber.disconnect();
+    //             } catch (e) {}
+    //
+    //             // Sleep for a bit
+    //             await sleep(15000);
+    //
+    //             try {
+    //                 // Reconnect
+    //                 this.clusterConfig.pinoLogger?.warn(`Attempting to reconnect client and subscriber`);
+    //                 await this.connectOrThrow();
+    //                 this.clusterConfig.pinoLogger?.warn(`Successfully reconnected client and subscriber`);
+    //                 this.reconnectData.hadToReconnect = false;
+    //             }  catch (e)  {
+    //                 this.clusterConfig.pinoLogger?.warn(`Failed to reconnect client and subscriber`);
+    //                 this.reconnectData.lastReconnectingMessageTimestamp = Date.now()/1000;
+    //             }
+    //         }
+    //     } finally {
+    //         setTimeout(async () => this.reconnectWatchDog(), 10000);
+    //     }
+    // }
 
     private handleClusterMode(config: ClusterMode): ClusterMode {
         // Create a bogus config if not already specified
@@ -222,17 +222,16 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
         const socket: RedisSocketOptions = {
             reconnectStrategy: (retries: number) => {
-                //todo: test this new code
-                return false; //todo: remove
 
                 // // Reset corkReconnects
                 // if (retries === 0) this.reconnectData.corkReconnects = false;
                 //
                 // // Check if we should reconnect
                 // if (this.reconnectData.corkReconnects) return false;
-                //
-                // this.clusterConfig.pinoLogger?.debug(`Attempting to reconnect, ${retries} attempt`);
-                // return Math.min(retries * 50, 500);
+
+                const retryIn = Math.min((retries + 1) * 50, 500);
+                this.clusterConfig.pinoLogger?.debug(`Retrying to reconnect in ${retryIn} ms. This will be reconnect attempt ${retries + 1}`);
+                return retryIn;
             },
             tls: !(process.env["CLUSTER_REDIS_DANGEROUSLY_DISABLE_TLS"]?.toLowerCase() === "true"),
             ...process.env["CLUSTER_REDIS_HOST"] && {host: process.env["CLUSTER_REDIS_HOST"]},
@@ -312,7 +311,7 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
             this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} is attempting to reconnect to the server`, msg);
             this.setIsConnected(isSubscriber, false);
             this.emitEvent(RedisClusterEvents.RECONNECTING, msg);
-            this.reconnectData.lastReconnectingMessageTimestamp = Date.now() / 1000;
+            // this.reconnectData.lastReconnectingMessageTimestamp = Date.now() / 1000;
         });
 
     }
@@ -357,9 +356,7 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
         // Check if we had to reconnect at some point and now we are fully connected
         if (this.reconnectData.hadToReconnect && this.isClientConnected && this.isSubscriberConnected) {
             this.emitEvent(BaseClusterEvents.FULLY_RECONNECTED, Date.now()/1000);
-            this.reconnectData.hadToReconnect = false;
-
-            //todo: do we need to resubscribe?
+            // this.reconnectData.hadToReconnect = false;
         }
     }
 
