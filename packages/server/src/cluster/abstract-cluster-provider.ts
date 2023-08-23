@@ -11,7 +11,7 @@ export enum BaseClusterEvents {
     BASE = "BASE",
     PRE_CONNECTION = "PRE_CONNECTION",
     CONNECTED = "CONNECTED",
-    FULLY_RECONNECTED = "FULLY_RECONNECTED",
+    SUBSCRIBER_RECONNECTED = "SUBSCRIBER_RECONNECTED",
 }
 
 type InternalClusterMessage<T = unknown> = {

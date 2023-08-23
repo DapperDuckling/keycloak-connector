@@ -1,86 +1,43 @@
 import type {ClusterConfig, Listener, LockOptions} from "keycloak-connector-server";
 import {AbstractClusterProvider, BaseClusterEvents} from "keycloak-connector-server";
-// import type {RedisClientOptions, RedisFunctions, RedisModules} from "redis";
-// import {createClient, createCluster, defineScript} from "redis";
-// import type {RedisClusterOptions} from "@redis/client";
-// import type {RedisSocketOptions} from "@redis/client/dist/lib/client/socket.js";
 import {webcrypto} from "crypto";
-// import type {RedisCommandArguments, RedisScript} from "@redis/client/dist/lib/commands/index.js";
-// import {transformArguments as transformArgumentsForSET} from "@redis/client/dist/lib/commands/SET.js";
 import * as fs from "fs";
 import {fileURLToPath} from 'url';
 import {dirname} from 'path';
-import {sleep} from "keycloak-connector-server/dist/helpers/utils.js";
-import Redis from "ioredis";
-import type {ClusterNode, CommonRedisOptions, ClusterOptions, RedisOptions} from "ioredis";
+import Redis, {Cluster, ClusterNode} from "ioredis";
+import type {CommonRedisOptions, ClusterOptions, RedisOptions} from "ioredis";
 import type {ConnectionOptions} from "tls";
-
-interface BaseRedisConfig extends ClusterConfig {
-    prefix?: string | {
-        key: string,
-        channel: string,
-    };
-    DANGEROUS_allowUnsecureConnectionToRedisServer?: boolean;
-}
-
-type ClusterMode = BaseRedisConfig & {
-    startupNodes?: ClusterNode[],
-    redisOptions?: ClusterOptions,
-    clusterMode: true,
-};
-
-type NonClusterMode = BaseRedisConfig & {
-    redisOptions?: RedisOptions,
-    clusterMode?: false,
-}
-
-export type RedisClusterConfig = ClusterMode | NonClusterMode;
-
-export enum RedisClusterEvents {
-    CONNECT = "connect",
-    READY = "ready",
-    END = "end",
-    ERROR = "error",
-    RECONNECTING = "reconnecting",
-}
-
-type RedisClient = ReturnType<typeof createCluster<RedisModules, RedisFunctions, RedisClusterScripts>> | ReturnType<typeof createClient<RedisModules, RedisFunctions, RedisClusterScripts>>;
-
-
-
-interface RedisClusterScripts {
-    setIfLocked: RedisScript & {
-        transformArguments(lockKey: string, lockValue: string, ...args: Parameters<typeof transformArgumentsForSET>): RedisCommandArguments;
-    },
-    deleteIfLocked: RedisScript & {
-        transformArguments(lockKey: string, lockValue: string, key: string): RedisCommandArguments;
-    },
-    [script: string]: RedisScript,
-}
+import {is} from "typia";
+import type {
+    ClusterMode,
+    DelIfLocked,
+    NonClusterMode, RedisClient,
+    RedisClusterConfig,
+    SetIfLockedArgs
+} from "./types.js";
+import {RedisClusterEvents} from "./types.js";
 
 export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
     protected override clusterConfig: RedisClusterConfig;
     private readonly client: RedisClient;
-    private isClientConnected: boolean = false;
     private readonly subscriber: RedisClient;
-    private isSubscriberConnected: boolean = false;
-    private readonly uniqueClientId: string;
-    private reconnectData = {
-        hadToReconnect: false,
-        // lastReconnectingMessageTimestamp: -1,
-        // corkReconnects: false,
+    private connectionData = {
+        clientConnected: false,
+        subscriberConnected: false,
+        subscriberHadToReconnect: false,
     }
+    private readonly uniqueClientId: string;
 
-    constructor(clusterConfig?: RedisClusterConfig) {
-        clusterConfig ??= {};
-        super(clusterConfig);
+    constructor(config?: RedisClusterConfig) {
+        config ??= {};
+        super(config);
 
         // Generate a unique id for this client
         this.uniqueClientId = `${Date.now()}-${webcrypto.randomUUID()}`;
 
         // Handle each cluster mode config differently
-        this.clusterConfig = this.isConfigClusterMode(clusterConfig) ? this.handleClusterMode(clusterConfig) : this.handleNonClusterMode(clusterConfig);
+        this.clusterConfig = this.generateDefaults(config);
 
         // Ensure connections are happening over TLS
         this.ensureTlsConfig();
@@ -88,210 +45,166 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
         // Ensure there is a prefix
         this.ensurePrefix();
 
-        // Get lua script directory
-        const scriptDir = dirname(fileURLToPath(import.meta.url)) + '/lua-scripts/';
-
-        // Build the custom scripts
-        const clusterScripts: RedisClusterScripts = {
-            setIfLocked: defineScript({
-                NUMBER_OF_KEYS: 2,
-                SCRIPT: fs.readFileSync(`${scriptDir}/set-if-locked.lua`, 'utf8'),
-                transformArguments(lockKey: string, lockValue: string, ...args: Parameters<typeof transformArgumentsForSET>) {
-                    const value = (typeof args[1] === "number") ? args[1].toString() : args[1];
-                    const baseArgs = [lockKey, args[0], lockValue, value];
-                    if (args[2]) baseArgs.push(JSON.stringify(args[2]));
-                    return baseArgs;
-                }
-            }),
-            deleteIfLocked: defineScript({
-                NUMBER_OF_KEYS: 2,
-                SCRIPT: fs.readFileSync(`${scriptDir}/del-if-locked.lua`, 'utf8'),
-                transformArguments(lockKey: string, lockValue: string, key: string) {
-                    return [lockKey, key, lockValue];
-                }
-            })
-        }
-
-        // Add custom scripts
-        clusterConfig.redisOptions ??= {};
-        clusterConfig.redisOptions.scripts = {
-            ...clusterConfig.redisOptions.scripts,
-            ...clusterScripts,
-        }
-
         // Create a new redis client
-        // Note -- Much less code to just cast to RedisClient
-        this.client = (clusterConfig.clusterMode) ?
-            createCluster(clusterConfig.redisOptions as RedisClusterOptions) as unknown as RedisClient : createClient(clusterConfig.redisOptions as RedisClientOptions) as unknown as RedisClient;
+        this.client = this.clusterConfig.clusterMode ?
+            new Redis.Cluster([...this.clusterConfig.hostOptions ?? []], this.clusterConfig.clusterOptions) :
+            new Redis(this.clusterConfig.redisOptions ?? {});
 
-        this.client = (clusterConfig.clusterMode) ?
-            new Redis({
-                port: 6379, // Redis port
-                host: "127.0.0.1", // Redis host
-                username: "default", // needs Redis >= 6
-                password: "my-top-secret",
-                db: 0, // Defaults to 0
-            }) : new Redis.Cluster([
-                    {
-                        host: "clustercfg.myCluster.abcdefg.xyz.cache.amazonaws.com",
-                        port: 6379,
-                    },
-                ],
-                {
-                    dnsLookup: (address, callback) => callback(null, address),
-                    redisOptions: {
-                        tls: {},
-                    },
-                });
+        // this.client = (config.clusterMode) ? new Redis.Cluster([
+        //         {
+        //             host: "clustercfg.myCluster.abcdefg.xyz.cache.amazonaws.com",
+        //             port: 6379,
+        //         },
+        //     ],
+        //     {
+        //         // Required for AWS ElastiCache Clusters with TLS.
+        //         // See: https://github.com/redis/ioredis/tree/main#special-note-aws-elasticache-clusters-with-tls
+        //         dnsLookup: (address, callback) => callback(null, address),
+        //         redisOptions: {
+        //             // port: 6379, // Redis port
+        //             // host: "127.0.0.1", // Redis host
+        //             username: process.env["CLUSTER_REDIS_USERNAME"] ?? "",
+        //             password: process.env["CLUSTER_REDIS_PASSWORD"] ?? "",
+        //             connectionName: process.env["CLUSTER_REDIS_CLIENT_NAME"] ?? `keycloak-connector-${this.uniqueClientId}-client`,
+        //             reconnectOnError: (err) => {
+        //                 // Reconnect on READONLY state to handle AWS ElastiCache primary replica changes
+        //                 const targetError = "READONLY";
+        //                 return err.message.includes(targetError);
+        //             },
+        //             connectTimeout: 60, // An initial connection should not take more than one minute
+        //             tls: {},
+        //         },
+        //     }) : new Redis({
+        //     port: 6379, // Redis port
+        //     host: "127.0.0.1", // Redis host
+        //     username: process.env["CLUSTER_REDIS_USERNAME"] ?? "",
+        //     password: process.env["CLUSTER_REDIS_PASSWORD"] ?? "",
+        //     tls: {},
+        //     connectionName: process.env["CLUSTER_REDIS_CLIENT_NAME"] ?? `keycloak-connector-${this.uniqueClientId}`,
+        //     reconnectOnError: (err) => {
+        //         // Reconnect on READONLY state to handle AWS ElastiCache primary replica changes
+        //         const targetError = "READONLY";
+        //         return err.message.includes(targetError);
+        //     },
+        //     connectTimeout: 60, // An initial connection should not take more than one minute
+        // });
 
-        // Create the pub sub client
-        this.subscriber = this.client.duplicate();
+        // Register custom commands
+        this.registerCustomCommands();
+
+        // Create the pub-sub client
+        const overrideOptions = {
+            connectionName: `keycloak-connector-${this.uniqueClientId}-subscriber`
+        }
+        this.subscriber = this.isClientClusterMode(this.client) ? this.client.duplicate([], overrideOptions) : this.client.duplicate(overrideOptions);
 
         // Register event listeners
         this.registerEventListeners(this.client);
         this.registerEventListeners(this.subscriber, true);
 
-        // // Setup the reconnect watchdog
-        // setImmediate(() => this.reconnectWatchDog());
-
         // Add cluster mode warning
         //todo: Test cluster mode
-        if (clusterConfig.clusterMode) this.clusterConfig.pinoLogger?.warn("**WARNING** Using Redis in cluster mode has not been thoroughly tested.");
+        if (config.clusterMode) this.clusterConfig.pinoLogger?.warn("**WARNING** Using Redis in cluster mode has not been thoroughly tested.");
     }
 
-    // private async reconnectWatchDog() {
-    //     try {
-    //         console.log(`WATCH DOG CHECKING!`);
-    //
-    //         // Check if we had to reconnect
-    //         if (!this.reconnectData.hadToReconnect) return;
-    //
-    //         // Check the last reconnecting message was recent
-    //         const maxReconnectMessageAge = 15;
-    //         if (this.reconnectData.lastReconnectingMessageTimestamp < Date.now()/1000 - maxReconnectMessageAge) {
-    //             this.clusterConfig.pinoLogger?.warn(`Reconnect watchdog has seen no reconnect messages in the last ${maxReconnectMessageAge} seconds!`);
-    //             try {
-    //                 // Disconnect
-    //                 this.clusterConfig.pinoLogger?.warn(`Disconnecting client and subscriber`);
-    //                 await this.client.disconnect();
-    //                 await this.subscriber.disconnect();
-    //             } catch (e) {}
-    //
-    //             // Sleep for a bit
-    //             await sleep(15000);
-    //
-    //             try {
-    //                 // Reconnect
-    //                 this.clusterConfig.pinoLogger?.warn(`Attempting to reconnect client and subscriber`);
-    //                 await this.connectOrThrow();
-    //                 this.clusterConfig.pinoLogger?.warn(`Successfully reconnected client and subscriber`);
-    //                 this.reconnectData.hadToReconnect = false;
-    //             }  catch (e)  {
-    //                 this.clusterConfig.pinoLogger?.warn(`Failed to reconnect client and subscriber`);
-    //                 this.reconnectData.lastReconnectingMessageTimestamp = Date.now()/1000;
-    //             }
-    //         }
-    //     } finally {
-    //         setTimeout(async () => this.reconnectWatchDog(), 10000);
-    //     }
-    // }
-
-    private handleClusterMode(config: ClusterMode): ClusterMode {
-        //todo: test the heck out of this
-
-        // Create a bogus config if not already specified
-        config.redisOptions ??= {};
-        config.startupNodes ??= [];
-
-        // Generate defaults
-        const defaults = this.generateDefaults();
-
-        // Set the defaults
-        config.redisOptions = {
-            ...defaults.commonOptions,
-            redisOptions: {
-                tls: defaults.connectionOptions
-            },
-            ...config.redisOptions,
-        }
-
-        config.startupNodes ??= [{
-            host: defaults.connectionOptions.host,
-            port: defaults.connectionOptions.port,
-        }];
-
-        return config;
+    private isClientClusterMode(client: RedisClient): client is Cluster {
+        return client.isCluster;
     }
 
-    private handleNonClusterMode(config: NonClusterMode): NonClusterMode {
-        // Create a bogus config if not already specified
-        config.redisOptions ??= {};
+    private isClusterMode(): boolean {
+        return this.clusterConfig.clusterMode ?? false;
+    }
 
-        const defaults = this.generateDefaults();
+    private isConfigClusterMode(config: Partial<RedisClusterConfig>): config is ClusterMode {
+        return config.clusterMode ?? false;
+    }
 
-        // Set the defaults
-        config.redisOptions = {
-            ...defaults.commonOptions,
-            ...config.redisOptions,
-            tls: {
-                ...defaults.connectionOptions,
-                ...config.redisOptions.tls
+
+    private registerCustomCommands() {
+        // Get lua script directory
+        const scriptDir = dirname(fileURLToPath(import.meta.url)) + '/lua-scripts/';
+
+        // Register setIfLocked
+        this.client.defineCommand("setIfLocked", {
+            numberOfKeys: 2,
+            lua: fs.readFileSync(`${scriptDir}/set-if-locked.lua`, 'utf8'),
+        });
+
+        // Set setIfLocked argument transformer
+        Redis.Command.setArgumentTransformer("setIfLocked", (args: any[]) => {
+            // Ensure the arguments are correct
+            if (!is<SetIfLockedArgs>(args)) {
+                this.clusterConfig.pinoLogger?.error(`Input args for "setIfLocked" not as expected, cannot execute command.`);
             }
-        }
 
-        return config;
+            // Grab the individual args
+            const [lockKey, lockValue, key, value] = args as SetIfLockedArgs;
+
+            // Return the re-organized arguments
+            return [lockKey, key, lockValue, value];
+        });
+
+        // Register deleteIfLocked
+        this.client.defineCommand("deleteIfLocked", {
+            lua: fs.readFileSync(`${scriptDir}/del-if-locked.lua`, 'utf8'),
+        });
+
+        // Set deleteIfLocked argument transformer
+        Redis.Command.setArgumentTransformer("deleteIfLocked", (args: any[]) => {
+            // Ensure the arguments are correct
+            if (!is<DelIfLocked>(args)) {
+                this.clusterConfig.pinoLogger?.error(`Input args for "delIfLocked" not as expected, cannot execute command.`);
+            }
+
+            // Grab the individual args
+            const [lockKey, lockValue, keys] = args as DelIfLocked;
+
+            // Return the re-organized arguments (with dynamic number of keys)
+            return [keys.length + 1, lockKey, ...keys, lockValue];
+        });
     }
 
-    private generateDefaults() {
+    private generateDefaults(config: RedisClusterConfig) {
 
-        const connectionOptions: ConnectionOptions = {
-            ...!(process.env["CLUSTER_REDIS_DANGEROUSLY_DISABLE_TLS"]?.toLowerCase() === "true") && {tls: {}},
+        const defaultHostOption = {
             ...process.env["CLUSTER_REDIS_HOST"] && {host: process.env["CLUSTER_REDIS_HOST"]},
             ...process.env["CLUSTER_REDIS_PORT"] && {port: +process.env["CLUSTER_REDIS_PORT"]},
-            ...process.env["CLUSTER_REDIS_TLS_SNI"] && {servername: process.env["CLUSTER_REDIS_TLS_SNI"]},
+            ...config.redisOptions?.host && {host: config.redisOptions.host},
+            ...config.redisOptions?.port && {port: config.redisOptions.port}
         }
 
-        const commonOptions: CommonRedisOptions = {
+        // Create a host options if not already declared
+        config.hostOptions ??= [defaultHostOption];
+
+        config.redisOptions = {
+            ...defaultHostOption,
             ...process.env["CLUSTER_REDIS_USERNAME"] && {username: process.env["CLUSTER_REDIS_USERNAME"]},
             ...process.env["CLUSTER_REDIS_PASSWORD"] && {password: process.env["CLUSTER_REDIS_PASSWORD"]},
-            connectionName: process.env["CLUSTER_REDIS_CLIENT_NAME"] ?? "keycloak-connector",
+            connectionName: process.env["CLUSTER_REDIS_CLIENT_NAME"] ?? `keycloak-connector-${this.uniqueClientId}-client`,
             reconnectOnError: (err) => {
                 // Reconnect on READONLY state to handle AWS ElastiCache primary replica changes
                 const targetError = "READONLY";
                 return err.message.includes(targetError);
             },
             connectTimeout: 60, // An initial connection should not take more than one minute
+            ...!(process.env["CLUSTER_REDIS_DANGEROUSLY_DISABLE_TLS"]?.toLowerCase() === "true" || config.DANGEROUS_allowUnsecureConnectionToRedisServer) && {tls: {
+                    ...process.env["CLUSTER_REDIS_TLS_SNI"] && {servername: process.env["CLUSTER_REDIS_TLS_SNI"]},
+            }},
+            ...config.redisOptions,
         }
 
-        return {
-            connectionOptions,
-            commonOptions,
-        }
+        return config;
     }
 
     private ensureTlsConfig() {
-
-
-        const nodes = (this.isConfigClusterMode(this.clusterConfig)) ? this.clusterConfig.redisOptions?.rootNodes ?? [] : [this.clusterConfig.redisOptions];
-
-        // Ensure the connections are over TLS
-        for (const node of nodes) {
-            // Skip any undefined
-            if (node === undefined) continue;
-
-            // Ensure the connection is over TLS
-            if (
-                (node.url && node.url.startsWith("rediss")) ||
-                (node.socket && node.socket.tls !== true)
-            ) {
-
-                // Check for no dangerous override flag
-                if (this.clusterConfig.DANGEROUS_allowUnsecureConnectionToRedisServer !== true && process.env["CLUSTER_REDIS_DANGEROUSLY_DISABLE_TLS"]?.toLowerCase() !== "true") {
-                    throw new Error(`Connection url does not not start with "rediss" disabling TLS connection to REDIS server. Will not connect via unsecure connection without override.`);
-                }
-
-                this.clusterConfig.pinoLogger?.warn("***DANGEROUS CONFIGURATION*** Connecting to REDIS server using unsecure connection!");
+        // Ensure the connection is over TLS
+        if (this.clusterConfig.redisOptions?.tls === undefined) {
+            // Check for no dangerous override flag
+            if (this.clusterConfig.DANGEROUS_allowUnsecureConnectionToRedisServer !== true && process.env["CLUSTER_REDIS_DANGEROUSLY_DISABLE_TLS"]?.toLowerCase() !== "true") {
+                throw new Error(`Connection url does not not start with "rediss" disabling TLS connection to REDIS server. Will not connect via unsecure connection without override.`);
             }
+
+            this.clusterConfig.pinoLogger?.warn("***DANGEROUS CONFIGURATION*** Connecting to REDIS server using unsecure connection!");
         }
     }
 
@@ -338,14 +251,6 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
     }
 
-    private isClusterMode(): boolean {
-        return this.clusterConfig.clusterMode === true;
-    }
-
-    private isConfigClusterMode(config: RedisClusterConfig): config is ClusterMode {
-        return config.clusterMode ?? false;
-    }
-
     async connectOrThrow(): Promise<true> {
         this.clusterConfig.pinoLogger?.debug(`Connecting to redis server`);
 
@@ -370,20 +275,20 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
     private setIsConnected(isSubscriber: boolean, connected: boolean) {
         if (isSubscriber) {
-            this.isSubscriberConnected = connected
+            this.connectionData.subscriberConnected = connected;
         } else {
-            this.isClientConnected = connected;
+            this.connectionData.clientConnected = connected;
         }
 
-        // Check if we had to reconnect at some point and now we are fully connected
-        if (this.reconnectData.hadToReconnect && this.isClientConnected && this.isSubscriberConnected) {
-            this.emitEvent(BaseClusterEvents.FULLY_RECONNECTED, Date.now()/1000);
-            // this.reconnectData.hadToReconnect = false;
+        // Check if the subscriber had to reconnect at some point and both client & subscriber are now fully connected
+        if (this.connectionData.subscriberHadToReconnect && this.connectionData.clientConnected && this.connectionData.subscriberConnected) {
+            this.emitEvent(BaseClusterEvents.SUBSCRIBER_RECONNECTED, Date.now()/1000);
+            this.connectionData.subscriberHadToReconnect = false;
         }
     }
 
     override isConnected(isSubscriber: boolean): boolean {
-        return (isSubscriber) ? this.isSubscriberConnected : this.isClientConnected;
+        return (isSubscriber) ? this.connectionData.subscriberConnected : this.connectionData.clientConnected;
     }
 
     async disconnect(): Promise<boolean> {

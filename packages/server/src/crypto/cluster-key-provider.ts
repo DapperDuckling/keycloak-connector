@@ -70,7 +70,7 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
         this.clusterProvider = keyProviderConfig.clusterProvider;
 
         // Listen for reconnections
-        this.clusterProvider.addListener(BaseClusterEvents.FULLY_RECONNECTED, () => this.onActiveKeyUpdate);
+        this.clusterProvider.addListener(BaseClusterEvents.SUBSCRIBER_RECONNECTED, () => this.onActiveKeyUpdate);
     }
 
     private listeningChannel = () => `${this.constants._PREFIX}:${this.constants.LISTENING_CHANNEL}`;
