@@ -1,18 +1,21 @@
 import type {ClusterConfig, Listener, LockOptions} from "keycloak-connector-server";
 import {AbstractClusterProvider, BaseClusterEvents} from "keycloak-connector-server";
-import type {RedisClientOptions, RedisFunctions, RedisModules} from "redis";
-import {createClient, createCluster, defineScript} from "redis";
-import type {RedisClusterOptions} from "@redis/client";
-import type {RedisSocketOptions} from "@redis/client/dist/lib/client/socket.js";
+// import type {RedisClientOptions, RedisFunctions, RedisModules} from "redis";
+// import {createClient, createCluster, defineScript} from "redis";
+// import type {RedisClusterOptions} from "@redis/client";
+// import type {RedisSocketOptions} from "@redis/client/dist/lib/client/socket.js";
 import {webcrypto} from "crypto";
-import type {RedisCommandArguments, RedisScript} from "@redis/client/dist/lib/commands/index.js";
-import {transformArguments as transformArgumentsForSET} from "@redis/client/dist/lib/commands/SET.js";
+// import type {RedisCommandArguments, RedisScript} from "@redis/client/dist/lib/commands/index.js";
+// import {transformArguments as transformArgumentsForSET} from "@redis/client/dist/lib/commands/SET.js";
 import * as fs from "fs";
 import {fileURLToPath} from 'url';
 import {dirname} from 'path';
 import {sleep} from "keycloak-connector-server/dist/helpers/utils.js";
+import Redis from "ioredis";
+import type {ClusterNode, CommonRedisOptions, ClusterOptions, RedisOptions} from "ioredis";
+import type {ConnectionOptions} from "tls";
 
-interface BaseRedisClusterConfig extends ClusterConfig {
+interface BaseRedisConfig extends ClusterConfig {
     prefix?: string | {
         key: string,
         channel: string,
@@ -20,13 +23,14 @@ interface BaseRedisClusterConfig extends ClusterConfig {
     DANGEROUS_allowUnsecureConnectionToRedisServer?: boolean;
 }
 
-type ClusterMode = BaseRedisClusterConfig & {
-    redisConfig?: RedisClusterOptions,
+type ClusterMode = BaseRedisConfig & {
+    startupNodes?: ClusterNode[],
+    redisOptions?: ClusterOptions,
     clusterMode: true,
 };
 
-type NonClusterMode = BaseRedisClusterConfig & {
-    redisConfig?: RedisClientOptions,
+type NonClusterMode = BaseRedisConfig & {
+    redisOptions?: RedisOptions,
     clusterMode?: false,
 }
 
@@ -109,16 +113,36 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
         }
 
         // Add custom scripts
-        clusterConfig.redisConfig ??= {};
-        clusterConfig.redisConfig.scripts = {
-            ...clusterConfig.redisConfig.scripts,
+        clusterConfig.redisOptions ??= {};
+        clusterConfig.redisOptions.scripts = {
+            ...clusterConfig.redisOptions.scripts,
             ...clusterScripts,
         }
 
         // Create a new redis client
         // Note -- Much less code to just cast to RedisClient
         this.client = (clusterConfig.clusterMode) ?
-            createCluster(clusterConfig.redisConfig as RedisClusterOptions) as unknown as RedisClient : createClient(clusterConfig.redisConfig as RedisClientOptions) as unknown as RedisClient;
+            createCluster(clusterConfig.redisOptions as RedisClusterOptions) as unknown as RedisClient : createClient(clusterConfig.redisOptions as RedisClientOptions) as unknown as RedisClient;
+
+        this.client = (clusterConfig.clusterMode) ?
+            new Redis({
+                port: 6379, // Redis port
+                host: "127.0.0.1", // Redis host
+                username: "default", // needs Redis >= 6
+                password: "my-top-secret",
+                db: 0, // Defaults to 0
+            }) : new Redis.Cluster([
+                    {
+                        host: "clustercfg.myCluster.abcdefg.xyz.cache.amazonaws.com",
+                        port: 6379,
+                    },
+                ],
+                {
+                    dnsLookup: (address, callback) => callback(null, address),
+                    redisOptions: {
+                        tls: {},
+                    },
+                });
 
         // Create the pub sub client
         this.subscriber = this.client.duplicate();
@@ -173,46 +197,46 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
     // }
 
     private handleClusterMode(config: ClusterMode): ClusterMode {
+        //todo: test the heck out of this
+
         // Create a bogus config if not already specified
-        config.redisConfig ??= {
-            rootNodes: []
-        };
+        config.redisOptions ??= {};
+        config.startupNodes ??= [];
 
         // Generate defaults
         const defaults = this.generateDefaults();
 
         // Set the defaults
-        config.redisConfig = {
-            ...config.redisConfig,
-
-            // Add a default node if none are specified
-            ...(config.redisConfig.rootNodes.length === 0 && process.env["CLUSTER_REDIS_URL"]) && {
-                rootNodes: [{
-                    socket: defaults['socket']
-                }]
+        config.redisOptions = {
+            ...defaults.commonOptions,
+            redisOptions: {
+                tls: defaults.connectionOptions
             },
-
-            // Add default connection information
-            defaults: {
-                ...defaults['authentication'],
-                ...config.redisConfig.defaults,
-            },
+            ...config.redisOptions,
         }
+
+        config.startupNodes ??= [{
+            host: defaults.connectionOptions.host,
+            port: defaults.connectionOptions.port,
+        }];
 
         return config;
     }
 
     private handleNonClusterMode(config: NonClusterMode): NonClusterMode {
         // Create a bogus config if not already specified
-        config.redisConfig ??= {};
+        config.redisOptions ??= {};
 
         const defaults = this.generateDefaults();
 
         // Set the defaults
-        config.redisConfig = {
-            ...defaults['authentication'],
-            socket: defaults['socket'],
-            ...config.redisConfig
+        config.redisOptions = {
+            ...defaults.commonOptions,
+            ...config.redisOptions,
+            tls: {
+                ...defaults.connectionOptions,
+                ...config.redisOptions.tls
+            }
         }
 
         return config;
@@ -220,37 +244,35 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
     private generateDefaults() {
 
-        const socket: RedisSocketOptions = {
-            reconnectStrategy: (retries: number) => {
-
-                // // Reset corkReconnects
-                // if (retries === 0) this.reconnectData.corkReconnects = false;
-                //
-                // // Check if we should reconnect
-                // if (this.reconnectData.corkReconnects) return false;
-
-                const retryIn = Math.min((retries + 1) * 50, 500);
-                this.clusterConfig.pinoLogger?.debug(`Retrying to reconnect in ${retryIn} ms. This will be reconnect attempt ${retries + 1}`);
-                return retryIn;
-            },
-            tls: !(process.env["CLUSTER_REDIS_DANGEROUSLY_DISABLE_TLS"]?.toLowerCase() === "true"),
+        const connectionOptions: ConnectionOptions = {
+            ...!(process.env["CLUSTER_REDIS_DANGEROUSLY_DISABLE_TLS"]?.toLowerCase() === "true") && {tls: {}},
             ...process.env["CLUSTER_REDIS_HOST"] && {host: process.env["CLUSTER_REDIS_HOST"]},
             ...process.env["CLUSTER_REDIS_PORT"] && {port: +process.env["CLUSTER_REDIS_PORT"]},
             ...process.env["CLUSTER_REDIS_TLS_SNI"] && {servername: process.env["CLUSTER_REDIS_TLS_SNI"]},
         }
 
+        const commonOptions: CommonRedisOptions = {
+            ...process.env["CLUSTER_REDIS_USERNAME"] && {username: process.env["CLUSTER_REDIS_USERNAME"]},
+            ...process.env["CLUSTER_REDIS_PASSWORD"] && {password: process.env["CLUSTER_REDIS_PASSWORD"]},
+            connectionName: process.env["CLUSTER_REDIS_CLIENT_NAME"] ?? "keycloak-connector",
+            reconnectOnError: (err) => {
+                // Reconnect on READONLY state to handle AWS ElastiCache primary replica changes
+                const targetError = "READONLY";
+                return err.message.includes(targetError);
+            },
+            connectTimeout: 60, // An initial connection should not take more than one minute
+        }
+
         return {
-            socket: socket,
-            authentication: {
-                ...process.env["CLUSTER_REDIS_USERNAME"] && {username: process.env["CLUSTER_REDIS_USERNAME"]},
-                ...process.env["CLUSTER_REDIS_PASSWORD"] && {password: process.env["CLUSTER_REDIS_PASSWORD"]},
-                name: process.env["CLUSTER_REDIS_CLIENT_NAME"] ?? "keycloak-connector",
-            }
+            connectionOptions,
+            commonOptions,
         }
     }
 
     private ensureTlsConfig() {
-        const nodes = (this.isConfigClusterMode(this.clusterConfig)) ? this.clusterConfig.redisConfig?.rootNodes ?? [] : [this.clusterConfig.redisConfig];
+
+
+        const nodes = (this.isConfigClusterMode(this.clusterConfig)) ? this.clusterConfig.redisOptions?.rootNodes ?? [] : [this.clusterConfig.redisOptions];
 
         // Ensure the connections are over TLS
         for (const node of nodes) {
