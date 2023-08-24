@@ -4,18 +4,15 @@ import {webcrypto} from "crypto";
 import * as fs from "fs";
 import {fileURLToPath} from 'url';
 import {dirname} from 'path';
-import Redis, {Cluster, ClusterNode} from "ioredis";
-import type {CommonRedisOptions, ClusterOptions, RedisOptions} from "ioredis";
-import type {ConnectionOptions} from "tls";
+import Redis, {Cluster} from "ioredis";
 import {is} from "typia";
 import type {
     ClusterMode,
-    DelIfLocked,
-    NonClusterMode, RedisClient,
+    RedisClient,
     RedisClusterConfig,
-    SetIfLockedArgs
 } from "./types.js";
 import {RedisClusterEvents} from "./types.js";
+import type {DelIfLocked, SetIfLockedArgs} from "./ioredis.js";
 
 export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
@@ -30,7 +27,7 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
     private readonly uniqueClientId: string;
 
     constructor(config?: RedisClusterConfig) {
-        config ??= {};
+        config = (config) ? structuredClone(config) : {};
         super(config);
 
         // Generate a unique id for this client
@@ -50,45 +47,6 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
             new Redis.Cluster([...this.clusterConfig.hostOptions ?? []], this.clusterConfig.clusterOptions) :
             new Redis(this.clusterConfig.redisOptions ?? {});
 
-        // this.client = (config.clusterMode) ? new Redis.Cluster([
-        //         {
-        //             host: "clustercfg.myCluster.abcdefg.xyz.cache.amazonaws.com",
-        //             port: 6379,
-        //         },
-        //     ],
-        //     {
-        //         // Required for AWS ElastiCache Clusters with TLS.
-        //         // See: https://github.com/redis/ioredis/tree/main#special-note-aws-elasticache-clusters-with-tls
-        //         dnsLookup: (address, callback) => callback(null, address),
-        //         redisOptions: {
-        //             // port: 6379, // Redis port
-        //             // host: "127.0.0.1", // Redis host
-        //             username: process.env["CLUSTER_REDIS_USERNAME"] ?? "",
-        //             password: process.env["CLUSTER_REDIS_PASSWORD"] ?? "",
-        //             connectionName: process.env["CLUSTER_REDIS_CLIENT_NAME"] ?? `keycloak-connector-${this.uniqueClientId}-client`,
-        //             reconnectOnError: (err) => {
-        //                 // Reconnect on READONLY state to handle AWS ElastiCache primary replica changes
-        //                 const targetError = "READONLY";
-        //                 return err.message.includes(targetError);
-        //             },
-        //             connectTimeout: 60, // An initial connection should not take more than one minute
-        //             tls: {},
-        //         },
-        //     }) : new Redis({
-        //     port: 6379, // Redis port
-        //     host: "127.0.0.1", // Redis host
-        //     username: process.env["CLUSTER_REDIS_USERNAME"] ?? "",
-        //     password: process.env["CLUSTER_REDIS_PASSWORD"] ?? "",
-        //     tls: {},
-        //     connectionName: process.env["CLUSTER_REDIS_CLIENT_NAME"] ?? `keycloak-connector-${this.uniqueClientId}`,
-        //     reconnectOnError: (err) => {
-        //         // Reconnect on READONLY state to handle AWS ElastiCache primary replica changes
-        //         const targetError = "READONLY";
-        //         return err.message.includes(targetError);
-        //     },
-        //     connectTimeout: 60, // An initial connection should not take more than one minute
-        // });
-
         // Register custom commands
         this.registerCustomCommands();
 
@@ -100,7 +58,7 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
         // Register event listeners
         this.registerEventListeners(this.client);
-        this.registerEventListeners(this.subscriber, true);
+        this.registerEventListeners(this.subscriber);
 
         // Add cluster mode warning
         //todo: Test cluster mode
@@ -166,6 +124,9 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
     private generateDefaults(config: RedisClusterConfig) {
 
+        // Set the prefix variable
+        if (process.env["CLUSTER_REDIS_PREFIX"]) config.prefix = process.env["CLUSTER_REDIS_PREFIX"];
+
         const defaultHostOption = {
             ...process.env["CLUSTER_REDIS_HOST"] && {host: process.env["CLUSTER_REDIS_HOST"]},
             ...process.env["CLUSTER_REDIS_PORT"] && {port: +process.env["CLUSTER_REDIS_PORT"]},
@@ -190,6 +151,7 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
             ...!(process.env["CLUSTER_REDIS_DANGEROUSLY_DISABLE_TLS"]?.toLowerCase() === "true" || config.DANGEROUS_allowUnsecureConnectionToRedisServer) && {tls: {
                     ...process.env["CLUSTER_REDIS_TLS_SNI"] && {servername: process.env["CLUSTER_REDIS_TLS_SNI"]},
             }},
+            ...config.prefix && {keyPrefix: config.prefix},
             ...config.redisOptions,
         }
 
@@ -210,9 +172,6 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
     private ensurePrefix(): void {
 
-        // Grab any environment variable prefix
-        if (process.env["CLUSTER_REDIS_PREFIX"]) this.clusterConfig.prefix ??= process.env["CLUSTER_REDIS_PREFIX"];
-
         // Check for a prefix
         if (this.clusterConfig.prefix !== undefined || process.env["CLUSTER_REDIS_NO_PREFIX"]?.toLowerCase() === "true") return;
 
@@ -221,32 +180,32 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
     }
 
-    private registerEventListeners(client: RedisClient, isSubscriber: boolean = false) {
+    private registerEventListeners(client: RedisClient) {
 
-        const clientNameTag = (isSubscriber) ? "Subscriber" : "Client";
+        const isSubscriber = this.isClientClusterMode(client);
+        const clientNameTag = isSubscriber ? "Subscriber" : "Client";
 
         // Register the event listeners
-        client.on(RedisClusterEvents.READY, (msg) => {
+        client.on(RedisClusterEvents.READY, (msg: string) => {
             this.clusterConfig.pinoLogger?.debug(`Redis ${clientNameTag} ready to use`, msg);
             this.setIsConnected(isSubscriber, true);
             this.emitEvent(RedisClusterEvents.READY, msg);
         });
-        client.on(RedisClusterEvents.END, (msg) => {
+        client.on(RedisClusterEvents.END, (msg: string) => {
             this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} connection has been closed`, msg);
             this.setIsConnected(isSubscriber, false);
             this.emitEvent(RedisClusterEvents.END, msg);
         });
-        client.on(RedisClusterEvents.ERROR, (msg) => {
+        client.on(RedisClusterEvents.ERROR, (msg: string) => {
             this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} cluster error`, msg);
             this.setIsConnected(isSubscriber, false);
             this.emitEvent(BaseClusterEvents.ERROR, msg);
-            this.reconnectData.hadToReconnect = true;
+            if (isSubscriber) this.connectionData.subscriberHadToReconnect = true;
         });
-        client.on(RedisClusterEvents.RECONNECTING, (msg) => {
+        client.on(RedisClusterEvents.RECONNECTING, (msg: string) => {
             this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} is attempting to reconnect to the server`, msg);
             this.setIsConnected(isSubscriber, false);
             this.emitEvent(RedisClusterEvents.RECONNECTING, msg);
-            // this.reconnectData.lastReconnectingMessageTimestamp = Date.now() / 1000;
         });
 
     }
@@ -303,100 +262,85 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
         }
     }
 
-    private channel(channel: string) {
-        const prefix = (typeof this.clusterConfig.prefix === "string") ? this.clusterConfig.prefix : this.clusterConfig.prefix?.channel ?? "";
-        return `${prefix}${channel}`;
-    }
-
-    private key(key: string) {
-        const prefix = (typeof this.clusterConfig.prefix === "string") ? this.clusterConfig.prefix : this.clusterConfig.prefix?.key ?? "";
-        return `${prefix}${key}`;
-    }
+    // private channel(channel: string) {
+    //     const prefix = (typeof this.clusterConfig.prefix === "string") ? this.clusterConfig.prefix : this.clusterConfig.prefix?.channel ?? "";
+    //     return `${prefix}${channel}`;
+    // }
 
     async handleSubscribe(channel: string, listener: Listener): Promise<boolean> {
 
-        // Grab the full channel name
-        const channelName = this.channel(channel);
+        // // Grab the full channel name
+        // const channelName = this.channel(channel);
 
-        this.clusterConfig.pinoLogger?.debug(`Subscribing to ${channelName}`);
-
-        if (this.isClusterMode()) {
-            // Cluster-mode
-            await this.subscriber.sSubscribe(channelName, listener);
-        } else {
-            // Non cluster-mode
-            await this.subscriber.subscribe(channelName, listener);
+        try {
+            this.clusterConfig.pinoLogger?.debug(`Subscribing to ${channel}`);
+            await this.subscriber.subscribe(channel, listener);
+            return true;
+        } catch (e) {
+            this.clusterConfig.pinoLogger?.debug(`Failed to subscribe to ${channel}`, e);
+            return false;
         }
-
-        //todo: will this return null??
-        return true;
     }
 
     async handleUnsubscribe(channel: string, listener: Listener): Promise<boolean> {
 
-        // Grab the full channel name
-        const channelName = this.channel(channel);
+        // // Grab the full channel name
+        // const channelName = this.channel(channel);
 
-        this.clusterConfig.pinoLogger?.debug(`Unsubscribing from ${channelName}`);
-
-        if (this.isClusterMode()) {
-            // Cluster-mode
-            await this.subscriber.sUnsubscribe(channelName, listener);
-        } else {
-            await this.subscriber.unsubscribe(channelName, listener);
+        try {
+            this.clusterConfig.pinoLogger?.debug(`Unsubscribing from ${channel}`);
+            await this.subscriber.unsubscribe(channel, listener);
+            return true;
+        } catch (e) {
+            this.clusterConfig.pinoLogger?.debug(`Failed to unsubscribe from ${channel}`, e);
+            return false;
         }
-
-        //todo: will this return null??
-        return true;
     }
 
     protected async handlePublish(channel: string, message: string): Promise<boolean> {
 
-        // Grab the full channel name
-        const channelName = this.channel(channel);
+        // // Grab the full channel name
+        // const channelName = this.channel(channel);
 
-        this.clusterConfig.pinoLogger?.debug(`Publishing message to ${channelName}`);
 
-        if (this.isClusterMode()) {
-            await this.client.sPublish(channelName, message);
-        } else {
-            await this.client.publish(channelName, message);
+        try {
+            this.clusterConfig.pinoLogger?.debug(`Publishing message to ${channel}`);
+            await this.client.publish(channel, message);
+            return true;
+        } catch (e) {
+            this.clusterConfig.pinoLogger?.debug(`Failed to publish message to ${channel}`, e);
+            return false;
         }
-
-        //todo: will this return null??
-        return true;
     }
 
     async get(key: string): Promise<string | null> {
-        const keyName = this.key(key);
-        this.clusterConfig.pinoLogger?.debug(`Getting value of key ${keyName}`);
-        return await this.client.get(keyName);
+        this.clusterConfig.pinoLogger?.debug(`Getting value of key ${key}`);
+        return this.client.get(key);
     }
 
     async store(key: string, value: string | number | Buffer, ttl: number | null, lockKey?: string): Promise<boolean> {
 
-        const keyName = this.key(key);
-        this.clusterConfig.pinoLogger?.debug(`Setting value of key ${keyName}`);
+        this.clusterConfig.pinoLogger?.debug(`Setting value of key ${key}`);
 
-        const baseArgs = [keyName, value] as const;
-        const args = (ttl === null) ? baseArgs : [...baseArgs, {EX: ttl}] as const;
-
-        // Check if we are only setting with a lock
-        let result;
+        // Note: Typescript cannot properly infer the arguments due to the ridiculous overloading ioredis does, so we must specify each call individually...
+        let promise;
         if (lockKey) {
-            result = await this.client.setIfLocked(this.key(lockKey), this.uniqueClientId, ...args);
+            promise = (ttl) ?
+                this.client.setIfLocked(lockKey, this.uniqueClientId, key, value, "EX", ttl) :
+                this.client.setIfLocked(lockKey, this.uniqueClientId, key, value);
         } else {
-            result = await this.client.set(...args);
+            promise = (ttl) ?
+                this.client.set(key, value, "EX", ttl) :
+                this.client.set(key, value);
         }
 
-        return (result !== null);
+        return (await promise !== null);
     }
 
     async remove(key: string, lockKey?: string): Promise<boolean> {
-        const keyName = this.key(key);
-        this.clusterConfig.pinoLogger?.debug(`Deleting value of key ${keyName}`);
-        const result = (lockKey) ? this.client.deleteIfLocked(this.key(lockKey), this.uniqueClientId, keyName) : this.client.del(keyName);
-        return (await result !== null);
+        this.clusterConfig.pinoLogger?.debug(`Deleting value of key ${key}`);
+        const promise = (lockKey) ? this.client.delIfLocked(lockKey, this.uniqueClientId, key) : this.client.del(key);
+        return (await promise !== null);
     }
 
     async lock(lockOptions: LockOptions): Promise<boolean> {
@@ -405,16 +349,10 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
          * distributed cluster systems. Read more: https://redis.io/docs/manual/patterns/distributed-locks/
          */
 
-        // Grab the fully prefixed key
-        const keyName = this.key(lockOptions.key);
-
-        this.clusterConfig.pinoLogger?.debug(`Attempting to obtain a lock with key ${keyName}`);
+        this.clusterConfig.pinoLogger?.debug(`Attempting to obtain a lock with key ${lockOptions.key}`);
 
         // Set a key with our unique id IFF the key does not exist already
-        const result = await this.client.set(keyName, this.uniqueClientId, {
-            EX: lockOptions.ttl,
-            NX: true,
-        });
+        const result = await this.client.set(lockOptions.key, this.uniqueClientId, "EX", lockOptions.ttl, "NX");
 
         return (result !== null);
     }
