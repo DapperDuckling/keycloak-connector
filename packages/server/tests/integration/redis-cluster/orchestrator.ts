@@ -23,7 +23,6 @@ const mainRedisClusterProvider = new RedisClusterProvider({
     prefix: prefix
 });
 await mainRedisClusterProvider.connectOrThrow();
-await mainRedisClusterProvider.store('this-is-test', 'data', 29);
 console.log("Deleting old keys");
 const deleteResult = await mainRedisClusterProvider.remove('key-provider:connector-keys');
 
@@ -92,66 +91,65 @@ export const promptPromise = (async () => {
     } while(response !== "x");
 })();
 
-// // Periodic sync check
-// const totalNumberOfServers = Object.values(numberOfServers).reduce((sum: number, value: number) => sum + value, 0);
-// async function syncCheck() {
-//     const results: Record<string, number> = {};
-//     const listeningChannel = `key-sync-check-${Date.now()/1000}`;
-//
-//     function handleSyncCheckResponse(message: ClusterMessage<ServerActiveKey>) {
-//         // We will assume this is the correct message
-//         const activeKey = message as ServerActiveKey;
-//
-//         // Store the results
-//         results[activeKey.publicKeyMd5] ??= 0;
-//         results[activeKey.publicKeyMd5]++;
-//     }
-//
-//     // Subscribe to the new channel
-//     await mainRedisClusterProvider.subscribe<ServerActiveKey>(listeningChannel, handleSyncCheckResponse);
-//
-//     // Push out our request message
-//     await mainRedisClusterProvider.publish<RequestActiveKey>('key-provider:listening-channel', {
-//         event: "request-active-key",
-//         listeningChannel: listeningChannel
-//     });
-//
-//     // Only listen for a second and repeat the process
-//     setTimeout(async () => {
-//         // Unsubscribe
-//         await mainRedisClusterProvider.unsubscribe(listeningChannel, handleSyncCheckResponse);
-//
-//         // Check for sync
-//         let totalAccountedFor = 0;
-//         const syncCheckMessages = [];
-//         for (const [md5, count] of Object.entries(results)) {
-//             totalAccountedFor += count;
-//             syncCheckMessages.push(`SYNC-CHECK :: ${count}\t servers with ${md5}`);
-//         }
-//
-//         // Check for more than one md5 logged
-//         if (syncCheckMessages.length > 1) {
-//             syncCheckMessages.forEach(msg => console.log(msg));
-//             console.error(`SYNC-CHECK :: FAILED with ${syncCheckMessages.length} different hashes!! ***********************************************`)
-//         }
-//
-//         // Check for responding servers
-//         if (totalAccountedFor === 0) {
-//             console.log(`SYNC-CHECK :: No servers responded!!`);
-//         } else if (totalAccountedFor !== totalNumberOfServers) {
-//             console.log(`SYNC-CHECK :: ${totalNumberOfServers - totalAccountedFor} did not respond!! All others are synced!!`);
-//         }
-//
-//         // Check for everything good
-//         if (syncCheckMessages.length === 1 && totalAccountedFor === totalNumberOfServers) {
-//             console.log(`SYNC-CHECK :: All servers check good!`);
-//         }
-//
-//         // Call the next round
-//         await syncCheck();
-//     }, 1000);
-// }
-//
-// // Start the sync check
-// // setImmediate(syncCheck);
+// Periodic sync check
+const totalNumberOfServers = Object.values(numberOfServers).reduce((sum: number, value: number) => sum + value, 0);
+async function syncCheck() {
+    const results: Record<string, number> = {};
+    const listeningChannel = `key-sync-check-${Date.now()/1000}`;
 
+    function handleSyncCheckResponse(message: ClusterMessage<ServerActiveKey>) {
+        // We will assume this is the correct message
+        const activeKey = message as ServerActiveKey;
+
+        // Store the results
+        results[activeKey.publicKeyMd5] ??= 0;
+        results[activeKey.publicKeyMd5]++;
+    }
+
+    // Subscribe to the new channel
+    await mainRedisClusterProvider.subscribe<ServerActiveKey>(listeningChannel, handleSyncCheckResponse);
+
+    // Push out our request message
+    await mainRedisClusterProvider.publish<RequestActiveKey>('key-provider:listening-channel', {
+        event: "request-active-key",
+        listeningChannel: listeningChannel
+    });
+
+    // Only listen for a second and repeat the process
+    setTimeout(async () => {
+        // Unsubscribe
+        await mainRedisClusterProvider.unsubscribe(listeningChannel, handleSyncCheckResponse);
+
+        // Check for sync
+        let totalAccountedFor = 0;
+        const syncCheckMessages = [];
+        for (const [md5, count] of Object.entries(results)) {
+            totalAccountedFor += count;
+            syncCheckMessages.push(`SYNC-CHECK :: ${count}\t servers with ${md5}`);
+        }
+
+        // Check for more than one md5 logged
+        if (syncCheckMessages.length > 1) {
+            syncCheckMessages.forEach(msg => console.log(msg));
+            console.error(`SYNC-CHECK :: FAILED with ${syncCheckMessages.length} different hashes!! ***********************************************`)
+        }
+
+        // Check for responding servers
+        if (totalAccountedFor === 0) {
+            console.log(`SYNC-CHECK :: No servers responded!!`);
+        } else if (totalAccountedFor !== totalNumberOfServers) {
+            console.log(`SYNC-CHECK :: ${totalNumberOfServers - totalAccountedFor} did not respond!! All others are synced!!`);
+        }
+
+        // Check for everything good
+        if (syncCheckMessages.length === 1 && totalAccountedFor === totalNumberOfServers) {
+            console.log(`SYNC-CHECK :: All servers check good!`);
+        }
+
+        // Call the next round
+        await syncCheck();
+    }, 1000);
+}
+
+// Start the sync check
+setImmediate(syncCheck);
