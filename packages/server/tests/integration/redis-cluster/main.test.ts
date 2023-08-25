@@ -3,12 +3,9 @@ import { EventEmitter } from 'node:events';
 import {makeFastifyServer, startFastifyServer} from "./fastify-server.js";
 import {makeExpressServer, startExpressServer} from "./express-server.js";
 import {numberOfServers, promptPromise} from "./orchestrator.js";
-import {RedisClusterProvider} from "keycloak-connector-server-cluster-redis";
 
 EventEmitter.setMaxListeners(1000);
 EventEmitter.defaultMaxListeners = 1000;
-
-
 
 export const loggerOpts = {
     msgPrefix: "base",
@@ -66,7 +63,6 @@ for (const [serverType, count] of Object.entries(numberOfServers)) {
 
 // Wait for the servers to get created
 await Promise.all(makeServerPromises);
-
 
 // Start all servers
 try {

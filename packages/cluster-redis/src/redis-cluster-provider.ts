@@ -13,6 +13,7 @@ import type {
 } from "./types.js";
 import {RedisClusterEvents} from "./types.js";
 import type {DelIfLocked, SetIfLockedArgs} from "./ioredis.js";
+import {EventEmitter} from "node:events";
 
 export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
@@ -25,9 +26,11 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
         subscriberHadToReconnect: false,
     }
     private readonly uniqueClientId: string;
+    private readonly subscriptionListeners = new EventEmitter();
+    private readonly SUB_EVENT_PREFIX = `-`; // Used when sending events to the subscription event emitter to ensure an "error" is never sent
 
     constructor(config?: RedisClusterConfig) {
-        config = (config) ? structuredClone(config) : {};
+        config ??= {};
         super(config);
 
         // Generate a unique id for this client
@@ -41,6 +44,9 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
         // Ensure there is a prefix
         this.ensurePrefix();
+
+        // // Register custom transformers
+        // this.registerCustomTransformers();
 
         // Create a new redis client
         this.client = this.clusterConfig.clusterMode ?
@@ -77,6 +83,37 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
         return config.clusterMode ?? false;
     }
 
+    /** Removed due to ioredis not supporting transformers on custom commands. Would need to transform `evalsha` command **/
+    // private registerCustomTransformers() {
+    //     // Set setIfLocked argument transformer
+    //     Redis.Command.setArgumentTransformer("setIfLocked", (args: any[]) => {
+    //         // Ensure the arguments are correct
+    //         if (!is<SetIfLockedArgs>(args)) {
+    //             this.clusterConfig.pinoLogger?.error(`Input args for "setIfLocked" not as expected, cannot execute command.`);
+    //         }
+    //
+    //         // Grab the individual args
+    //         const [lockKey, lockValue, key, value] = args as SetIfLockedArgs;
+    //
+    //         // Return the re-organized arguments
+    //         return [lockKey, key, lockValue, value];
+    //     });
+    //
+    //     // Set delIfLocked argument transformer
+    //     Redis.Command.setArgumentTransformer("delIfLocked", (args: any[]) => {
+    //         // Ensure the arguments are correct
+    //         if (!is<DelIfLocked>(args)) {
+    //             this.clusterConfig.pinoLogger?.error(`Input args for "delIfLocked" not as expected, cannot execute command.`);
+    //         }
+    //
+    //         // Grab the individual args
+    //         const [lockKey, lockValue, keys] = args as DelIfLocked;
+    //
+    //         // Return the re-organized arguments (with dynamic number of keys)
+    //         return [keys.length + 1, lockKey, ...keys, lockValue];
+    //     });
+    // }
+
 
     private registerCustomCommands() {
         // Get lua script directory
@@ -88,37 +125,9 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
             lua: fs.readFileSync(`${scriptDir}/set-if-locked.lua`, 'utf8'),
         });
 
-        // Set setIfLocked argument transformer
-        Redis.Command.setArgumentTransformer("setIfLocked", (args: any[]) => {
-            // Ensure the arguments are correct
-            if (!is<SetIfLockedArgs>(args)) {
-                this.clusterConfig.pinoLogger?.error(`Input args for "setIfLocked" not as expected, cannot execute command.`);
-            }
-
-            // Grab the individual args
-            const [lockKey, lockValue, key, value] = args as SetIfLockedArgs;
-
-            // Return the re-organized arguments
-            return [lockKey, key, lockValue, value];
-        });
-
-        // Register deleteIfLocked
-        this.client.defineCommand("deleteIfLocked", {
+        // Register delIfLocked
+        this.client.defineCommand("delIfLocked", {
             lua: fs.readFileSync(`${scriptDir}/del-if-locked.lua`, 'utf8'),
-        });
-
-        // Set deleteIfLocked argument transformer
-        Redis.Command.setArgumentTransformer("deleteIfLocked", (args: any[]) => {
-            // Ensure the arguments are correct
-            if (!is<DelIfLocked>(args)) {
-                this.clusterConfig.pinoLogger?.error(`Input args for "delIfLocked" not as expected, cannot execute command.`);
-            }
-
-            // Grab the individual args
-            const [lockKey, lockValue, keys] = args as DelIfLocked;
-
-            // Return the re-organized arguments (with dynamic number of keys)
-            return [keys.length + 1, lockKey, ...keys, lockValue];
         });
     }
 
@@ -153,6 +162,7 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
             }},
             ...config.prefix && {keyPrefix: config.prefix},
             ...config.redisOptions,
+            lazyConnect: true,
         }
 
         return config;
@@ -207,6 +217,7 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
             this.setIsConnected(isSubscriber, false);
             this.emitEvent(RedisClusterEvents.RECONNECTING, msg);
         });
+        client.on("message", this.handlePublishMessage);
 
     }
 
@@ -255,79 +266,106 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
         try {
             await this.client.disconnect();
-            return true;
         } catch (err) {
             this.clusterConfig.pinoLogger?.error(`Failed to disconnect from redis cluster - ${err}`);
             return false;
         }
+
+        try {
+            await this.subscriber.disconnect();
+        } catch (err) {
+            this.clusterConfig.pinoLogger?.error(`Failed to disconnect from redis cluster - ${err}`);
+            return false;
+        }
+
+        return true;
     }
 
-    // private channel(channel: string) {
-    //     const prefix = (typeof this.clusterConfig.prefix === "string") ? this.clusterConfig.prefix : this.clusterConfig.prefix?.channel ?? "";
-    //     return `${prefix}${channel}`;
-    // }
+    private channel(channel: string) {
+        return `${this.clusterConfig.prefix}${channel}`;
+    }
+
+    private handlePublishMessage = (channelName: string, message: string): void => {
+        // Broadcast the message
+        this.subscriptionListeners.emit(`${this.SUB_EVENT_PREFIX}${channelName}`, message);
+    }
 
     async handleSubscribe(channel: string, listener: Listener): Promise<boolean> {
 
-        // // Grab the full channel name
-        // const channelName = this.channel(channel);
+        // Grab the full channel name
+        const channelName = this.channel(channel);
 
         try {
-            this.clusterConfig.pinoLogger?.debug(`Subscribing to ${channel}`);
-            await this.subscriber.subscribe(channel, listener);
+            // Subscribe if not subscribed already
+            if (this.subscriptionListeners.listenerCount(`${this.SUB_EVENT_PREFIX}${channelName}`) === 0) {
+                this.clusterConfig.pinoLogger?.debug(`Subscribing to ${channelName}`);
+                await this.subscriber.subscribe(channelName);
+            }
+
+            // Store original listener
+            this.subscriptionListeners.addListener(`${this.SUB_EVENT_PREFIX}${channelName}`, listener);
+
             return true;
         } catch (e) {
-            this.clusterConfig.pinoLogger?.debug(`Failed to subscribe to ${channel}`, e);
+            this.clusterConfig.pinoLogger?.debug(`Failed to subscribe to ${channelName}`, e);
             return false;
         }
     }
 
     async handleUnsubscribe(channel: string, listener: Listener): Promise<boolean> {
 
-        // // Grab the full channel name
-        // const channelName = this.channel(channel);
+        // Grab the full channel name
+        const channelName = this.channel(channel);
 
         try {
-            this.clusterConfig.pinoLogger?.debug(`Unsubscribing from ${channel}`);
-            await this.subscriber.unsubscribe(channel, listener);
+
+            // Remove listener from store
+            this.subscriptionListeners.removeListener(`${this.SUB_EVENT_PREFIX}${channelName}`, listener);
+
+
+            // Unsubscribe if no more listeners
+            if (this.subscriptionListeners.listenerCount(`${this.SUB_EVENT_PREFIX}${channelName}`) === 0) {
+                this.clusterConfig.pinoLogger?.debug(`Unsubscribing from ${channelName}`);
+                await this.subscriber.unsubscribe(channelName);
+            }
+
             return true;
         } catch (e) {
-            this.clusterConfig.pinoLogger?.debug(`Failed to unsubscribe from ${channel}`, e);
+            this.clusterConfig.pinoLogger?.debug(`Failed to unsubscribe from ${channelName}`, e);
             return false;
         }
     }
 
     protected async handlePublish(channel: string, message: string): Promise<boolean> {
 
-        // // Grab the full channel name
-        // const channelName = this.channel(channel);
-
+        // Grab the full channel name
+        const channelName = this.channel(channel);
 
         try {
-            this.clusterConfig.pinoLogger?.debug(`Publishing message to ${channel}`);
-            await this.client.publish(channel, message);
+            this.clusterConfig.pinoLogger?.debug(`Publishing message to ${channelName}`);
+            await this.client.publish(channelName, message);
             return true;
         } catch (e) {
-            this.clusterConfig.pinoLogger?.debug(`Failed to publish message to ${channel}`, e);
+            this.clusterConfig.pinoLogger?.debug(`Failed to publish message to ${channelName}`, e);
             return false;
         }
     }
 
     async get(key: string): Promise<string | null> {
-        this.clusterConfig.pinoLogger?.debug(`Getting value of key ${key}`);
+        this.clusterConfig.pinoLogger?.debug(`Getting value of key ${this.clusterConfig.prefix}${key}`);
         return this.client.get(key);
     }
 
     async store(key: string, value: string | number | Buffer, ttl: number | null, lockKey?: string): Promise<boolean> {
 
-        this.clusterConfig.pinoLogger?.debug(`Setting value of key ${key}`);
+        this.clusterConfig.pinoLogger?.debug(`Setting value of key ${this.clusterConfig.prefix}${key}`);
 
         // Note: Typescript cannot properly infer the arguments due to the ridiculous overloading ioredis does, so we must specify each call individually...
         let promise;
         if (lockKey) {
             promise = (ttl) ?
-                this.client.setIfLocked(lockKey, this.uniqueClientId, key, value, "EX", ttl) :
-                this.client.setIfLocked(lockKey, this.uniqueClientId, key, value);
+                this.client.setIfLocked(lockKey, key, this.uniqueClientId, value, "EX", ttl) :
+                this.client.setIfLocked(lockKey, key, this.uniqueClientId, value);
         } else {
             promise = (ttl) ?
                 this.client.set(key, value, "EX", ttl) :
@@ -338,8 +376,10 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
     }
 
     async remove(key: string, lockKey?: string): Promise<boolean> {
-        this.clusterConfig.pinoLogger?.debug(`Deleting value of key ${key}`);
-        const promise = (lockKey) ? this.client.delIfLocked(lockKey, this.uniqueClientId, key) : this.client.del(key);
+        this.clusterConfig.pinoLogger?.debug(`Deleting value of key ${this.clusterConfig.prefix}${key}`);
+        const promise = (lockKey) ?
+            this.client.delIfLocked(2, lockKey, key, this.uniqueClientId) :
+            this.client.del(key);
         return (await promise !== null);
     }
 

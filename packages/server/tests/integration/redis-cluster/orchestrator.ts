@@ -9,30 +9,23 @@ import type {
     RequestUpdateSystemJwksMsg, ServerActiveKey
 } from "keycloak-connector-server";
 import {AbstractKeyProvider} from "keycloak-connector-server";
-import Redis from "ioredis";
-
-// IOREDIS TEST
-
-const redis = new Redis();
-
-
-// END TEST
-
 
 export const numberOfServers = {
-    express: 1,
-    fastify: 0,
+    express: 2,
+    fastify: 2,
 } as const;
 
 // Remove existing keys
 const prefix = process.env["CLUSTER_REDIS_PREFIX"];
 if (prefix === undefined) throw new Error('No prefix in env variables');
-// const mainRedisClusterProvider = new RedisClusterProvider({
-//     prefix: prefix
-// });
-// await mainRedisClusterProvider.connectOrThrow();
-// console.log("Deleting old keys");
-// const deleteResult = await mainRedisClusterProvider.remove('key-provider:connector-keys');
+
+const mainRedisClusterProvider = new RedisClusterProvider({
+    prefix: prefix
+});
+await mainRedisClusterProvider.connectOrThrow();
+await mainRedisClusterProvider.store('this-is-test', 'data', 29);
+console.log("Deleting old keys");
+const deleteResult = await mainRedisClusterProvider.remove('key-provider:connector-keys');
 
 // Build the prompt loop promise
 export const promptPromise = (async () => {
@@ -42,11 +35,10 @@ export const promptPromise = (async () => {
 
     const promptChannel = `respond-to-prompt`;
 
-    //todo: put back
-    // // Subscribe to our prompt channel
-    // await mainRedisClusterProvider.subscribe(promptChannel, (message, senderId) => {
-    //     console.log(`${senderId} sent :: `, message);
-    // });
+    // Subscribe to our prompt channel
+    await mainRedisClusterProvider.subscribe(promptChannel, (message, senderId) => {
+        console.log(`${senderId} sent :: `, message);
+    });
 
     do {
         response = (await rl.question("What message would you like to send? ('x' to exit)\n")).toLowerCase();
@@ -58,42 +50,41 @@ export const promptPromise = (async () => {
                 //@ts-ignore
                 break;
             case "u":
-                // console.log('******************** Sending fake update request ********************');
-                // await mainRedisClusterProvider.publish<RequestUpdateSystemJwksMsg>('key-provider:listening-channel', {
-                //     event: "request-update-system-jwks",
-                //     listeningChannel: promptChannel,
-                //     requestTime: Date.now()/1000,
-                //     jobName: "great-job-name",
-                // });
+                console.log('******************** Sending fake update request ********************');
+                await mainRedisClusterProvider.publish<RequestUpdateSystemJwksMsg>('key-provider:listening-channel', {
+                    event: "request-update-system-jwks",
+                    listeningChannel: promptChannel,
+                    requestTime: Date.now()/1000,
+                    jobName: "great-job-name",
+                });
                 break;
             case "p":
                 console.log('******************** Sending fake pending jwks message ********************');
-                // await mainRedisClusterProvider.publish<PendingJwksUpdateMsg>('key-provider:listening-channel', {
-                await redis.publish('key-provider:listening-channel', JSON.stringify({
+                await mainRedisClusterProvider.publish<PendingJwksUpdateMsg>('key-provider:listening-channel', {
                     event: "pending-jwks-update",
                     processId: "fake-process-id",
                     endOfLockTime: Date.now()/1000 + 60,
-                }));
+                });
                 break;
             case "c":
-                // console.log('******************** Sending fake cancel pending jwks message ********************');
-                // await mainRedisClusterProvider.publish<CancelPendingJwksUpdateMsg>('key-provider:listening-channel', {
-                //     event: "cancel-pending-jwks-update",
-                //     processId: "fake-process-id",
-                // });
+                console.log('******************** Sending fake cancel pending jwks message ********************');
+                await mainRedisClusterProvider.publish<CancelPendingJwksUpdateMsg>('key-provider:listening-channel', {
+                    event: "cancel-pending-jwks-update",
+                    processId: "fake-process-id",
+                });
                 break;
             case "n":
-                // console.log('******************** Sending fake new jwks available msg ********************');
-                // await mainRedisClusterProvider.publish<NewJwksAvailableMsg>('key-provider:listening-channel', {
-                //     event: "new-jwks-available",
-                //     processId: "fake-process-id",
-                //     clusterConnectorKeys: {
-                //         connectorKeys: await AbstractKeyProvider['createKeys'](),
-                //         currentStart: Date.now()/1000,
-                //         prevConnectorKeys: await AbstractKeyProvider['createKeys'](),
-                //         prevExpire: Date.now()/1000,
-                //     }
-                // });
+                console.log('******************** Sending fake new jwks available msg ********************');
+                await mainRedisClusterProvider.publish<NewJwksAvailableMsg>('key-provider:listening-channel', {
+                    event: "new-jwks-available",
+                    processId: "fake-process-id",
+                    clusterConnectorKeys: {
+                        connectorKeys: await AbstractKeyProvider['createKeys'](),
+                        currentStart: Date.now()/1000,
+                        prevConnectorKeys: await AbstractKeyProvider['createKeys'](),
+                        prevExpire: Date.now()/1000,
+                    }
+                });
                 break;
         }
 
