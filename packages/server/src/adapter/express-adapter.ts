@@ -41,7 +41,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             roles: routeConfigOrRoles ?? []
         } : routeConfigOrRoles;
 
-        return ({
+        return {
             ...request.headers?.origin && {origin: request.headers?.origin},
             url: request.url,
             cookies: request.cookies,
@@ -52,7 +52,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             },
             ...request.keycloak && {keycloak: request.keycloak},
             ...request.body && {body: request.body},
-        });
+        };
     };
 
     //todo: wrap this in a try catch handler send 500 on errors

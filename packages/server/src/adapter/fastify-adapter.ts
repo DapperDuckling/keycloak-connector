@@ -46,6 +46,8 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
             ...request.routeConfig,
         },
         ...request.keycloak && {keycloak: request.keycloak},
+        //todo: check if this works when no body exists
+        ...!!request.body && {body: request.body},
     });
 
     public async handleResponse(connectorResponse: ConnectorResponse<SupportedServers.fastify>, reply: FastifyReply): Promise<void> {
