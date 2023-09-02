@@ -71,7 +71,7 @@ export interface KeycloakConnectorConfigBase {
      *  How long until the initial login sequence cookie expires. Shorter times may impact users who may take a while
      *  to finish logging in.
      */
-    loginCookieTimeout: number;
+    authCookieTimeout: number;
 
     /** Overrides the default routes created to handle keycloak interactions */
     routePaths?: CustomRouteUrl;
@@ -121,6 +121,7 @@ export type CustomRouteUrl = {
     logoutPage?: string;
     logoutPost?: string;
     callback?: string;
+    logout_callback?: string;
     publicKeys?: string;
     adminUrl?: string;
     backChannelLogout?: string;
@@ -133,6 +134,7 @@ export enum RouteEnum {
     LOGOUT_PAGE,
     LOGOUT_POST,
     CALLBACK,
+    LOGOUT_CALLBACK,
     PUBLIC_KEYS,
     ADMIN_URL,
     BACK_CHANNEL_LOGOUT,

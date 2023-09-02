@@ -1,5 +1,5 @@
 import {isDev, sleep} from "./helpers/utils.js";
-import {type ClientMetadata, errors, generators, Issuer, type IssuerMetadata, TokenSet} from "openid-client";
+import {type ClientMetadata, errors, generators, Issuer, type IssuerMetadata} from "openid-client";
 import type {
     ConnectorRequest,
     ConnectorResponse,
@@ -126,6 +126,16 @@ export class KeycloakConnector<Server extends SupportedServers> {
             isPublic: true,
         }, this.handleLogoutPost);
 
+
+        /**
+         * Handles the logout redirect from the OP
+         */
+        this.registerRoute(adapter, {
+            url: this.getRoutePath(RouteEnum.LOGOUT_CALLBACK),
+            method: "GET",
+            isPublic: true,
+        }, this.handleLogoutCallback);
+
         /**
          * Serves the JWK set containing the client's public key
          */
@@ -197,10 +207,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // The login flow nonce is a custom parameter to help the user experience in case they attempt to sign in across multiple pages at the same time
         // Once KC returns a valid login, the nonce will be used to grab the cookies unique to this login attempt
-        const loginFlowNonce = generators.nonce();
+        const authFlowNonce = generators.nonce();
 
         // Build the redirect uri
-        const redirectUri = this.buildRedirectUriOrThrow(loginFlowNonce);
+        const redirectUri = this.buildRedirectUriOrThrow(authFlowNonce);
 
         const authorizationUrl = this.components.oidcClient.authorizationUrl({
             code_challenge_method: "S256",
@@ -213,57 +223,104 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Collect the cookies we would like the server to send back
         const cookies: CookieParams<Server>[] = [];
 
-        // Build the base cookie options used for the initial login portion
-        const baseCookieOptions: CookieOptionsBase<Server> = {
-            sameSite: "lax",
-            httpOnly: true,
-            secure: true,
-            expires: new Date(+new Date() + this._config.loginCookieTimeout),
-            path: "/",
-        }
-
         // Build the code verifier cookie
         cookies.push({
-            name: Cookies.CODE_VERIFIER + `-${loginFlowNonce}`,
+            name: `${Cookies.CODE_VERIFIER}-${authFlowNonce}`,
             value: cv,
             options: {
-                ...baseCookieOptions
+                ...this.CookieOptionsLax,
+                expires: new Date(+new Date() + this._config.authCookieTimeout),
             }
         });
 
-        // Handle the post login redirect uri
-        const inputUrlObj = new URL(req.url, req.origin);
-        const rawPostLoginRedirectUri = inputUrlObj.searchParams.get('post_login_redirect_uri');
-        let rawPostLoginRedirectUriObj: URL | null = null;
+        // Add the redirect cookie
+        const redirectCookie = this.buildRedirectCookie({
+            req: req,
+            authFlowNonce: authFlowNonce,
+        });
 
-        try {
-            rawPostLoginRedirectUriObj = new URL(rawPostLoginRedirectUri ?? "");
-        } catch (e) {} // Invalid redirect uri, ignore
-
-        // todo: FUTURE FEATURE -- Add option to filter post login redirect uri
-
-        // Build the post login redirect uri cookie if the redirect uri is from the same origin
-        if (rawPostLoginRedirectUriObj && rawPostLoginRedirectUriObj.origin === this._config.serverOrigin) {
-            const postLoginRedirectUri = rawPostLoginRedirectUriObj.toString();
-
-            cookies.push({
-                name: Cookies.REDIRECT_URI_B64 + `-${loginFlowNonce}`,
-                value: Buffer.from(postLoginRedirectUri).toString('base64'),
-                options: {
-                    ...baseCookieOptions
-                }
-            });
-        }
+        cookies.push(...redirectCookie);
 
         return {
             redirectUrl: authorizationUrl,
             statusCode: 303,
             cookies: cookies,
         }
-    };
+    }
 
-    private buildRedirectUriOrThrow = (loginFlowNonce?: string): string => {
-        const redirectUriBase = this.components.oidcClient.metadata.redirect_uris?.[0];
+    private validateRedirectUriOrThrow = (rawRedirectUri: string | null): boolean => {
+
+        // Check for a null redirect uri (i.e. no redirect uri)
+        if (rawRedirectUri === null) return true;
+
+        let redirectUriOrigin;
+
+        try {
+            // Attempt to extract the origin from the redirect url
+            redirectUriOrigin = (new URL(rawRedirectUri)).origin;
+        } catch (e) {}
+
+        // Check for mismatched origin
+        if (redirectUriOrigin !== this._config.serverOrigin) {
+            // Log the potentially dangerous error
+            this._config.pinoLogger?.warn({
+                redirectUrlOrigin: redirectUriOrigin,
+                serverOrigin: this._config.serverOrigin,
+            }, `Login redirect url origin does not match server origin!`);
+            throw new LoginError(ErrorHints.CODE_400);
+        }
+
+        return true;
+    }
+
+    private buildRedirectCookie = (opts: {
+        req: ConnectorRequest,
+        authFlowNonce: string,
+        isLogout?: boolean
+    }): CookieParams<Server>[] => {
+
+        // Grab the individual properties
+        const {req, authFlowNonce, isLogout} = opts;
+
+        // Handle the post login redirect uri
+        const inputUrlObj = new URL(req.url, req.origin);
+        const rawPostAuthRedirectUri = inputUrlObj.searchParams.get('post_auth_redirect_uri');
+        let rawPostAuthRedirectUriObj: URL | null = null;
+
+        try {
+            rawPostAuthRedirectUriObj = new URL(rawPostAuthRedirectUri ?? "");
+        } catch (e) {} // Invalid redirect uri, ignore
+
+        // todo: FUTURE FEATURE -- Add option to filter auth redirect uri
+
+        // Build the auth redirect uri cookie if the redirect uri is from the same origin
+        if (!rawPostAuthRedirectUriObj || rawPostAuthRedirectUriObj.origin !== this._config.serverOrigin) return [];
+
+        // Check if the post auth redirect is the same as the start pages
+        if ((!isLogout && rawPostAuthRedirectUriObj.pathname === this.getRoutePath(RouteEnum.LOGIN_PAGE)) ||
+            (isLogout && rawPostAuthRedirectUriObj.pathname === this.getRoutePath(RouteEnum.LOGOUT_PAGE))) return [];
+
+        const postAuthRedirectUri = rawPostAuthRedirectUriObj.toString();
+        const baseCookieName = (!isLogout) ? Cookies.REDIRECT_URI_B64 : Cookies.LOGOUT_REDIRECT_URI_B64;
+
+        return [{
+            name: `${baseCookieName}-${authFlowNonce}`,
+            value: Buffer.from(postAuthRedirectUri).toString('base64'),
+            options: {
+                ...this.CookieOptionsLax,
+                expires: new Date(+new Date() + this._config.authCookieTimeout),
+            }
+        }];
+    }
+
+    private buildRedirectUriOrThrow = (authFlowNonce: string, isLogout = false): string => {
+
+        // Grab the base redirect uri
+        const redirectUriBase = (!isLogout) ?
+            this.components.oidcClient.metadata.redirect_uris?.[0] :
+            this.components.oidcClient.metadata.post_logout_redirect_uris?.[0];
+
+        // Ensure we found a URI to use
         if (redirectUriBase === undefined) {
             this._config.pinoLogger?.error(`Connector not properly setup, need valid redirect uri.`);
             throw new LoginError(ErrorHints.CODE_500);
@@ -272,10 +329,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Convert the base uri to a URL object
         const redirectUriObj = new URL(redirectUriBase);
 
-        if (loginFlowNonce) {
-            // Add the login flow nonce to redirect the uri
-            redirectUriObj.searchParams.append("login_flow_nonce", loginFlowNonce);
-        }
+        // Add the login flow nonce to redirect the uri
+        redirectUriObj.searchParams.append("auth_flow_nonce", authFlowNonce);
 
         return redirectUriObj.toString();
     }
@@ -289,12 +344,19 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
     }
 
-    private handleCallback = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
-
+    private getAuthFlowNonce = (req: ConnectorRequest): string|null => {
         // Check for login flow nonce
         // (`base` added since browsers are not required to send an origin for all requests. It has no other function than to allow the built-in `URL` class to work in-line)
-        const loginFlowNonce = (new URL(req.url, "https://localhost")).searchParams.get('login_flow_nonce');
-        if (loginFlowNonce === null) {
+        return (new URL(req.url, "https://localhost")).searchParams.get('auth_flow_nonce');
+    }
+
+    private handleCallback = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
+
+        // Grab the auth flow nonce
+        const authFlowNonce = this.getAuthFlowNonce(req);
+
+        // Check for missing auth flow nonce
+        if (authFlowNonce === null) {
             // Log the bad request
             this._config.pinoLogger?.warn(req.url, "Missing login flow nonce parameter during login attempt");
 
@@ -309,11 +371,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
         };
 
         try {
-            const redirectUri64 = req.cookies?.[Cookies.REDIRECT_URI_B64 + `-${loginFlowNonce}`];
+            const redirectUri64 = req.cookies?.[`${Cookies.REDIRECT_URI_B64}-${authFlowNonce}`];
             
             // Grab the input cookies
             inputCookies = {
-                codeVerifier: req.cookies[Cookies.CODE_VERIFIER + `-${loginFlowNonce}`],
+                codeVerifier: req.cookies[`${Cookies.CODE_VERIFIER}-${authFlowNonce}`],
                 redirectUriRaw: (!!redirectUri64) ? Buffer.from(redirectUri64, 'base64').toString() : undefined,
             }
         } catch (e) {
@@ -326,7 +388,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         // Build the redirect uri
-        const redirectUri = this.buildRedirectUriOrThrow(loginFlowNonce);
+        const redirectUri = this.buildRedirectUriOrThrow(authFlowNonce);
 
         // Check for a code verifier
         if (inputCookies.codeVerifier === undefined) {
@@ -337,32 +399,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
             throw new LoginError(ErrorHints.CODE_400);
         }
 
-        // Build the post-login redirect uri
-        let postLoginRedirectUri: string | null = null;
+        // Build the post login redirect uri
+        let postAuthRedirectUri = inputCookies.redirectUriRaw ?? null;
 
-        // Check for an existing redirect url
-        if (inputCookies.redirectUriRaw) {
-
-            let redirectUriOrigin;
-
-            try {
-                // Attempt to extract the origin from the redirect url
-                redirectUriOrigin = (new URL(inputCookies.redirectUriRaw)).origin;
-            } catch (e) {}
-
-            // Validate the same origin
-            if (redirectUriOrigin === this._config.serverOrigin) {
-                postLoginRedirectUri = inputCookies.redirectUriRaw;
-            } else {
-                // Log the potentially dangerous error
-                this._config.pinoLogger?.warn({
-                    redirectUrlOrigin: redirectUriOrigin,
-                    serverOrigin: this._config.serverOrigin,
-                }, `Login redirect url origin does not match server origin!`);
-
-                throw new LoginError(ErrorHints.CODE_400);
-            }
-        }
+        // Validate the redirect uri
+        this.validateRedirectUriOrThrow(postAuthRedirectUri);
 
         try {
             const tokenSet = await this.components.oidcClient.callback(
@@ -429,12 +470,12 @@ export class KeycloakConnector<Server extends SupportedServers> {
             });
 
             // Grab the cookies to remove
-            cookies.push(...this.removeLoginFlowCookies(req.cookies, loginFlowNonce));
+            cookies.push(...this.removeAuthFlowCookies(req.cookies, authFlowNonce));
 
             return {
                 statusCode: 303,
                 cookies: cookies,
-                redirectUrl: postLoginRedirectUri ?? this._config.serverOrigin,
+                redirectUrl: postAuthRedirectUri ?? this._config.serverOrigin,
             }
 
         } catch (e) {
@@ -470,28 +511,63 @@ export class KeycloakConnector<Server extends SupportedServers> {
     }
 
     private handleLogoutGet = async (): Promise<ConnectorResponse<Server>> => ({
-        serveFile: "login-start.html",
+        serveFile: "logout-start.html",
     });
 
     private handleLogoutPost = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
         // Ensure the request comes from our origin
         this.validateSameOriginOrThrow(req);
 
+        // This nonce will ensure authorization cookies are cleared automatically when KC returns
+        const authFlowNonce = generators.nonce();
+
         // Build the redirect uri
-        const redirectUri = this.buildRedirectUriOrThrow();
+        const redirectUri = this.buildRedirectUriOrThrow(authFlowNonce, true);
 
         // Generate the logout url
         const logoutUrl = this.components.oidcClient.endSessionUrl({
             post_logout_redirect_uri: redirectUri,
         });
 
-        // Strip auth cookies
-        const cookies = this.removeAuthCookies(req);
-
         return {
             redirectUrl: logoutUrl,
             statusCode: 303,
+        }
+    }
+
+    private handleLogoutCallback = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
+
+        // Collect cookies to remove
+        const cookies: CookieParams<Server>[] = [];
+
+        // Strip auth cookies
+        cookies.push(...this.removeAuthCookies(req.cookies));
+
+        // Grab the auth flow nonce
+        const authFlowNonce = this.getAuthFlowNonce(req);
+
+        // Build the post logout redirect uri
+        let postAuthRedirectUri = null;
+
+        // Check for an auth flow nonce
+        if (authFlowNonce) {
+            // Strip auth flow cookies
+            cookies.push(...this.removeAuthFlowCookies(req.cookies, authFlowNonce));
+
+            // Grab the base64 logout redirect uri
+            const logoutRedirectUri64 = req.cookies?.[`${Cookies.LOGOUT_REDIRECT_URI_B64}-${authFlowNonce}`];
+
+            // Decode the base64 uri
+            const postAuthRedirectUri = (!!logoutRedirectUri64) ? Buffer.from(logoutRedirectUri64, 'base64').toString() : null;
+
+            // Validate the redirect uri
+            this.validateRedirectUriOrThrow(postAuthRedirectUri);
+        }
+
+        return {
+            statusCode: 303,
             cookies: cookies,
+            redirectUrl: postAuthRedirectUri ?? this._config.serverOrigin,
         }
     }
 
@@ -550,7 +626,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         };
     }
 
-    private removeLoginFlowCookies<Server extends SupportedServers>(reqCookies: unknown, loginFlowNonce: string): CookieParams<Server>[] {
+    private removeAuthFlowCookies<Server extends SupportedServers>(reqCookies: unknown, authFlowNonce: string): CookieParams<Server>[] {
         const cookies: CookieParams<Server>[] = [];
 
         // Check if input is truthy
@@ -558,7 +634,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Scan through request cookies to find ones to remove
         for (const cookieName of Object.keys(reqCookies)) {
-            if (CookieNames.some(name => name + `-${loginFlowNonce}` === cookieName) && !CookiesToKeep.includes(cookieName)) {
+            if (CookieNames.some(name => `${name}-${authFlowNonce}` === cookieName) && !CookiesToKeep.includes(cookieName)) {
                 cookies.push({
                     name: cookieName,
                     value: "",
@@ -815,7 +891,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const config: KeycloakConnectorConfigBase = {
             // Defaults
             refreshConfigMins: 30,
-            loginCookieTimeout: 35 * 60 * 1000, // Default: 35 minutes
+            authCookieTimeout: 35 * 60 * 1000, // Default: 35 minutes
             stateType: StateOptions.STATELESS,
 
             // Consumer provided configuration
@@ -830,7 +906,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
                     KeycloakConnector.getRouteUri(RouteEnum.CALLBACK, customConfig),
                 ],
                 post_logout_redirect_uris: [
-                    KeycloakConnector.getRouteUri(RouteEnum.LOGIN_PAGE, customConfig),
+                    KeycloakConnector.getRouteUri(RouteEnum.LOGOUT_CALLBACK, customConfig),
                 ],
 
                 // Consumer provided metadata
@@ -986,6 +1062,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 return `${prefix}${config.routePaths?.logoutPost ?? RouteUrlDefaults.logoutPost}`;
             case RouteEnum.CALLBACK:
                 return `${prefix}${config.routePaths?.callback ?? RouteUrlDefaults.callback}`;
+            case RouteEnum.LOGOUT_CALLBACK:
+                return `${prefix}${config.routePaths?.logout_callback ?? RouteUrlDefaults.logout_callback}`;
             case RouteEnum.PUBLIC_KEYS:
                 return `${prefix}${config.routePaths?.publicKeys ?? RouteUrlDefaults.publicKeys}`;
             case RouteEnum.ADMIN_URL:

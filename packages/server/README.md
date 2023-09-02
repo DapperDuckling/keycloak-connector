@@ -341,7 +341,7 @@ export interface KeycloakConnectorConfiguration {
      *  How long until the initial login sequence cookie expires. Shorter times may impact users who may take a while
      *  to finish logging in.
      */
-    loginCookieTimeout: number;
+    authCookieTimeout: number;
 
     /** Overrides the default routes created to handle keycloak interactions */
     routePaths?: CustomRouteUrl;

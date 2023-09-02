@@ -5,6 +5,8 @@ export const RouteUrlDefaults: CustomRouteUrl = {
     _prefix: '/auth',
     loginPage: '/login',
     loginPost: '/login',
+    logoutPage: '/logout',
+    logoutPost: '/logout',
     callback: '/callback',
     publicKeys: '/k_jwks',
     adminUrl: '/k_admin_url',

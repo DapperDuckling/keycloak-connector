@@ -10,7 +10,7 @@
     <script>
         window.addEventListener('load', () => {
             const postLoginRedirectUriEncoded = window.encodeURIComponent(document.location.href);
-            document.forms[0].action =  `/auth/login?post_login_redirect_uri=${postLoginRedirectUriEncoded}`;
+            document.forms[0].action =  `/auth/login?post_auth_redirect_uri=${postLoginRedirectUriEncoded}`;
         });
     </script>
 

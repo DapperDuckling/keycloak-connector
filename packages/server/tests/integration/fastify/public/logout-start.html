@@ -9,8 +9,8 @@
     </style>
     <script>
         window.addEventListener('load', () => {
-            const postLogoutRedirectUriEncoded = window.encodeURIComponent(document.location.href);
-            document.forms[0].action =  `/auth/logout?post_logout_redirect_uri=${postLogoutRedirectUriEncoded}`;
+            const postAuthRedirectUriEncoded = window.encodeURIComponent(document.location.href);
+            document.forms[0].action =  `/auth/logout?post_auth_redirect_uri=${postAuthRedirectUriEncoded}`;
         });
     </script>
 
