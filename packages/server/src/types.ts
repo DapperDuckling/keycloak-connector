@@ -118,6 +118,8 @@ export type CustomRouteUrl = {
     _prefix?: string;
     loginPage?: string;
     loginPost?: string;
+    logoutPage?: string;
+    logoutPost?: string;
     callback?: string;
     publicKeys?: string;
     adminUrl?: string;
@@ -128,6 +130,8 @@ export type CustomRouteUrl = {
 export enum RouteEnum {
     LOGIN_PAGE,
     LOGIN_POST,
+    LOGOUT_PAGE,
+    LOGOUT_POST,
     CALLBACK,
     PUBLIC_KEYS,
     ADMIN_URL,
@@ -147,7 +151,7 @@ export interface ConnectorRequest {
     routeConfig: KeycloakRouteConfig;
 
     keycloak?: UserData;
-    body?: unknown;
+    body?: Record<any, any>;
 }
 
 export interface ConnectorResponse<Server extends SupportedServers> {

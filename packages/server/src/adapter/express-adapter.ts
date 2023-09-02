@@ -14,6 +14,7 @@ import {RouteConfigDefault} from "../helpers/defaults.js";
 import type {Logger} from "pino";
 import {KeycloakConnector} from "../keycloak-connector.js";
 import bodyParser from "body-parser";
+import {isObject} from "../helpers/utils.js";
 
 export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 
@@ -51,7 +52,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
                 ...routeConfig,
             },
             ...request.keycloak && {keycloak: request.keycloak},
-            ...request.body && {body: request.body},
+            ...isObject(request.body) && {body: request.body},
         };
     };
 

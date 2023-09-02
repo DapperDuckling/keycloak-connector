@@ -1,5 +1,5 @@
 import {isDev, sleep} from "./helpers/utils.js";
-import {type ClientMetadata, errors, generators, Issuer, type IssuerMetadata} from "openid-client";
+import {type ClientMetadata, errors, generators, Issuer, type IssuerMetadata, TokenSet} from "openid-client";
 import type {
     ConnectorRequest,
     ConnectorResponse,
@@ -91,7 +91,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }, this.handleLoginGet);
 
         /**
-         * Handles the redirect to the OP
+         * Handles the redirect to the OP for user login
          */
         this.registerRoute(adapter,{
             url: this.getRoutePath(RouteEnum.LOGIN_POST),
@@ -107,6 +107,24 @@ export class KeycloakConnector<Server extends SupportedServers> {
             method: "GET",
             isPublic: true,
         }, this.handleCallback);
+
+        /**
+         * Shows the client provided logout page
+         */
+        this.registerRoute(adapter,{
+            url: this.getRoutePath(RouteEnum.LOGOUT_PAGE),
+            method: "GET",
+            isPublic: true,
+        }, this.handleLogoutGet);
+
+        /**
+         * Handles the redirect to the OP for user logout
+         */
+        this.registerRoute(adapter,{
+            url: this.getRoutePath(RouteEnum.LOGOUT_POST),
+            method: "POST",
+            isPublic: true,
+        }, this.handleLogoutPost);
 
         /**
          * Serves the JWK set containing the client's public key
@@ -172,12 +190,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private handleLoginPost = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
         // Ensure the request comes from our origin
-        if (req.origin !== this._config.serverOrigin) {
-            // Log this error (possibly detect attacks)
-            this._config.pinoLogger?.warn(`Login POST request came from different origin. Expected: ${this._config.serverOrigin}, Got: ${req.origin}`);
-
-            throw new LoginError(ErrorHints.CODE_400);
-        }
+        this.validateSameOriginOrThrow(req);
 
         // Generate random values
         const cv = generators.codeVerifier();
@@ -242,7 +255,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
             });
         }
 
-
         return {
             redirectUrl: authorizationUrl,
             statusCode: 303,
@@ -250,18 +262,31 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
     };
 
-    private buildRedirectUriOrThrow = (loginFlowNonce: string): string => {
+    private buildRedirectUriOrThrow = (loginFlowNonce?: string): string => {
         const redirectUriBase = this.components.oidcClient.metadata.redirect_uris?.[0];
         if (redirectUriBase === undefined) {
             this._config.pinoLogger?.error(`Connector not properly setup, need valid redirect uri.`);
             throw new LoginError(ErrorHints.CODE_500);
         }
 
-        // Add the login flow nonce to redirect the uri
+        // Convert the base uri to a URL object
         const redirectUriObj = new URL(redirectUriBase);
-        redirectUriObj.searchParams.append("login_flow_nonce", loginFlowNonce);
+
+        if (loginFlowNonce) {
+            // Add the login flow nonce to redirect the uri
+            redirectUriObj.searchParams.append("login_flow_nonce", loginFlowNonce);
+        }
 
         return redirectUriObj.toString();
+    }
+
+    private validateSameOriginOrThrow = (req: ConnectorRequest) => {
+        if (req.origin !== this._config.serverOrigin) {
+            // Log this error (possibly detect attacks)
+            this._config.pinoLogger?.warn(`POST request came from different origin. Expected: ${this._config.serverOrigin}, Got: ${req.origin}`);
+
+            throw new LoginError(ErrorHints.CODE_400);
+        }
     }
 
     private handleCallback = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
@@ -444,6 +469,32 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
     }
 
+    private handleLogoutGet = async (): Promise<ConnectorResponse<Server>> => ({
+        serveFile: "login-start.html",
+    });
+
+    private handleLogoutPost = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
+        // Ensure the request comes from our origin
+        this.validateSameOriginOrThrow(req);
+
+        // Build the redirect uri
+        const redirectUri = this.buildRedirectUriOrThrow();
+
+        // Generate the logout url
+        const logoutUrl = this.components.oidcClient.endSessionUrl({
+            post_logout_redirect_uri: redirectUri,
+        });
+
+        // Strip auth cookies
+        const cookies = this.removeAuthCookies(req);
+
+        return {
+            redirectUrl: logoutUrl,
+            statusCode: 303,
+            cookies: cookies,
+        }
+    }
+
     private handleClientJWKS = async (): Promise<ConnectorResponse<Server>> => {
         const keys = {
             "keys": await this.components.keyProvider.getPublicKeys(),
@@ -471,9 +522,22 @@ export class KeycloakConnector<Server extends SupportedServers> {
         //todo: finish backchannel logout. what does keycloak send us???
         console.log(req);
 
+        // Check for a lack of logout token(s)
+        if (req.body?.['logout_token'] === undefined) return {
+            statusCode: 400
+        }
+
+        // Loop through tokens
+        for (const [type, token] of Object.entries(req.body)) {
+
+        }
+
+        // ({payload: userData.accessToken} = await this.validateJwt(accessJwt));
+
+
         return {
             statusCode: 200,
-            responseText: "TODO: finish2",
+            // responseText: "TODO: finish2",
         };
     };
 
@@ -500,6 +564,29 @@ export class KeycloakConnector<Server extends SupportedServers> {
                     value: "",
                     options: {
                         ...this.CookieOptionsLax,
+                        expires: new Date(0),
+                    }
+                })
+            }
+        }
+
+        return cookies;
+    }
+
+    private removeAuthCookies<Server extends SupportedServers>(reqCookies: unknown): CookieParams<Server>[] {
+        const cookies: CookieParams<Server>[] = [];
+
+        // Check if input is truthy
+        if (!reqCookies) return cookies;
+
+        // Scan through request cookies to find ones to remove
+        for (const cookieName of Object.keys(reqCookies)) {
+            if (CookiesToKeep.includes(cookieName)) {
+                cookies.push({
+                    name: cookieName,
+                    value: "",
+                    options: {
+                        ...this.CookieOptions,
                         expires: new Date(0),
                     }
                 })
@@ -893,6 +980,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 return `${prefix}${config.routePaths?.loginPage ?? RouteUrlDefaults.loginPage}`;
             case RouteEnum.LOGIN_POST:
                 return `${prefix}${config.routePaths?.loginPost ?? RouteUrlDefaults.loginPost}`;
+            case RouteEnum.LOGOUT_PAGE:
+                return `${prefix}${config.routePaths?.logoutPage ?? RouteUrlDefaults.logoutPage}`;
+            case RouteEnum.LOGOUT_POST:
+                return `${prefix}${config.routePaths?.logoutPost ?? RouteUrlDefaults.logoutPost}`;
             case RouteEnum.CALLBACK:
                 return `${prefix}${config.routePaths?.callback ?? RouteUrlDefaults.callback}`;
             case RouteEnum.PUBLIC_KEYS:

@@ -19,6 +19,7 @@ import type {FastifySchema} from "fastify/types/schema.js";
 import type {FastifyBaseLogger} from "fastify/types/logger.js";
 import type {fastifyStatic} from "@fastify/static";
 import {RouteConfigDefault} from "../helpers/defaults.js";
+import {isObject} from "../helpers/utils.js";
 
 export type FastifyKeycloakInstance = FastifyInstance<RawServerDefault, RawRequestDefaultExpression, RawReplyDefaultExpression, FastifyBaseLogger, FastifyTypeProviderDefault>;
 export type KeycloakRequest = FastifyRequest<RouteGenericInterface, RawServerDefault, RawRequestDefaultExpression, FastifySchema, FastifyTypeProviderDefault, KeycloakRouteConfig, FastifyBaseLogger>
@@ -46,8 +47,7 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
             ...request.routeConfig,
         },
         ...request.keycloak && {keycloak: request.keycloak},
-        //todo: check if this works when no body exists
-        ...!!request.body && {body: request.body},
+        ...isObject(request.body) && {body: request.body},
     });
 
     public async handleResponse(connectorResponse: ConnectorResponse<SupportedServers.fastify>, reply: FastifyReply): Promise<void> {
