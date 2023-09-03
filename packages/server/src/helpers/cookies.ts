@@ -12,6 +12,7 @@ export const Cookies = Object.freeze({
     PUBLIC_ACCESS_TOKEN_EXPIRATION: `${COOKIE_KCC_PREFIX}access-expiration`,
     REFRESH_TOKEN: `${COOKIE_PREFIX_COMBINED}refresh`,
     REFRESH_TOKEN_EXPIRATION: `${COOKIE_PREFIX_COMBINED}refresh-expiration`,
+    ID_TOKEN: `${COOKIE_PREFIX_COMBINED}id`,
 });
 
 export const CookieNames: string[] = Object.values(Cookies);
@@ -22,4 +23,5 @@ export const CookiesToKeep: string[] = [
     Cookies.PUBLIC_ACCESS_TOKEN_EXPIRATION,
     Cookies.REFRESH_TOKEN,
     Cookies.REFRESH_TOKEN_EXPIRATION,
+    Cookies.ID_TOKEN,
 ];

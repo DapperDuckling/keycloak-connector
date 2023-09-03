@@ -469,6 +469,16 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 }
             });
 
+            // Store the id token
+            cookies.push({
+                name: Cookies.ID_TOKEN,
+                value: tokenSet.id_token,
+                options: {
+                    ...this.CookieOptions,
+                    expires: new Date(refreshTokenExpiration * 1000), // Intentionally use refresh token expiration
+                }
+            });
+
             // Grab the cookies to remove
             cookies.push(...this.removeAuthFlowCookies(req.cookies, authFlowNonce));
 
@@ -515,6 +525,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
     });
 
     private handleLogoutPost = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
+
         // Ensure the request comes from our origin
         this.validateSameOriginOrThrow(req);
 
@@ -524,9 +535,13 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Build the redirect uri
         const redirectUri = this.buildRedirectUriOrThrow(authFlowNonce, true);
 
+        // Grab the ID token
+        const idToken = req.cookies?.[Cookies.ID_TOKEN];
+
         // Generate the logout url
         const logoutUrl = this.components.oidcClient.endSessionUrl({
             post_logout_redirect_uri: redirectUri,
+            ...idToken && {id_token_hint: idToken},
         });
 
         return {
