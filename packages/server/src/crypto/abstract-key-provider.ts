@@ -73,7 +73,7 @@ export abstract class AbstractKeyProvider {
         };
     }
 
-    public registerCallbacks(onActiveKeyUpdate: Listener<Promise<void>>, updateOidcServer: Listener<Promise<void>>) {
+    public registerCallbacks(onActiveKeyUpdate: Listener<Promise<any>>, updateOidcServer: Listener<Promise<any>>) {
         this.onActiveKeyUpdate = onActiveKeyUpdate;
         this.updateOidcServer = updateOidcServer;
 

@@ -18,7 +18,7 @@ export interface KeycloakConnectorInternalConfiguration {
     keyProvider: AbstractKeyProvider;
     remoteJWKS: () => Promise<KeyLike>;
     connectorKeys: ConnectorKeys;
-    notBefore: number;
+    notBefore?: number;
 }
 
 export type ConnectorKeys = {
@@ -37,6 +37,13 @@ export enum StateOptions {
     STATELESS = 0,
     MIXED = 1,
     STATEFUL = 2,
+}
+
+export enum JwtTokenTypes {
+    ID = "ID",
+    LOGOUT = "Logout",
+    REFRESH = "Refresh",
+    ACCESS = "Bearer",
 }
 
 export interface KeycloakConnectorConfigBase {
@@ -88,14 +95,14 @@ export interface KeycloakConnectorConfigBase {
     /** When true, a case-sensitive search is used to match requirements to user's roles */
     caseSensitiveRoleCheck?: boolean;
 
-    /** Optional claims required when verifying user-provided JWTs */
-    jwtClaims?: {
-        /** Require the user-provided JWT to be intended for a particular audience */
-        audience?: string;
-
-        /** Ensures the party to which the JWT was issued matches provided value. By default, azp must match the current `client_id` */
-        azp?: string | AzpOptions;
-    }
+    // /** Optional claims required when verifying user-provided JWTs */
+    // jwtClaims?: {
+    //     /** Require the user-provided JWT to be intended for a particular audience */
+    //     audience?: string;
+    //
+    //     /** Ensures the party to which the JWT was issued matches provided value. By default, azp must match the current `client_id` */
+    //     azp?: string | AzpOptions;
+    // }
 
     /** Specify a cluster provider in order to synchronize instances of the same app */
     clusterProvider?: AbstractClusterProvider;
@@ -109,9 +116,8 @@ export type KeyProvider = (keyProviderConfig: KeyProviderConfig) => Promise<Abst
 export type Listener<R = void, A extends any[] | [] = any[]> = (...args: A) => R;
 
 export enum AzpOptions {
-    MUST_MATCH_CLIENT_ID = 0,
-    MATCH_CLIENT_ID_IF_PRESENT = 1,
-    IGNORE = 2,
+    MATCH_CLIENT_ID_IF_PRESENT = 0,
+    IGNORE = 1,
 }
 
 export type CustomRouteUrl = {

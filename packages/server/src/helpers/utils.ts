@@ -1,4 +1,7 @@
 
+// Source: jose (epoch.js)
+export const epoch = (date: Date = new Date()) => Math.floor(date.getTime() / 1000);
+
 export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export function isDev() {

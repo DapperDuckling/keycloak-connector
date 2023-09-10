@@ -1,4 +1,4 @@
-import {isDev, sleep} from "./helpers/utils.js";
+import {epoch, isDev, sleep} from "./helpers/utils.js";
 import {type ClientMetadata, errors, generators, Issuer, type IssuerMetadata} from "openid-client";
 import type {
     ConnectorRequest,
@@ -11,7 +11,7 @@ import type {
     SupportedServers,
     UserData
 } from "./types.js";
-import {AzpOptions, RouteEnum, StateOptions} from "./types.js";
+import {JwtTokenTypes, RouteEnum, StateOptions} from "./types.js";
 import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapter/abstract-adapter.js";
 import type {JWK} from "jose";
 import * as jose from 'jose';
@@ -33,8 +33,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private readonly components: KeycloakConnectorInternalConfiguration;
     private readonly roleHelper: RoleHelper;
     private oidcConfigTimer: ReturnType<typeof setTimeout> | null = null;
-    private updateOidcConfig: Promise<void> | null = null;
-    private updateOidcConfigPending: Promise<void> | null = null;
+    private updateOidcConfig: Promise<boolean> | null = null;
+    private updateOidcConfigPending: Promise<boolean> | null = null;
 
     private readonly CookieOptions: CookieOptionsBase<Server> = {
         sameSite: "strict",
@@ -613,15 +613,15 @@ export class KeycloakConnector<Server extends SupportedServers> {
         //todo: finish backchannel logout. what does keycloak send us???
         console.log(req);
 
+        const logoutToken = req.body?.['logout_token'];
+
         // Check for a lack of logout token(s)
-        if (req.body?.['logout_token'] === undefined) return {
+        if (logoutToken === undefined) return {
             statusCode: 400
         }
 
-        // Loop through tokens
-        for (const [type, token] of Object.entries(req.body)) {
-
-        }
+        // Validate logout token
+        const result = await this.validateJwt(logoutToken, JwtTokenTypes.LOGOUT);
 
         // ({payload: userData.accessToken} = await this.validateJwt(accessJwt));
 
@@ -687,33 +687,54 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return cookies;
     }
 
-    private validateJwt = async (jwt: string): Promise<JWTVerifyResult> => {
+    private validateJwt = async (jwt: string, type: JwtTokenTypes): Promise<JWTVerifyResult> => {
+
+        let requiredClaims: string[] = [];
+
+        // Snapshot the time
+        const currDate = new Date();
+
+        // Calculate max age
+        let maxAge: number|string|null = (this.components.notBefore) ? (epoch(currDate) - this.components.notBefore) : null;
+
+        switch (type) {
+            case JwtTokenTypes.ID:
+                requiredClaims = ['exp', 'auth_time'];
+                break;
+            case JwtTokenTypes.LOGOUT:
+                // Override the max age. Logout messages should not come too late.
+                maxAge = "10 minutes";
+                break;
+            case JwtTokenTypes.REFRESH:
+                break;
+            case JwtTokenTypes.ACCESS:
+                break;
+
+        }
 
         // Verify the token
         const verifyResult = await jose.jwtVerify(jwt, this.components.remoteJWKS, {
             algorithms: [KeycloakConnector.REQUIRED_ALGO],
             issuer: this.components.oidcIssuer.metadata.issuer,
-            ...(this._config.jwtClaims?.audience && {audience: this._config.jwtClaims?.audience}),
+            audience: this._config.oidcClientMetadata.client_id,
+            typ: type,
+            currentDate: currDate,
+            ...maxAge && {maxTokenAge: maxAge},
+            requiredClaims: requiredClaims,
         });
 
         // Validate azp declaration
-        const azpConfig = this._config.jwtClaims?.azp;
+        // Note - Based on OIDC Core 1.0 - draft 32 errata 2.0, we are encouraged not to use azp & ignore it when it does occur.
+        //          The configuration below blends the requirement, verifying the azp if it exists otherwise ignoring it.
         const jwtAzp = verifyResult.payload['azp'];
-        if (azpConfig !== AzpOptions.IGNORE &&
-            !(jwtAzp === undefined && azpConfig === AzpOptions.MATCH_CLIENT_ID_IF_PRESENT)
-        ) {
-            if (typeof azpConfig === 'string') {
-                if (azpConfig !== jwtAzp) {
-                    throw new Error(`Invalid AZP claim, expected ${azpConfig}`);
-                }
-            } else if (jwtAzp !== this.components.oidcClient.metadata.client_id) {
-                throw new Error(`Invalid AZP claim, expected ${this.components.oidcClient.metadata.client_id}`);
-            }
+        if ((jwtAzp !== undefined || type === JwtTokenTypes.ID) &&
+            jwtAzp !== this.components.oidcClient.metadata.client_id) {
+            throw new Error(`Mismatch AZP claim, expected ${this.components.oidcClient.metadata.client_id}`);
         }
 
         // Validate IAT is not too early
         const jwtIat = verifyResult.payload['iat'];
-        if (jwtIat === undefined || isNaN(jwtIat) || jwtIat < this.components.notBefore) {
+        if (this.components.notBefore && (jwtIat === undefined || isNaN(jwtIat) || jwtIat < this.components.notBefore)) {
             throw new Error(`Invalid IAT claim. Claim is missing, not a number, or before "notBefore" time declared by OP`);
         }
 
@@ -736,7 +757,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             if (accessJwt === undefined) return userData;
 
             // Validate and save the access token payload
-            ({payload: userData.accessToken} = await this.validateJwt(accessJwt));
+            ({payload: userData.accessToken} = await this.validateJwt(accessJwt, JwtTokenTypes.ACCESS));
 
         } catch (e) {
 
@@ -832,14 +853,14 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Check for an ongoing update and create a pending promise
         if (this.updateOidcConfig) {
             this._config.pinoLogger?.debug(`OIDC update in progress, creating pending update`);
-            this.updateOidcConfigPending = this.updateOidcConfig.then(async (): Promise<void> => {
+            this.updateOidcConfigPending = this.updateOidcConfig.then(async (): Promise<boolean> => {
                 this._config.pinoLogger?.debug(`Starting pending OIDC update`);
 
                 // Clear the pending promise
                 this.updateOidcConfigPending = null;
 
                 // Call the script again
-                await this.updateOpenIdConfig();
+                return await this.updateOpenIdConfig();
             });
 
             return this.updateOidcConfigPending;
@@ -862,6 +883,15 @@ export class KeycloakConnector<Server extends SupportedServers> {
                     shouldUpdate = true;
                 }
 
+                // Ensure we have a JWKS uri
+                if (this.components.oidcConfig.jwks_uri === undefined) {
+                    this._config.pinoLogger?.error(`Authorization server provided no JWKS_URI, cannot find public keys to verify tokens against`);
+                    return false;
+                }
+
+                // Attempt to grab an updated set of remote JWKs
+                const newRemoteJWKS = KeycloakConnector.createRemoteJWTSet(this.components.oidcConfig.jwks_uri)
+
                 // Grab the latest connector keys
                 const newConnectorKeys = await this.components.keyProvider.getActiveKeys();
 
@@ -874,7 +904,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 // Check if we should update
                 if (!shouldUpdate) {
                     this._config.pinoLogger?.debug(`No changes to OIDC keys or configuration, not updating!`);
-                    return;
+                    return true;
                 }
 
                 // Handle configuration change
@@ -884,7 +914,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 } = await KeycloakConnector.createOidcClients(this.components.oidcConfig, this._config.oidcClientMetadata, this.components.connectorKeys.privateJwk));
 
                 this._config.pinoLogger?.debug(`OIDC update complete`);
+                return true;
 
+            } catch (e) {
+                this._config.pinoLogger?.error(`Failed to update OIDC configuration: ${e}`);
+                return false;
             } finally {
                 // Clear the active update promise
                 this.updateOidcConfig = null;
@@ -977,7 +1011,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         // Store the OP JWK set
-        const remoteJWKS = jose.createRemoteJWKSet(new URL(oidcClients.oidcIssuer.metadata.jwks_uri));
+        const remoteJWKS = KeycloakConnector.createRemoteJWTSet(oidcClients.oidcIssuer.metadata.jwks_uri);
 
         const components: KeycloakConnectorInternalConfiguration = {
             oidcDiscoveryUrl: oidcDiscoveryUrl,
@@ -986,11 +1020,18 @@ export class KeycloakConnector<Server extends SupportedServers> {
             ...oidcClients,
             remoteJWKS: remoteJWKS,
             connectorKeys: connectorKeys,
-            notBefore: 0, //todo: test if keycloak reports this initially
+            notBefore: undefined,
         }
 
         // Return the new connector
         return new this<Server>(config, components, adapter);
+    }
+
+    private static createRemoteJWTSet(jwksUri: string) {
+        return jose.createRemoteJWKSet(new URL(jwksUri), {
+            cacheMaxAge: Infinity,
+            cooldownDuration: 10,
+        });
     }
 
     private static async createOidcClients(newOidcConfig: IssuerMetadata, oidcClientMetadata: ClientMetadata, privateJwk: JWK) {
