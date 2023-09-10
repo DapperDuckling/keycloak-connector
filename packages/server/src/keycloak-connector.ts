@@ -621,7 +621,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         // Validate logout token
-        const result = await this.validateJwt(logoutToken, JwtTokenTypes.LOGOUT);
+        const result = await this.validateJwtOrThrow(logoutToken, JwtTokenTypes.LOGOUT);
 
         // ({payload: userData.accessToken} = await this.validateJwt(accessJwt));
 
@@ -687,8 +687,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return cookies;
     }
 
-    private validateJwt = async (jwt: string, type: JwtTokenTypes): Promise<JWTVerifyResult> => {
+    private validateJwtOrThrow = async (jwt: string, type: JwtTokenTypes): Promise<JWTVerifyResult> => {
 
+        let authorizedParty = null;
+        let audience: string|null = this._config.oidcClientMetadata.client_id;
         let requiredClaims: string[] = [];
 
         // Snapshot the time
@@ -697,31 +699,47 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Calculate max age
         let maxAge: number|string|null = (this.components.notBefore) ? (epoch(currDate) - this.components.notBefore) : null;
 
+        //todo: simplify and test this code
+
+        // Setup special configurations for each token type
         switch (type) {
             case JwtTokenTypes.ID:
-                requiredClaims = ['exp', 'auth_time'];
+                requiredClaims = ['exp', 'auth_time', 'sub', 'sid'];
                 break;
             case JwtTokenTypes.LOGOUT:
+                requiredClaims = ['sub'];
                 // Override the max age. Logout messages should not come too late.
                 maxAge = "10 minutes";
                 break;
             case JwtTokenTypes.REFRESH:
+                requiredClaims = ['exp', 'sub', 'sid'];
+
+                // The audience should be the authorization server
+                audience = this.components.oidcIssuer.metadata.issuer;
+                // Authorized party is this client
+                authorizedParty = this._config.oidcClientMetadata.client_id;
                 break;
             case JwtTokenTypes.ACCESS:
+                requiredClaims = ['exp', 'auth_time', 'sub', 'sid'];
+                // No audience is set for access tokens
+                audience = null;
+                // Authorized party is this client
+                authorizedParty = this._config.oidcClientMetadata.client_id;
                 break;
-
         }
 
         // Verify the token
         const verifyResult = await jose.jwtVerify(jwt, this.components.remoteJWKS, {
             algorithms: [KeycloakConnector.REQUIRED_ALGO],
             issuer: this.components.oidcIssuer.metadata.issuer,
-            audience: this._config.oidcClientMetadata.client_id,
+            ...audience && {audience: audience},
             typ: type,
             currentDate: currDate,
             ...maxAge && {maxTokenAge: maxAge},
             requiredClaims: requiredClaims,
         });
+
+        //todo: Check the payload `typ` claim is what is expected
 
         // Validate azp declaration
         // Note - Based on OIDC Core 1.0 - draft 32 errata 2.0, we are encouraged not to use azp & ignore it when it does occur.
@@ -757,7 +775,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             if (accessJwt === undefined) return userData;
 
             // Validate and save the access token payload
-            ({payload: userData.accessToken} = await this.validateJwt(accessJwt, JwtTokenTypes.ACCESS));
+            ({payload: userData.accessToken} = await this.validateJwtOrThrow(accessJwt, JwtTokenTypes.ACCESS));
 
         } catch (e) {
 
@@ -1020,7 +1038,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
             ...oidcClients,
             remoteJWKS: remoteJWKS,
             connectorKeys: connectorKeys,
-            notBefore: undefined,
         }
 
         // Return the new connector
