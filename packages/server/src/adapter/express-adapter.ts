@@ -156,7 +156,12 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 
         // Grab user data
         const connectorReq = await this.buildConnectorRequest(req, routeConfigOrRoles);
-        req.keycloak = await this.keycloakConnector.getUserData(connectorReq);
+        const userDataResponse = await this.keycloakConnector.getUserData(connectorReq);
+
+        //todo: add cookies to the response
+
+        // Store the user data
+        req.keycloak = userDataResponse.userData;
 
         // Check for no lock requirement (public route)
         if (routeConfigOrRoles === false) return next();

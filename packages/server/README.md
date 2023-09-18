@@ -27,6 +27,9 @@ Final step: Disable mTLS via `OAuth 2.0 Mutual TLS Certificate Bound Access Toke
 ### Required packages
 [//]: # (todo)
 
+### Recommended Keycloak settings
+[//]: # (todo)
+
 ### Install (for Fastify)
 ```shell
 npm i keycloak-connector-server @fastify/static

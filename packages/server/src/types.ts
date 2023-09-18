@@ -162,6 +162,11 @@ export interface ConnectorRequest {
     body?: Record<any, any>;
 }
 
+export interface UserDataResponse<Server extends SupportedServers> {
+    userData: UserData,
+    cookies?: CookieParams<Server>[],
+}
+
 export interface ConnectorResponse<Server extends SupportedServers> {
     serveFile?: string,
     redirectUrl?: string,

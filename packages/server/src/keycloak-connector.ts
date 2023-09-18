@@ -4,12 +4,12 @@ import type {
     ConnectorRequest,
     ConnectorResponse,
     CookieOptionsBase,
-    CookieParams,
+    CookieParams, KcAccessJWT,
     KeycloakConnectorConfigBase,
     KeycloakConnectorConfigCustom,
     KeycloakConnectorInternalConfiguration,
     SupportedServers,
-    UserData
+    UserData, UserDataResponse
 } from "./types.js";
 import {JwtTokenTypes, RouteEnum, StateOptions} from "./types.js";
 import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapter/abstract-adapter.js";
@@ -767,57 +767,119 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return verifyResult;
     }
 
-    public getUserData = async (req: ConnectorRequest): Promise<UserData> => {
+    public getUserData = async (connectorRequest: ConnectorRequest): Promise<UserDataResponse<Server>> => {
+
         // Start with a user who has no data, no authentication
-        const userData: UserData = structuredClone(UserDataDefault);
-
-        try {
-
-            // Check the state configuration
-            //todo: add support for stateful configurations
-
-            // Handle stateless configuration
-            const accessJwt = req.cookies?.[Cookies.ACCESS_TOKEN];
-
-            // No access token, return the default user data
-            if (accessJwt === undefined) return userData;
-
-            // Validate and save the access token payload
-            ({payload: userData.accessToken} = await this.validateJwtOrThrow(accessJwt, JwtTokenTypes.ACCESS));
-
-        } catch (e) {
-
-            //todo: check for expired token error, refresh it if able. store old access token id for two minutes to finish processing old requests, then clear from memory
-            //todo: also check here if a new token is available, use that in the 2 minute window
-
-            // Log if only to detect attacks
-            this._config.pinoLogger?.warn(e, 'Could not obtain user data from request');
-
-            return userData;
-
+        const userDataResponse: UserDataResponse<Server> = {
+            userData: structuredClone(UserDataDefault),
         }
 
-        //todo: test if the validate function checks for old authentications
+        // Extract the user data key
+        const userData = userDataResponse.userData;
 
+        // Grab the access token from the request
+        const hasValidAccessToken = await this.accessTokenFromRequest(connectorRequest, userDataResponse);
+
+        // Check for no access token
+        if (!hasValidAccessToken) return userDataResponse;
+
+        // User is authenticated since they have a valid access token
         userData.isAuthenticated = true;
 
         // Check if the page is public anyway OR is the page is protected, but there is no role requirement
-        if (req.routeConfig.public || (Array.isArray(req.routeConfig.roles) && req.routeConfig.roles.length === 0)) {
+        if (connectorRequest.routeConfig.public || (Array.isArray(connectorRequest.routeConfig.roles) && connectorRequest.routeConfig.roles.length === 0)) {
             userData.isAuthorized = true;
 
-        } else if (req.routeConfig.roles) {
+        } else if (connectorRequest.routeConfig.roles) {
             // Check for required roles
-            userData.isAuthorized = this.roleHelper.userHasRoles(req.routeConfig.roles, userData.accessToken);
+            userData.isAuthorized = this.roleHelper.userHasRoles(connectorRequest.routeConfig.roles, userData.accessToken);
 
         } else {
             this._config.pinoLogger?.error("Invalid route configuration, must specify roles if route is not public.");
             throw new Error('Invalid route configuration, must specify roles if route is not public.');
         }
 
-        // Add reference to user data on the request as well
-        req.keycloak = userData;
+        // Add reference to user data on the connector request as well
+        connectorRequest.keycloak = userData;
 
-        return userData;
+        return userDataResponse;
+    }
+
+    /**
+     * Gets an end-user's access token from the request and stores the validated version in the response
+     * @param connectorRequest
+     * @param userDataResponse
+     * @return boolean Whether a valid access token was stored in the response object
+     * @private
+     */
+    private async accessTokenFromRequest(connectorRequest: ConnectorRequest, userDataResponse: UserDataResponse<Server>): Promise<boolean> {
+
+        // Check the state configuration
+        //todo: add support for stateful configurations
+
+        // Handle stateless configuration
+        const accessJwt = connectorRequest.cookies?.[Cookies.ACCESS_TOKEN];
+
+        // No access token
+        if (accessJwt === undefined) return false;
+
+        try {
+
+            // todo: check with AS if the access token is legit (if configured that way) // if it's not, call this.newPairFromRefreshToken()
+
+            // Validate and save the access token payload
+            const jwtResult = await this.validateJwtOrThrow(accessJwt, JwtTokenTypes.ACCESS);
+
+            // Store the access token in the user data response
+            userDataResponse.userData.accessToken = jwtResult.payload;
+
+            return true;
+
+        } catch (e) {
+
+            //todo: check for expired token error, refresh it if able. store old access token id for two minutes to finish processing old requests, then clear from memory
+            //todo: also check here if a new token is available, use that in the 2 minute window
+
+            if (e instanceof jose.errors.JWTExpired) {
+                return await this.newPairFromRefreshToken(connectorRequest, userDataResponse);
+            }
+
+            // Log if only to detect attacks
+            this._config.pinoLogger?.warn(e, 'Could not obtain user data from request');
+        }
+
+        // Default return no access token
+        return false;
+    }
+
+    private async newPairFromRefreshToken(connectorRequest: ConnectorRequest, userDataResponse: UserDataResponse<Server>): Promise<boolean> {
+
+        // Check for a refresh token
+        //todo: add support for stateful configurations
+
+        // Handle stateless configuration
+        const refreshJwt = connectorRequest.cookies?.[Cookies.REFRESH_TOKEN];
+
+        // No refresh token, no updated access token
+        if (refreshJwt === undefined) return false;
+
+        // Check for an existing key update
+
+        // loop
+            // check the cache for our access token
+
+            // attempt to grab a lock on our access token
+
+                // with lock, send refresh token to KC for a new key pair
+
+                // success? push new refresh & access jwt to response
+                // failure? valid response + invalid refresh token -> store null in db OTHERWISE delete entry
+
+            // exit condition is expiration of delay
+
+        // todo: TEST this function returns a new refresh & access token ONLY during the initial refresh. This is to ensure
+        //          that if an access/refresh token pair is compromised, when our holdover window expires, a subsequent request
+        //          to KC with an old refresh token will cause the entire access/refresh token chain to get revoked.
     }
 
     public buildRouteProtectionResponse = async (req: ConnectorRequest, userData: UserData): Promise<ConnectorResponse<Server> | undefined> => {

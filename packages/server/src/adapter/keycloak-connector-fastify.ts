@@ -40,7 +40,12 @@ const keycloakConnectorFastifyPlugin: FastifyPluginAsync<KeycloakConnectorConfig
 
         // Grab user data
         const connectorReq = await adapter.buildConnectorRequest(request);
-        request.keycloak = await kcc.getUserData(connectorReq);
+        const userDataResponse = await kcc.getUserData(connectorReq);
+
+        //todo: add cookies to the response
+
+        // Store the user data
+        request.keycloak = userDataResponse.userData;
 
         // Grab the protector response
         const connectorResponse = await kcc.buildRouteProtectionResponse(connectorReq, request.keycloak);
