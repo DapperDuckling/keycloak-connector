@@ -38,7 +38,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
     public buildConnectorRequest = async (request: Request, routeConfigOrRoles: KeycloakRouteConfigOrRoles): Promise<ConnectorRequest> => {
 
         // Determine the input route config type and build the requisite route config object
-        const routeConfig: KeycloakRouteConfig = (Array.isArray(routeConfigOrRoles) || routeConfigOrRoles === undefined) ? {
+        const routeConfig: KeycloakRouteConfig | false = (Array.isArray(routeConfigOrRoles) || routeConfigOrRoles === undefined) ? {
             roles: routeConfigOrRoles ?? []
         } : routeConfigOrRoles;
 
@@ -49,7 +49,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             headers: request.headers,
             routeConfig: {
                 ...this.globalRouteConfig,
-                ...routeConfig,
+                ...(routeConfig !== false) && routeConfig,
             },
             ...request.keycloak && {keycloak: request.keycloak},
             ...isObject(request.body) && {body: request.body},
@@ -147,20 +147,19 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         }
     };
 
-    // private lock = (roleRequirement?: RequiredRoles | false): RequestHandler => async (req, res, next) => {
-    private lock = (routeConfigOrRoles?: KeycloakRouteConfigOrRoles | false): RequestHandler => async (req, res, next) => {
+    private lock = (routeConfigOrRoles?: KeycloakRouteConfigOrRoles): RequestHandler => async (req, res, next) => {
 
         // Check for cookies
         if (req.cookies === undefined) {
-            throw new Error('`cookies` parameter not found on request, is `cookie-parser` installed and in use?');
+            throw new Error('`cookies` parameter not found on request, is `cookie-parser` package installed and in use?');
         }
-
-        // Check for no lock requirement
-        if (routeConfigOrRoles === false) return next();
 
         // Grab user data
         const connectorReq = await this.buildConnectorRequest(req, routeConfigOrRoles);
         req.keycloak = await this.keycloakConnector.getUserData(connectorReq);
+
+        // Check for no lock requirement (public route)
+        if (routeConfigOrRoles === false) return next();
 
         // Grab the protector response
         const connectorResponse = await this.keycloakConnector.buildRouteProtectionResponse(connectorReq, req.keycloak);

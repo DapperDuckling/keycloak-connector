@@ -696,33 +696,38 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Snapshot the time
         const currDate = new Date();
 
-        // Calculate max age
+        // Calculate the default max age based on notBefore timestamp
         let maxAge: number|string|null = (this.components.notBefore) ? (epoch(currDate) - this.components.notBefore) : null;
-
-        //todo: simplify and test this code
 
         // Setup special configurations for each token type
         switch (type) {
             case JwtTokenTypes.ID:
-                requiredClaims = ['exp', 'auth_time', 'sub', 'sid'];
+                requiredClaims = ['exp', 'sub', 'sid', 'auth_time'];
                 break;
+
             case JwtTokenTypes.LOGOUT:
                 requiredClaims = ['sub'];
-                // Override the max age. Logout messages should not come too late.
+
+                // Override the max age. Logout messages from an AS should not come too late.
                 maxAge = "10 minutes";
                 break;
+
             case JwtTokenTypes.REFRESH:
                 requiredClaims = ['exp', 'sub', 'sid'];
 
                 // The audience should be the authorization server
                 audience = this.components.oidcIssuer.metadata.issuer;
+
                 // Authorized party is this client
                 authorizedParty = this._config.oidcClientMetadata.client_id;
                 break;
+
             case JwtTokenTypes.ACCESS:
-                requiredClaims = ['exp', 'auth_time', 'sub', 'sid'];
+                requiredClaims = ['exp', 'sub', 'sid', 'auth_time'];
+
                 // No audience is set for access tokens
                 audience = null;
+
                 // Authorized party is this client
                 authorizedParty = this._config.oidcClientMetadata.client_id;
                 break;
@@ -733,28 +738,31 @@ export class KeycloakConnector<Server extends SupportedServers> {
             algorithms: [KeycloakConnector.REQUIRED_ALGO],
             issuer: this.components.oidcIssuer.metadata.issuer,
             ...audience && {audience: audience},
-            typ: type,
             currentDate: currDate,
             ...maxAge && {maxTokenAge: maxAge},
             requiredClaims: requiredClaims,
         });
 
-        //todo: Check the payload `typ` claim is what is expected
+        // Validate the typ declaration
+        const jwtTyp = verifyResult.payload['typ'];
+        if (jwtTyp !== type) {
+            throw new Error(`Mismatch TYP claim, expected ${type}`);
+        }
 
         // Validate azp declaration
         // Note - Based on OIDC Core 1.0 - draft 32 errata 2.0, we are encouraged not to use azp & ignore it when it does occur.
         //          The configuration below blends the requirement, verifying the azp if it exists otherwise ignoring it.
         const jwtAzp = verifyResult.payload['azp'];
-        if ((jwtAzp !== undefined || type === JwtTokenTypes.ID) &&
-            jwtAzp !== this.components.oidcClient.metadata.client_id) {
+        if (authorizedParty && jwtAzp !== authorizedParty)  {
             throw new Error(`Mismatch AZP claim, expected ${this.components.oidcClient.metadata.client_id}`);
         }
 
-        // Validate IAT is not too early
-        const jwtIat = verifyResult.payload['iat'];
-        if (this.components.notBefore && (jwtIat === undefined || isNaN(jwtIat) || jwtIat < this.components.notBefore)) {
-            throw new Error(`Invalid IAT claim. Claim is missing, not a number, or before "notBefore" time declared by OP`);
-        }
+        // Removed: IAT validated by jose already
+        // // Validate IAT is not too early
+        // const jwtIat = verifyResult.payload['iat'];
+        // if (this.components.notBefore && (jwtIat === undefined || isNaN(jwtIat) || jwtIat < this.components.notBefore)) {
+        //     throw new Error(`Invalid IAT claim. Claim is missing, not a number, or before "notBefore" time declared by OP`);
+        // }
 
         return verifyResult;
     }
@@ -778,6 +786,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
             ({payload: userData.accessToken} = await this.validateJwtOrThrow(accessJwt, JwtTokenTypes.ACCESS));
 
         } catch (e) {
+
+            //todo: check for expired token error, refresh it if able. store old access token id for two minutes to finish processing old requests, then clear from memory
+            //todo: also check here if a new token is available, use that in the 2 minute window
 
             // Log if only to detect attacks
             this._config.pinoLogger?.warn(e, 'Could not obtain user data from request');

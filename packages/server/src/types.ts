@@ -188,7 +188,7 @@ export enum SupportedServers {
     fastify = "fastify"
 }
 
-export type KeycloakRouteConfigOrRoles = KeycloakRouteConfig | RoleRules | undefined;
+export type KeycloakRouteConfigOrRoles = KeycloakRouteConfig | RoleRules | undefined | false;
 export type KeycloakRouteConfig<Roles extends KeycloakRole = KeycloakRole> = RouteConfigRoles<Roles> & RouteConfigBase;
 
 type RouteConfigRoles<Roles extends KeycloakRole> = {
