@@ -879,7 +879,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // todo: TEST this function returns a new refresh & access token ONLY during the initial refresh. This is to ensure
         //          that if an access/refresh token pair is compromised, when our holdover window expires, a subsequent request
-        //          to KC with an old refresh token will cause the entire access/refresh token chain to get revoked.
+        //          to KC with an old refresh token will cause the entire access/refresh token chain to get revoked. See "max reuse"
+        //          under refresh tokens in KC.
     }
 
     public buildRouteProtectionResponse = async (req: ConnectorRequest, userData: UserData): Promise<ConnectorResponse<Server> | undefined> => {
