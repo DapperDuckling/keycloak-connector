@@ -1,5 +1,5 @@
 import {epoch, isDev, sleep} from "./helpers/utils.js";
-import {type ClientMetadata, errors, generators, Issuer, type IssuerMetadata} from "openid-client";
+import {type ClientMetadata, errors, generators, Issuer, type IssuerMetadata, TokenSet} from "openid-client";
 import type {
     ConnectorRequest,
     ConnectorResponse,
@@ -7,7 +7,7 @@ import type {
     CookieParams, KcAccessJWT,
     KeycloakConnectorConfigBase,
     KeycloakConnectorConfigCustom,
-    KeycloakConnectorInternalConfiguration,
+    KeycloakConnectorInternalConfiguration, RefreshTokenSetResult,
     SupportedServers,
     UserData, UserDataResponse
 } from "./types.js";
@@ -18,7 +18,7 @@ import * as jose from 'jose';
 import {ConnectorErrorRedirect, ErrorHints, LoginError} from "./helpers/errors.js";
 import {CookieNames, Cookies, CookiesToKeep} from "./helpers/cookies.js";
 import {RouteUrlDefaults, UserDataDefault} from "./helpers/defaults.js";
-import type {JWTVerifyResult} from "jose/dist/types/types.js";
+import type {JWTPayload, JWTVerifyResult} from "jose/dist/types/types.js";
 import {RoleHelper} from "./helpers/role-helper.js";
 import {standaloneKeyProvider} from "./crypto/standalone-key-provider.js";
 import type {KeyProviderConfig} from "./crypto/abstract-key-provider.js";
@@ -416,70 +416,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 }
             );
 
-            // Check the state configuration
-            //todo: add support for stateful
+            // Pass the new TokenSet to the handler and grab the resultant cookie(s)
+            const cookies = this.validateAndHandleTokenSet(tokenSet);
 
-            // todo: move this to its own method
-            // Handle stateless configuration
-
-            // Ensure certain properties exist (and make typescript happy)
-            if (!tokenSet.refresh_token ||
-                !tokenSet.access_token  ||
-                !tokenSet.id_token      ||
-                !tokenSet.expires_at
-            ) {
-                // noinspection ExceptionCaughtLocallyJS
-                throw new OPError({error: "Missing required properties from OP"});
-            }
-
-            // Decode the refresh token to grab the expiration date
-            const refreshTokenExpiration = jose.decodeJwt(tokenSet.refresh_token).exp ?? tokenSet.expires_at;
-
-            // Collect the cookies we would like the server to send back
-            const cookies: CookieParams<Server>[] = [];
-
-            // Store the access token
-            cookies.push({
-                name: Cookies.ACCESS_TOKEN,
-                value: tokenSet.access_token,
-                options: {
-                    ...this.CookieOptions,
-                    expires: new Date(tokenSet.expires_at * 1000),
-                }
-            });
-
-            // Store the refresh token
-            cookies.push({
-                name: Cookies.REFRESH_TOKEN,
-                value: tokenSet.refresh_token,
-                options: {
-                    ...this.CookieOptions,
-                    expires: new Date(refreshTokenExpiration * 1000),
-                }
-            });
-
-            // Store refresh token expiration date in a javascript accessible location
-            cookies.push({
-                name: Cookies.REFRESH_TOKEN_EXPIRATION,
-                value: refreshTokenExpiration.toString(),
-                options: {
-                    ...this.CookieOptions,
-                    httpOnly: false,
-                    expires: new Date(refreshTokenExpiration * 1000),
-                }
-            });
-
-            // Store the id token
-            cookies.push({
-                name: Cookies.ID_TOKEN,
-                value: tokenSet.id_token,
-                options: {
-                    ...this.CookieOptions,
-                    expires: new Date(refreshTokenExpiration * 1000), // Intentionally use refresh token expiration
-                }
-            });
-
-            // Grab the cookies to remove
+            // Grab and add the cookies to remove (for immediate expiration)
             cookies.push(...this.removeAuthFlowCookies(req.cookies, authFlowNonce));
 
             return {
@@ -708,7 +648,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             case JwtTokenTypes.LOGOUT:
                 requiredClaims = ['sub'];
 
-                // Override the max age. Logout messages from an AS should not come too late.
+                // Override the max age. Logout messages from an OP should not come too late.
                 maxAge = "10 minutes";
                 break;
 
@@ -775,13 +715,13 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         // Extract the user data key
-        const userData = userDataResponse.userData;
+        const userData: UserData = userDataResponse.userData;
 
         // Grab the access token from the request
-        const hasValidAccessToken = await this.accessTokenFromRequest(connectorRequest, userDataResponse);
+        await this.populateTokensFromRequest(connectorRequest, userDataResponse);
 
         // Check for no access token
-        if (!hasValidAccessToken) return userDataResponse;
+        if (userData.accessToken === undefined) return userDataResponse;
 
         // User is authenticated since they have a valid access token
         userData.isAuthenticated = true;
@@ -806,64 +746,108 @@ export class KeycloakConnector<Server extends SupportedServers> {
     }
 
     /**
-     * Gets an end-user's access token from the request and stores the validated version in the response
+     * Gets an end-user's access token from the request and stores the validated version in the response, or,
+     * if the access token is not valid, uses the refresh token to grab a new TokenSet, if possible.
      * @param connectorRequest
      * @param userDataResponse
-     * @return boolean Whether a valid access token was stored in the response object
      * @private
      */
-    private async accessTokenFromRequest(connectorRequest: ConnectorRequest, userDataResponse: UserDataResponse<Server>): Promise<boolean> {
+    private async populateTokensFromRequest(connectorRequest: ConnectorRequest, userDataResponse: UserDataResponse<Server>): Promise<void> {
 
         // Check the state configuration
         //todo: add support for stateful configurations
 
         // Handle stateless configuration
         const accessJwt = connectorRequest.cookies?.[Cookies.ACCESS_TOKEN];
+        const refreshJwt = connectorRequest.cookies?.[Cookies.REFRESH_TOKEN];
+
+        // Grab the access token
+        const accessToken = await this.accessTokenFromJwt(accessJwt);
+
+        // Check for an access token
+        if (accessToken) {
+            // Store access token in response
+            userDataResponse.userData.accessToken = accessToken;
+            return;
+        }
+
+        // Grab a new pair of tokens using the refresh token
+        const refreshTokenSetResult = await this.refreshTokenSet(refreshJwt, accessJwt);
+
+        // Check the refresh result
+        if (refreshTokenSetResult === undefined) return;
+
+        // Expand variables
+        const {tokenSet, shouldUpdateCookies} = refreshTokenSetResult;
+
+        let cookies;
+        try {
+            // Pass the new TokenSet to the handler and grab the resultant cookie(s)
+            cookies = this.validateAndHandleTokenSet(tokenSet);
+        } catch (e) {
+            this._config.pinoLogger?.warn(`Failed to get new TokenSet using refresh token: ${e}`);
+            return;
+        }
+
+        // Store the access token in the response
+        userDataResponse.userData.accessToken = tokenSet['accessToken'] as KcAccessJWT;
+
+        // Record the token pair in the response cookies
+        if (shouldUpdateCookies) {
+            userDataResponse.cookies ??= [];
+            userDataResponse.cookies.push(...cookies);
+        }
+    }
+
+    /**
+     * Returns the access token from the provided Jwt. Will return the new access token for a short-period to account
+     * for network delays and queued requests.
+     * @param accessJwt
+     * @private
+     */
+    private async accessTokenFromJwt(accessJwt?: string): Promise<JWTPayload|void> {
 
         // No access token
-        if (accessJwt === undefined) return false;
+        if (accessJwt === undefined) return;
 
         try {
-
-            // todo: check with AS if the access token is legit (if configured that way) // if it's not, call this.newPairFromRefreshToken()
 
             // Validate and save the access token payload
             const jwtResult = await this.validateJwtOrThrow(accessJwt, JwtTokenTypes.ACCESS);
 
-            // Store the access token in the user data response
-            userDataResponse.userData.accessToken = jwtResult.payload;
+            // todo: check with OP if the access token is legit (if configured that way) // if it's not, call this.populateNewTokensFromRefresh()
 
-            return true;
+            // Return the access token in the user data response
+            return jwtResult.payload;
 
         } catch (e) {
-
-            //todo: check for expired token error, refresh it if able. store old access token id for two minutes to finish processing old requests, then clear from memory
-            //todo: also check here if a new token is available, use that in the 2 minute window
-
-            if (e instanceof jose.errors.JWTExpired) {
-                return await this.newPairFromRefreshToken(connectorRequest, userDataResponse);
-            }
-
             // Log if only to detect attacks
-            this._config.pinoLogger?.warn(e, 'Could not obtain user data from request');
+            if (e instanceof jose.errors.JWTExpired) {
+                this._config.pinoLogger?.warn(e, 'Expired access token used');
+            } else {
+                this._config.pinoLogger?.warn(e, 'Error validating access token');
+            }
         }
-
-        // Default return no access token
-        return false;
     }
 
-    private async newPairFromRefreshToken(connectorRequest: ConnectorRequest, userDataResponse: UserDataResponse<Server>): Promise<boolean> {
+    /**
+     * Obtains a new TokenSet from the OP
+     * @param refreshJwt
+     * @param accessJwt
+     * @private
+     */
+    private async refreshTokenSet(refreshJwt?: string, accessJwt?: string): Promise<RefreshTokenSetResult|undefined> {
 
-        // Check for a refresh token
-        //todo: add support for stateful configurations
+        // No refresh token, no new token pair
+        if (refreshJwt === undefined) return;
 
-        // Handle stateless configuration
-        const refreshJwt = connectorRequest.cookies?.[Cookies.REFRESH_TOKEN];
+        // Check for an update in progress
+            // ensure the update matches our access token's id
+            return {
+                tokenSet: "mycooltokenset",
+                shouldUpdateCookies: false,
+            }
 
-        // No refresh token, no updated access token
-        if (refreshJwt === undefined) return false;
-
-        // Check for an existing key update
 
         // loop
             // check the cache for our access token
@@ -877,10 +861,94 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             // exit condition is expiration of delay
 
+
+        //todo: remove test
+
+        // testing token refresh
+        const response = await this.components.oidcClient.refresh(refreshJwt);
+
+        debugger;
+        return {
+            tokenSet: "mycooltokenset",
+            shouldUpdateCookies: true,
+        }
+
         // todo: TEST this function returns a new refresh & access token ONLY during the initial refresh. This is to ensure
         //          that if an access/refresh token pair is compromised, when our holdover window expires, a subsequent request
         //          to KC with an old refresh token will cause the entire access/refresh token chain to get revoked. See "max reuse"
         //          under refresh tokens in KC.
+    }
+
+    /**
+     * @throws OPError
+     * @param tokenSet
+     * @private
+     */
+    private validateAndHandleTokenSet(tokenSet: TokenSet): CookieParams<Server>[] {
+
+        // Check the state configuration
+        //todo: add support for stateful
+
+        // todo: move this to its own method
+        // Handle stateless configuration
+
+        // Ensure certain properties exist (and make typescript happy)
+        if (!tokenSet.refresh_token ||
+            !tokenSet.access_token  ||
+            !tokenSet.id_token      ||
+            !tokenSet.expires_at
+        ) {
+            throw new OPError({error: "Missing required properties from OP"});
+        }
+
+        // Decode the refresh token to grab the expiration date
+        const refreshTokenExpiration = jose.decodeJwt(tokenSet.refresh_token).exp ?? tokenSet.expires_at;
+
+        // Collect the cookies we would like the server to send back
+        const cookies: CookieParams<Server>[] = [];
+
+        // Store the access token
+        cookies.push({
+            name: Cookies.ACCESS_TOKEN,
+            value: tokenSet.access_token,
+            options: {
+                ...this.CookieOptions,
+                expires: new Date(tokenSet.expires_at * 1000),
+            }
+        });
+
+        // Store the refresh token
+        cookies.push({
+            name: Cookies.REFRESH_TOKEN,
+            value: tokenSet.refresh_token,
+            options: {
+                ...this.CookieOptions,
+                expires: new Date(refreshTokenExpiration * 1000),
+            }
+        });
+
+        // Store refresh token expiration date in a javascript accessible location
+        cookies.push({
+            name: Cookies.REFRESH_TOKEN_EXPIRATION,
+            value: refreshTokenExpiration.toString(),
+            options: {
+                ...this.CookieOptions,
+                httpOnly: false,
+                expires: new Date(refreshTokenExpiration * 1000),
+            }
+        });
+
+        // Store the id token
+        cookies.push({
+            name: Cookies.ID_TOKEN,
+            value: tokenSet.id_token,
+            options: {
+                ...this.CookieOptions,
+                expires: new Date(refreshTokenExpiration * 1000), // Intentionally use refresh token expiration
+            }
+        });
+
+        return cookies;
     }
 
     public buildRouteProtectionResponse = async (req: ConnectorRequest, userData: UserData): Promise<ConnectorResponse<Server> | undefined> => {

@@ -1,4 +1,4 @@
-import type {Client, ClientMetadata, Issuer, IssuerMetadata} from "openid-client";
+import type {Client, ClientMetadata, Issuer, IssuerMetadata, TokenSet} from "openid-client";
 import type {CookieSerializeOptions} from "@fastify/cookie";
 import type {CookieOptions} from "express-serve-static-core";
 import type {JWK, KeyLike} from "jose";
@@ -252,6 +252,11 @@ export type RequiredRoles<
 > = CombinedRoleRules<Roles, Clients> | Array<CombinedRoleRules<Roles, Clients>>;
 
 export type KcAccessJWT = OidcIdToken & OidcStandardClaims & KcAccessClaims;
+
+export type RefreshTokenSetResult = {
+    tokenSet: TokenSet,
+    shouldUpdateCookies: boolean,
+}
 
 type JWTRoles = {
     roles: string[],
