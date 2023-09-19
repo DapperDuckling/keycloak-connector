@@ -772,6 +772,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         // Grab a new pair of tokens using the refresh token
+        //todo: call the token-cache provider...
         const refreshTokenSetResult = await this.refreshTokenSet(refreshJwt, accessJwt);
 
         // Check the refresh result
@@ -838,40 +839,40 @@ export class KeycloakConnector<Server extends SupportedServers> {
      */
     private async refreshTokenSet(refreshJwt?: string, accessJwt?: string): Promise<RefreshTokenSetResult|undefined> {
 
-        // No refresh token, no new token pair
-        if (refreshJwt === undefined) return;
-
-        // Check for an update in progress
-            // ensure the update matches our access token's id
-            return {
-                tokenSet: "mycooltokenset",
-                shouldUpdateCookies: false,
-            }
-
-
-        // loop
-            // check the cache for our access token
-
-            // attempt to grab a lock on our access token
-
-                // with lock, send refresh token to KC for a new key pair
-
-                // success? push new refresh & access jwt to response
-                // failure? valid response + invalid refresh token -> store null in db OTHERWISE delete entry
-
-            // exit condition is expiration of delay
-
-
-        //todo: remove test
-
-        // testing token refresh
-        const response = await this.components.oidcClient.refresh(refreshJwt);
-
-        debugger;
-        return {
-            tokenSet: "mycooltokenset",
-            shouldUpdateCookies: true,
-        }
+        // // No refresh token, no new token pair
+        // if (refreshJwt === undefined) return;
+        //
+        // // Check for an update in progress
+        //     // ensure the update matches our access token's id
+        //     return {
+        //         tokenSet: "mycooltokenset",
+        //         shouldUpdateCookies: false,
+        //     }
+        //
+        //
+        // // loop
+        //     // check the cache for our access token
+        //
+        //     // attempt to grab a lock on our access token
+        //
+        //         // with lock, send refresh token to KC for a new key pair
+        //
+        //         // success? push new refresh & access jwt to response
+        //         // failure? valid response + invalid refresh token -> store null in db OTHERWISE delete entry
+        //
+        //     // exit condition is expiration of delay
+        //
+        //
+        // //todo: remove test
+        //
+        // // testing token refresh
+        // const response = await this.components.oidcClient.refresh(refreshJwt);
+        //
+        // debugger;
+        // return {
+        //     tokenSet: "mycooltokenset",
+        //     shouldUpdateCookies: true,
+        // }
 
         // todo: TEST this function returns a new refresh & access token ONLY during the initial refresh. This is to ensure
         //          that if an access/refresh token pair is compromised, when our holdover window expires, a subsequent request

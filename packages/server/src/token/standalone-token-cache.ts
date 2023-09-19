@@ -10,6 +10,7 @@ class StandaloneTokenCache extends AbstractTokenCache {
 
     private pendingRefresh = new LRUCache<string, Promise<TokenSet | undefined>>({
         max: 10000,
+        ttl: AbstractTokenCache.REFRESH_HOLDOVER_WINDOW_SECS * 60,
     });
 
     refreshTokenSet = async (refreshJwt: string, accessJwt?: string): Promise<RefreshTokenSetResult | undefined> => {
@@ -45,9 +46,7 @@ class StandaloneTokenCache extends AbstractTokenCache {
         }
 
         // Store the refresh promise for later reuse
-        this.pendingRefresh.set(cacheId, refreshPromise(), {
-            ttl: AbstractTokenCache.REFRESH_HOLDOVER_WINDOW_SECS * 60,
-        });
+        this.pendingRefresh.set(cacheId, refreshPromise());
 
         // Wait for the refresh results
         const tokenSet = await refreshPromise();
