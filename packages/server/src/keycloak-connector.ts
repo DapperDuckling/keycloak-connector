@@ -4,12 +4,15 @@ import type {
     ConnectorRequest,
     ConnectorResponse,
     CookieOptionsBase,
-    CookieParams, KcAccessJWT,
+    CookieParams,
+    KcAccessJWT,
     KeycloakConnectorConfigBase,
     KeycloakConnectorConfigCustom,
-    KeycloakConnectorInternalConfiguration, RefreshTokenSetResult,
+    KeycloakConnectorInternalConfiguration,
+    RefreshTokenSetResult,
     SupportedServers,
-    UserData, UserDataResponse
+    UserData,
+    UserDataResponse
 } from "./types.js";
 import {JwtTokenTypes, RouteEnum, StateOptions} from "./types.js";
 import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapter/abstract-adapter.js";
@@ -772,8 +775,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         // Grab a new pair of tokens using the refresh token
-        //todo: call the token-cache provider...
-        const refreshTokenSetResult = await this.refreshTokenSet(refreshJwt, accessJwt);
+        const refreshTokenSetResult = await this.refreshTokenSet(refreshJwt);
 
         // Check the refresh result
         if (refreshTokenSetResult === undefined) return;
@@ -834,50 +836,28 @@ export class KeycloakConnector<Server extends SupportedServers> {
     /**
      * Obtains a new TokenSet from the OP
      * @param refreshJwt
-     * @param accessJwt
      * @private
      */
-    private async refreshTokenSet(refreshJwt?: string, accessJwt?: string): Promise<RefreshTokenSetResult|undefined> {
+    private async refreshTokenSet(refreshJwt?: string): Promise<RefreshTokenSetResult|undefined> {
 
-        // // No refresh token, no new token pair
-        // if (refreshJwt === undefined) return;
-        //
-        // // Check for an update in progress
-        //     // ensure the update matches our access token's id
-        //     return {
-        //         tokenSet: "mycooltokenset",
-        //         shouldUpdateCookies: false,
-        //     }
-        //
-        //
-        // // loop
-        //     // check the cache for our access token
-        //
-        //     // attempt to grab a lock on our access token
-        //
-        //         // with lock, send refresh token to KC for a new key pair
-        //
-        //         // success? push new refresh & access jwt to response
-        //         // failure? valid response + invalid refresh token -> store null in db OTHERWISE delete entry
-        //
-        //     // exit condition is expiration of delay
-        //
-        //
-        // //todo: remove test
-        //
-        // // testing token refresh
-        // const response = await this.components.oidcClient.refresh(refreshJwt);
-        //
-        // debugger;
-        // return {
-        //     tokenSet: "mycooltokenset",
-        //     shouldUpdateCookies: true,
-        // }
+        // Check for missing refresh token
+        if (refreshJwt === undefined) return undefined;
 
-        // todo: TEST this function returns a new refresh & access token ONLY during the initial refresh. This is to ensure
-        //          that if an access/refresh token pair is compromised, when our holdover window expires, a subsequent request
-        //          to KC with an old refresh token will cause the entire access/refresh token chain to get revoked. See "max reuse"
-        //          under refresh tokens in KC.
+        // Validate the refresh token
+        try {
+            // Validate the jwt
+            void await this.validateJwtOrThrow(refreshJwt, JwtTokenTypes.REFRESH);
+
+            // Perform refresh
+            //todo:
+            return await this._config.tokenCacheProvider.refreshTokenSet(refreshJwt);
+
+        } catch (e) {
+            this._config.pinoLogger?.debug(`Could not validate refresh token, could not perform refresh. ${e}`);
+        }
+
+        // Could not refresh
+        return undefined;
     }
 
     /**

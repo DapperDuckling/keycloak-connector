@@ -7,6 +7,7 @@ import type {IncomingHttpHeaders} from "node:http";
 import type {JWTPayload} from "jose/dist/types/types.js";
 import type {AbstractKeyProvider, KeyProviderConfig} from "./crypto/abstract-key-provider.js";
 import type {AbstractClusterProvider} from "./cluster/abstract-cluster-provider.js";
+import type {TokenCacheProvider} from "./token/abstract-token-cache.js";
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -109,6 +110,9 @@ export interface KeycloakConnectorConfigBase {
 
     /** Allows you to specify a built-in or pass a custom key provider */
     keyProvider?: KeyProvider;
+
+    /** Allows you to specify a built-in token cache provider or provide a custom implementation */
+    tokenCacheProvider?: TokenCacheProvider;
 }
 
 export type KeyProvider = (keyProviderConfig: KeyProviderConfig) => Promise<AbstractKeyProvider>;
@@ -460,5 +464,3 @@ export enum ClientSearch {
     REALM,
     RESOURCE_ACCESS,
 }
-
-export type ClassConstructor<T> = new (...args: never[]) => T;

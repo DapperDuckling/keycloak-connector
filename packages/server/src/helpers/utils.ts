@@ -13,7 +13,10 @@ export const promiseWait = <T>(promise: Promise<T>, start: number, maxDuration: 
     return Promise.race<T>([promise, sleepPromise()]);
 }
 
-export const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+export const sleep = (ms: number, extraVariability?: number) => new Promise<void>(resolve => {
+    const timeout = ms + (Math.random() * (extraVariability ?? 0));
+    setTimeout(resolve, timeout);
+});
 
 export function isDev() {
     return process && process?.env["NODE_ENV"] === "development";

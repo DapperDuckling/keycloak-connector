@@ -3,59 +3,89 @@ import type {RefreshTokenSetResult} from "../types.js";
 import {LRUCache} from "lru-cache";
 import {promiseWait, sleep} from "../helpers/utils.js";
 import {TokenSet} from "openid-client";
+import * as jose from 'jose';
 
-class StandaloneTokenCache extends AbstractTokenCache {
-
-    protected MAX_WAIT_SECS = 15;
+export class StandaloneTokenCache extends AbstractTokenCache {
 
     private pendingRefresh = new LRUCache<string, Promise<TokenSet | undefined>>({
         max: 10000,
         ttl: AbstractTokenCache.REFRESH_HOLDOVER_WINDOW_SECS * 60,
     });
 
-    refreshTokenSet = async (refreshJwt: string, accessJwt?: string): Promise<RefreshTokenSetResult | undefined> => {
+    refreshTokenSet = async (validatedRefreshJwt: string): Promise<RefreshTokenSetResult | undefined> => {
 
-        const cacheId = refreshJwt + ((accessJwt !== undefined) ? `::${accessJwt}` : '');
+        // Decode JWTs
+        const refreshToken = await jose.decodeJwt(validatedRefreshJwt);
+
+        // Make the update id the JWT ID
+        const updateId = refreshToken.jti;
+
+        // Check for a valid id
+        if (updateId === undefined) {
+            this.config.pinoLogger?.error('No JWT ID found on a validated refresh token. This should never happen!');
+            return undefined;
+        }
 
         // Record start time
-        const attemptStartTime = Date.now()/1000;
+        const attemptStartTime = Date.now();
+        const lastRetryTime = attemptStartTime + AbstractTokenCache.MAX_WAIT_SECS * 1000;
 
-        // Grab existing update
-        const existingRefreshPromise = this.pendingRefresh.get(cacheId);
+        do {
+            // Grab existing update promise (if any)
+            const existingRefreshPromise = this.pendingRefresh.get(updateId);
 
-        // Check for a refresh result from the pending request
-        if (existingRefreshPromise) {
-            try {
-                // Wait for the previous attempt to end
-                const tokenSet = await promiseWait<TokenSet | undefined>(existingRefreshPromise, attemptStartTime, this.MAX_WAIT_SECS);
+            // Check for existing update
+            if (existingRefreshPromise) {
+                // Wait for the result
+                const tokenSet = await existingRefreshPromise;
 
-                // Return the token set if it came through, otherwise do not return anything
-                return (tokenSet) ? {
+                // Check for a result, don't update cookies here since another connection is already handling that
+                if (tokenSet) return {
                     tokenSet: tokenSet,
                     shouldUpdateCookies: false,
-                } : undefined;
-            } catch (e) {}
+                }
 
-            // No data, return from promise
-            return;
-        }
+                // Delay and start from the top again
+                await sleep(0, 250);
+                continue;
+            }
 
-        // Build the promise wrapping the token refresh operation
-        const refreshPromise = async () => {
-            return await this.configuration.oidcClient.refresh(refreshJwt);
-        }
+            // No existing update or no data returned
 
-        // Store the refresh promise for later reuse
-        this.pendingRefresh.set(cacheId, refreshPromise());
+            // Get reference to token refresh promise
+            const tokenRefreshPromise = this.performTokenRefresh(validatedRefreshJwt);
 
-        // Wait for the refresh results
-        const tokenSet = await refreshPromise();
+            // Grab a lock by setting the value here
+            // Dev note: There is no race condition since the LRUCache is synchronous
+            this.pendingRefresh.set(updateId, tokenRefreshPromise);
 
-        // Return the token set if it came through, otherwise do not return anything
-        return (tokenSet) ? {
-            tokenSet: tokenSet,
-            shouldUpdateCookies: true,
-        } : undefined;
+            try {
+                // Refresh the token
+                const tokenSet = await tokenRefreshPromise;
 
+                // Check for a new token set, do update the cookies here
+                if (tokenSet) return {
+                    tokenSet: tokenSet,
+                    shouldUpdateCookies: true,
+                }
+            } catch (e) {
+                // Log error
+                this.config.pinoLogger?.warn(`Failed perform token refresh: ${e}`);
+            }
+
+            // Release the lock
+            this.pendingRefresh.delete(validatedRefreshJwt);
+
+            // Delay and loop
+            await sleep(0, 250);
+
+        } while (Date.now() <= lastRetryTime);
+
+        // Could not refresh in time
+        return undefined;
     };
+
+    static factory = (...args: ConstructorParameters<typeof AbstractTokenCache>) => {
+        return new this(...args);
+    }
 }
