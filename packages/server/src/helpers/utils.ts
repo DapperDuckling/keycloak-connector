@@ -2,11 +2,11 @@
 // Source: jose (epoch.js)
 export const epoch = (date: Date = new Date()) => Math.floor(date.getTime() / 1000);
 
-export const promiseWait = <T>(promise: Promise<T>, start: number, maxDuration: number) => {
+export const promiseWait = <T>(promise: Promise<T>, waitUntil: number) => {
     // Construct sleep promise
-    const elapsedTime = (new Date()).getTime() - start;
     const sleepPromise = async () => {
-        await sleep(maxDuration - elapsedTime);
+        const remainingTime = waitUntil - (new Date()).getTime();
+        await sleep(remainingTime);
         throw new Error('max function duration exceeded');
     };
 
@@ -14,7 +14,7 @@ export const promiseWait = <T>(promise: Promise<T>, start: number, maxDuration: 
 }
 
 export const sleep = (ms: number, extraVariability?: number) => new Promise<void>(resolve => {
-    const timeout = ms + (Math.random() * (extraVariability ?? 0));
+    const timeout = Math.max(0, ms + (Math.random() * (extraVariability ?? 0)));
     setTimeout(resolve, timeout);
 });
 

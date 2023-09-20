@@ -1,16 +1,15 @@
 import type {KeycloakConnectorInternalConfiguration, RefreshTokenSetResult} from "../types.js";
 import type {TokenSet} from "openid-client";
 import type {Logger} from "pino";
-import {StandaloneTokenCache} from "./standalone-token-cache.js";
-import type {Constructor} from "../generics.js";
+import {AbstractClusterProvider} from "../cluster/abstract-cluster-provider.js";
 
 export interface TokenCacheConfig {
-    internalKcConfig: KeycloakConnectorInternalConfiguration;
-    pinoLogger?: Logger;
+    pinoLogger?: Logger,
+    clusterProvider?: AbstractClusterProvider,
+    internalKcConfig: KeycloakConnectorInternalConfiguration,
 }
 
-// export type TokenCacheProviderArgs = ConstructorParameters<typeof AbstractTokenCache>;
-// export type TokenCacheProvider = (c: Constructor<AbstractTokenCache, TokenCacheProviderArgs>, ...args: TokenCacheProviderArgs) => Promise<AbstractTokenCache>;
+export type TokenCacheProvider = (...args: ConstructorParameters<typeof AbstractTokenCache>) => Promise<AbstractTokenCache>;
 export abstract class AbstractTokenCache {
 
     protected static MAX_WAIT_SECS = 15;
@@ -28,7 +27,6 @@ export abstract class AbstractTokenCache {
         return await this.config.internalKcConfig.oidcClient.refresh(refreshJwt);
     };
 
-    // protected static factory: TokenCacheProvider = async (c, ...args) => {
-    //     return new c(...args);
-    // };
+    static factory: TokenCacheProvider;
+
 }

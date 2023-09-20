@@ -1,4 +1,5 @@
 import {AbstractTokenCache} from "./abstract-token-cache.js";
+import type {TokenCacheProvider} from "./abstract-token-cache.js";
 import type {RefreshTokenSetResult} from "../types.js";
 import {LRUCache} from "lru-cache";
 import {promiseWait, sleep} from "../helpers/utils.js";
@@ -37,7 +38,7 @@ export class StandaloneTokenCache extends AbstractTokenCache {
             // Check for existing update
             if (existingRefreshPromise) {
                 // Wait for the result
-                const tokenSet = await existingRefreshPromise;
+                const tokenSet = await promiseWait(existingRefreshPromise, lastRetryTime).catch();
 
                 // Check for a result, don't update cookies here since another connection is already handling that
                 if (tokenSet) return {
@@ -85,7 +86,7 @@ export class StandaloneTokenCache extends AbstractTokenCache {
         return undefined;
     };
 
-    static factory = (...args: ConstructorParameters<typeof AbstractTokenCache>) => {
+    static override factory: TokenCacheProvider = async (...args: ConstructorParameters<typeof AbstractTokenCache>) => {
         return new this(...args);
     }
 }
