@@ -38,7 +38,7 @@ export class StandaloneTokenCache extends AbstractTokenCache {
             // Check for existing update
             if (existingRefreshPromise) {
                 // Wait for the result
-                const tokenSet = await promiseWait(existingRefreshPromise, lastRetryTime).catch();
+                const tokenSet = await promiseWait(existingRefreshPromise, lastRetryTime).catch(() => undefined);
 
                 // Check for a result, don't update cookies here since another connection is already handling that
                 if (tokenSet) return {
@@ -86,7 +86,7 @@ export class StandaloneTokenCache extends AbstractTokenCache {
         return undefined;
     };
 
-    static override factory: TokenCacheProvider = async (...args: ConstructorParameters<typeof AbstractTokenCache>) => {
+    static override provider: TokenCacheProvider = async (...args: ConstructorParameters<typeof AbstractTokenCache>) => {
         return new this(...args);
     }
 }

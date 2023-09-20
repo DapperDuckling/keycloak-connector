@@ -28,6 +28,8 @@ import type {KeyProviderConfig} from "./crypto/abstract-key-provider.js";
 import {webcrypto} from "crypto";
 import RPError = errors.RPError;
 import OPError = errors.OPError;
+import {StandaloneTokenCache} from "./token/standalone-token-cache.js";
+import type {TokenCacheConfig} from "./token/abstract-token-cache.js";
 
 export class KeycloakConnector<Server extends SupportedServers> {
 
@@ -849,8 +851,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             void await this.validateJwtOrThrow(refreshJwt, JwtTokenTypes.REFRESH);
 
             // Perform refresh
-            //todo:
-            return await this._config.tokenCacheProvider.refreshTokenSet(refreshJwt);
+            return await this.components.tokenCache.refreshTokenSet(refreshJwt);
 
         } catch (e) {
             this._config.pinoLogger?.debug(`Could not validate refresh token, could not perform refresh. ${e}`);
@@ -1140,7 +1141,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             ...config.pinoLogger && {pinoLogger: config.pinoLogger},
             ...config.clusterProvider && {clusterProvider: config.clusterProvider},
         }
-        const keyProvider = await (config.keyProvider ?? standaloneKeyProvider)(keyProviderConfig)
+        const keyProvider = await (config.keyProvider ?? standaloneKeyProvider)(keyProviderConfig);
         const connectorKeys = await keyProvider.getActiveKeys();
 
         // Grab the oidc clients
@@ -1154,10 +1155,19 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Store the OP JWK set
         const remoteJWKS = KeycloakConnector.createRemoteJWTSet(oidcClients.oidcIssuer.metadata.jwks_uri);
 
+        // Initialize the token cache
+        const tokenCacheConfig: TokenCacheConfig = {
+            ...config.pinoLogger && {pinoLogger: config.pinoLogger},
+            ...config.clusterProvider && {clusterProvider: config.clusterProvider},
+            oidcClient: oidcClients.oidcClient,
+        }
+        const tokenCache = await (config.tokenCacheProvider ?? StandaloneTokenCache.provider)(tokenCacheConfig);
+
         const components: KeycloakConnectorInternalConfiguration = {
             oidcDiscoveryUrl: oidcDiscoveryUrl,
             oidcConfig: openIdConfig,
             keyProvider: keyProvider,
+            tokenCache: tokenCache,
             ...oidcClients,
             remoteJWKS: remoteJWKS,
             connectorKeys: connectorKeys,

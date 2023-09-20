@@ -2,11 +2,12 @@ import type {KeycloakConnectorInternalConfiguration, RefreshTokenSetResult} from
 import type {TokenSet} from "openid-client";
 import type {Logger} from "pino";
 import {AbstractClusterProvider} from "../cluster/abstract-cluster-provider.js";
+import type {BaseClient} from "openid-client";
 
 export interface TokenCacheConfig {
     pinoLogger?: Logger,
     clusterProvider?: AbstractClusterProvider,
-    internalKcConfig: KeycloakConnectorInternalConfiguration,
+    oidcClient: BaseClient,
 }
 
 export type TokenCacheProvider = (...args: ConstructorParameters<typeof AbstractTokenCache>) => Promise<AbstractTokenCache>;
@@ -24,9 +25,8 @@ export abstract class AbstractTokenCache {
     public abstract refreshTokenSet(refreshJwt: string, accessJwt?: string): Promise<RefreshTokenSetResult | undefined>;
 
     protected performTokenRefresh = async (refreshJwt: string): Promise<TokenSet | undefined> => {
-        return await this.config.internalKcConfig.oidcClient.refresh(refreshJwt);
+        return await this.config.oidcClient.refresh(refreshJwt);
     };
 
-    static factory: TokenCacheProvider;
-
+    static provider: TokenCacheProvider;
 }
