@@ -1,14 +1,13 @@
 import {AbstractTokenCache} from "./abstract-token-cache.js";
 import type {TokenCacheProvider} from "./abstract-token-cache.js";
-import type {RefreshTokenSetResult} from "../types.js";
+import type {RefreshTokenSetResult, RefreshTokenSet} from "../types.js";
 import {LRUCache} from "lru-cache";
 import {promiseWait, sleep} from "../helpers/utils.js";
-import {TokenSet} from "openid-client";
 import * as jose from 'jose';
 
 export class StandaloneTokenCache extends AbstractTokenCache {
 
-    private pendingRefresh = new LRUCache<string, Promise<TokenSet | undefined>>({
+    private pendingRefresh = new LRUCache<string, Promise<RefreshTokenSet | undefined>>({
         max: 10000,
         ttl: AbstractTokenCache.REFRESH_HOLDOVER_WINDOW_SECS * 60,
     });
@@ -23,7 +22,13 @@ export class StandaloneTokenCache extends AbstractTokenCache {
 
         // Check for a valid id
         if (updateId === undefined) {
-            this.config.pinoLogger?.error('No JWT ID found on a validated refresh token. This should never happen!');
+            this.config.pinoLogger?.error('No JWT ID found on a validated refresh token.');
+            return undefined;
+        }
+
+        // Check for reasonable update id length
+        if (updateId.length > AbstractTokenCache.MAX_UPDATE_JWT_ID_LENGTH) {
+            this.config.pinoLogger?.error(`JWT ID length exceeded ${AbstractTokenCache.MAX_UPDATE_JWT_ID_LENGTH}, received ${updateId.length} characters`);
             return undefined;
         }
 
@@ -42,7 +47,7 @@ export class StandaloneTokenCache extends AbstractTokenCache {
 
                 // Check for a result, don't update cookies here since another connection is already handling that
                 if (tokenSet) return {
-                    tokenSet: tokenSet,
+                    refreshTokenSet: tokenSet,
                     shouldUpdateCookies: false,
                 }
 
@@ -53,20 +58,20 @@ export class StandaloneTokenCache extends AbstractTokenCache {
 
             // No existing update or no data returned
 
-            // Get reference to token refresh promise
-            const tokenRefreshPromise = this.performTokenRefresh(validatedRefreshJwt);
-
-            // Grab a lock by setting the value here
-            // Dev note: There is no race condition since the LRUCache is synchronous
-            this.pendingRefresh.set(updateId, tokenRefreshPromise);
-
             try {
+                // Get reference to token refresh promise
+                const tokenRefreshPromise = this.performTokenRefresh(validatedRefreshJwt);
+
+                // Grab a lock by setting the value here
+                // Dev note: There is no race condition since the LRUCache is synchronous
+                this.pendingRefresh.set(updateId, tokenRefreshPromise);
+
                 // Refresh the token
                 const tokenSet = await tokenRefreshPromise;
 
                 // Check for a new token set, do update the cookies here
                 if (tokenSet) return {
-                    tokenSet: tokenSet,
+                    refreshTokenSet: tokenSet,
                     shouldUpdateCookies: true,
                 }
             } catch (e) {

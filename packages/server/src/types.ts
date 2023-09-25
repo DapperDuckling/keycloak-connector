@@ -9,6 +9,7 @@ import type {AbstractKeyProvider, KeyProviderConfig} from "./crypto/abstract-key
 import type {AbstractClusterProvider} from "./cluster/abstract-cluster-provider.js";
 import type {TokenCacheProvider} from "./token/abstract-token-cache.js";
 import {AbstractTokenCache} from "./token/abstract-token-cache.js";
+import type {TokenSetParameters} from "openid-client";
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -42,11 +43,11 @@ export enum StateOptions {
     STATEFUL = 2,
 }
 
-export enum JwtTokenTypes {
+export enum VerifiableJwtTokenTypes {
     ID = "ID",
     LOGOUT = "Logout",
-    REFRESH = "Refresh",
     ACCESS = "Bearer",
+    // REFRESH token is NOT verifiable. Keycloak uses symmetric signature (HS256) on these tokens.
 }
 
 export interface KeycloakConnectorConfigBase {
@@ -259,8 +260,12 @@ export type RequiredRoles<
 
 export type KcAccessJWT = OidcIdToken & OidcStandardClaims & KcAccessClaims;
 
+export type RefreshTokenSet = TokenSetParameters & Required<Pick<TokenSetParameters, 'access_token' | 'refresh_token'>> & {
+    accessToken: KcAccessJWT,
+}
+
 export type RefreshTokenSetResult = {
-    tokenSet: TokenSet,
+    refreshTokenSet: RefreshTokenSet,
     shouldUpdateCookies: boolean,
 }
 

@@ -9,12 +9,12 @@ import type {
     KeycloakConnectorConfigBase,
     KeycloakConnectorConfigCustom,
     KeycloakConnectorInternalConfiguration,
-    RefreshTokenSetResult,
+    RefreshTokenSetResult, RefreshTokenSet,
     SupportedServers,
     UserData,
     UserDataResponse
 } from "./types.js";
-import {JwtTokenTypes, RouteEnum, StateOptions} from "./types.js";
+import {VerifiableJwtTokenTypes, RouteEnum, StateOptions} from "./types.js";
 import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapter/abstract-adapter.js";
 import type {JWK} from "jose";
 import * as jose from 'jose';
@@ -566,7 +566,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         // Validate logout token
-        const result = await this.validateJwtOrThrow(logoutToken, JwtTokenTypes.LOGOUT);
+        const result = await this.validateJwtOrThrow(logoutToken, VerifiableJwtTokenTypes.LOGOUT);
 
         // ({payload: userData.accessToken} = await this.validateJwt(accessJwt));
 
@@ -632,7 +632,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return cookies;
     }
 
-    private validateJwtOrThrow = async (jwt: string, type: JwtTokenTypes): Promise<JWTVerifyResult> => {
+    private validateJwtOrThrow = async (jwt: string, type: VerifiableJwtTokenTypes): Promise<JWTVerifyResult> => {
 
         let authorizedParty = null;
         let audience: string|null = this._config.oidcClientMetadata.client_id;
@@ -646,28 +646,29 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Setup special configurations for each token type
         switch (type) {
-            case JwtTokenTypes.ID:
+            case VerifiableJwtTokenTypes.ID:
                 requiredClaims = ['exp', 'sub', 'sid', 'auth_time'];
                 break;
 
-            case JwtTokenTypes.LOGOUT:
+            case VerifiableJwtTokenTypes.LOGOUT:
                 requiredClaims = ['sub'];
 
                 // Override the max age. Logout messages from an OP should not come too late.
                 maxAge = "10 minutes";
                 break;
 
-            case JwtTokenTypes.REFRESH:
-                requiredClaims = ['exp', 'sub', 'sid'];
+            // REMOVED: Cannot verify Keycloak signature token. KC uses symmetric algo (HS256). Left here if that changes in the future.
+            // case JwtTokenTypes.REFRESH:
+            //     requiredClaims = ['exp', 'sub', 'sid'];
+            //
+            //     // The audience should be the authorization server
+            //     audience = this.components.oidcIssuer.metadata.issuer;
+            //
+            //     // Authorized party is this client
+            //     authorizedParty = this._config.oidcClientMetadata.client_id;
+            //     break;
 
-                // The audience should be the authorization server
-                audience = this.components.oidcIssuer.metadata.issuer;
-
-                // Authorized party is this client
-                authorizedParty = this._config.oidcClientMetadata.client_id;
-                break;
-
-            case JwtTokenTypes.ACCESS:
+            case VerifiableJwtTokenTypes.ACCESS:
                 requiredClaims = ['exp', 'sub', 'sid', 'auth_time'];
 
                 // No audience is set for access tokens
@@ -680,7 +681,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Verify the token
         const verifyResult = await jose.jwtVerify(jwt, this.components.remoteJWKS, {
-            algorithms: [KeycloakConnector.REQUIRED_ALGO],
             issuer: this.components.oidcIssuer.metadata.issuer,
             ...audience && {audience: audience},
             currentDate: currDate,
@@ -776,31 +776,30 @@ export class KeycloakConnector<Server extends SupportedServers> {
             return;
         }
 
-        // Grab a new pair of tokens using the refresh token
-        const refreshTokenSetResult = await this.refreshTokenSet(refreshJwt);
-
-        // Check the refresh result
-        if (refreshTokenSetResult === undefined) return;
-
-        // Expand variables
-        const {tokenSet, shouldUpdateCookies} = refreshTokenSetResult;
-
-        let cookies;
         try {
+            // Grab a new pair of tokens using the refresh token
+            const refreshTokenSetResult = await this.refreshTokenSet(refreshJwt);
+
+            // Check the refresh result
+            if (refreshTokenSetResult === undefined) return;
+
+            // Expand variables
+            const {refreshTokenSet, shouldUpdateCookies} = refreshTokenSetResult;
+
             // Pass the new TokenSet to the handler and grab the resultant cookie(s)
-            cookies = this.validateAndHandleTokenSet(tokenSet);
+            const cookies = this.validateAndHandleTokenSet(refreshTokenSet);
+
+            // Store the access token in the response
+            userDataResponse.userData.accessToken = refreshTokenSet.accessToken;
+
+            // Record the token pair in the response cookies
+            if (shouldUpdateCookies) {
+                userDataResponse.cookies ??= [];
+                userDataResponse.cookies.push(...cookies);
+            }
         } catch (e) {
             this._config.pinoLogger?.warn(`Failed to get new TokenSet using refresh token: ${e}`);
             return;
-        }
-
-        // Store the access token in the response
-        userDataResponse.userData.accessToken = tokenSet['accessToken'] as KcAccessJWT;
-
-        // Record the token pair in the response cookies
-        if (shouldUpdateCookies) {
-            userDataResponse.cookies ??= [];
-            userDataResponse.cookies.push(...cookies);
         }
     }
 
@@ -810,7 +809,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
      * @param accessJwt
      * @private
      */
-    private async accessTokenFromJwt(accessJwt?: string): Promise<JWTPayload|void> {
+    private async accessTokenFromJwt(accessJwt?: string): Promise<JWTPayload|undefined> {
 
         // No access token
         if (accessJwt === undefined) return;
@@ -818,7 +817,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         try {
 
             // Validate and save the access token payload
-            const jwtResult = await this.validateJwtOrThrow(accessJwt, JwtTokenTypes.ACCESS);
+            const jwtResult = await this.validateJwtOrThrow(accessJwt, VerifiableJwtTokenTypes.ACCESS);
 
             // todo: check with OP if the access token is legit (if configured that way) // if it's not, call this.populateNewTokensFromRefresh()
 
@@ -833,6 +832,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 this._config.pinoLogger?.warn(e, 'Error validating access token');
             }
         }
+
+        return undefined;
     }
 
     /**
@@ -845,10 +846,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Check for missing refresh token
         if (refreshJwt === undefined) return undefined;
 
-        // Validate the refresh token
         try {
+            // REMOVED: Cannot verify Keycloak signature token. KC uses symmetric algo (HS256). Left here if that changes in the future.
             // Validate the jwt
-            void await this.validateJwtOrThrow(refreshJwt, JwtTokenTypes.REFRESH);
+            // void await this.validateJwtOrThrow(refreshJwt, VerifiableJwtTokenTypes.REFRESH);
 
             // Perform refresh
             return await this.components.tokenCache.refreshTokenSet(refreshJwt);
@@ -866,7 +867,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
      * @param tokenSet
      * @private
      */
-    private validateAndHandleTokenSet(tokenSet: TokenSet): CookieParams<Server>[] {
+    private validateAndHandleTokenSet(tokenSet: TokenSet | RefreshTokenSet): CookieParams<Server>[] {
 
         // Check the state configuration
         //todo: add support for stateful

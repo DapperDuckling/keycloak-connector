@@ -413,3 +413,7 @@ export enum AzpOptions {
 
 #### Environmental variables
 `NODE_KEYCLOAK_CONNECTOR_LOGIN_COOKIE_TIMEOUT` Defaults to 30 minutes
+
+#### Security Considerations
+- State-less
+  - Refresh token may be susceptible to DOS attack where a large payload is passed from the end-user to the client and the client passes to the OP during an automatic access token refresh
