@@ -158,7 +158,8 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         const connectorReq = await this.buildConnectorRequest(req, routeConfigOrRoles);
         const userDataResponse = await this.keycloakConnector.getUserData(connectorReq);
 
-        //todo: add cookies to the response
+        // Set any cookies from user data response
+        userDataResponse.cookies?.forEach(cookieParam => res.cookie(cookieParam.name, cookieParam.value, cookieParam.options));
 
         // Store the user data
         req.keycloak = userDataResponse.userData;
