@@ -7,11 +7,6 @@ import * as jose from 'jose';
 
 export class StandaloneTokenCache extends AbstractTokenCache {
 
-    private pendingRefresh = new LRUCache<string, Promise<RefreshTokenSet | undefined>>({
-        max: 10000,
-        ttl: AbstractTokenCache.REFRESH_HOLDOVER_WINDOW_SECS * 1000,
-    });
-
     refreshTokenSet = async (validatedRefreshJwt: string): Promise<RefreshTokenSetResult | undefined> => {
 
         // Decode JWTs
@@ -86,12 +81,12 @@ export class StandaloneTokenCache extends AbstractTokenCache {
             }
 
             // Release the lock
-            this.pendingRefresh.delete(validatedRefreshJwt);
+            this.pendingRefresh.delete(updateId);
 
         } while (
-                Date.now() <= lastRetryTime &&         // Check exit condition
-                await sleep(25, 150)   // Add some random sleep for next loop
-            );
+            Date.now() <= lastRetryTime &&         // Check exit condition
+            await sleep(25, 150)   // Add some random sleep for next loop
+        );
 
         // Could not refresh in time
         return undefined;

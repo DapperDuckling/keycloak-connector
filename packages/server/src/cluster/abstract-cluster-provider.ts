@@ -5,6 +5,7 @@ import type {Listener} from "../types.js";
 import {is} from "typia";
 import * as cluster from "cluster";
 import {webcrypto} from "crypto";
+import {isObject} from "../helpers/utils.js";
 
 export enum BaseClusterEvents {
     ERROR = "error",
@@ -133,6 +134,18 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
 
         // Unsubscribe from the channel
         return this.handleUnsubscribe(channel, wrappedListener);
+    }
+
+    public async getObject<T>(key: string): Promise<T | null> {
+        const item = await this.get(key);
+        if (item === null) return null;
+        const itemObject = JSON.parse(item) as T;
+        return isObject(itemObject) ? itemObject : null;
+    }
+
+    public storeObject = async (key: string, value: Record<never, unknown>, ttl: number | null, lockKey?: string) => {
+        const wrappedValue = JSON.stringify(value);
+        return this.store(key, wrappedValue, ttl, lockKey);
     }
 
     protected abstract handleUnsubscribe(channel: string, listener: Listener): Promise<boolean>;

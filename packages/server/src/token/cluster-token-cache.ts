@@ -3,7 +3,8 @@ import type {TokenCacheConfig} from "./abstract-token-cache.js";
 import {AbstractClusterProvider, BaseClusterEvents} from "../cluster/abstract-cluster-provider.js";
 import type {RefreshTokenSetResult} from "../types.js";
 import * as jose from "jose";
-import {promiseWait, sleep} from "../helpers/utils.js";
+import {promiseWait, sleep, WaitTimeoutError} from "../helpers/utils.js";
+import {RefreshTokenSet} from "../types.js";
 
 export class ClusterTokenCache extends AbstractTokenCache {
 
@@ -53,33 +54,28 @@ export class ClusterTokenCache extends AbstractTokenCache {
 
         do {
 
-            // Grab existing update promise (if any)
-
-                // Has existing update --> wait here for max time
-                    // Return result or return undefined
-
-            // Add token id to list of IDs to listen for if a refresh token result comes through
-
-            // Get a lock
-                // No lock
-
-                //
-
-
-
-
-
-
-
-
+            // Grab an already completed update request
+            const existingResult = await this.clusterProvider.getObject<RefreshTokenSet>(updateId);
+            if (existingResult) return {
+                refreshTokenSet: existingResult,
+                shouldUpdateCookies: false,
+            };
 
             // Grab existing update promise (if any)
             const existingRefreshPromise = this.pendingRefresh.get(updateId);
 
             // Check for existing update
             if (existingRefreshPromise) {
+
                 // Wait for the result
-                const tokenSet = await promiseWait(existingRefreshPromise, lastRetryTime).catch(() => undefined);
+                const tokenSet: RefreshTokenSet | undefined = await promiseWait(existingRefreshPromise, lastRetryTime).catch(e => {
+                    if (e instanceof WaitTimeoutError) {
+                        // Log this in order to inform the owner they may need to increase the wait timeout
+                        this.config.pinoLogger?.warn(`Timed out waiting for refresh token update promise to complete. May consider increasing the wait time or investigating why the request is taking so long.`);
+                    }
+
+                    return undefined;
+                });
 
                 // Check for a result, don't update cookies here since another connection is already handling that
                 if (tokenSet) return {
@@ -87,23 +83,34 @@ export class ClusterTokenCache extends AbstractTokenCache {
                     shouldUpdateCookies: false,
                 }
 
-                // Delay and start from the top again
-                await sleep(0, 250);
                 continue;
             }
 
-            // No existing update or no data returned
+            // No existing update
 
             try {
                 // Get reference to token refresh promise
                 const tokenRefreshPromise = this.performTokenRefresh(validatedRefreshJwt);
 
-                // Grab a lock by setting the value here
-                // Dev note: There is no race condition since the LRUCache is synchronous
+                // Grab a lock
+                    // No lock?
+                    // Wait on broadcast message
+
+                // Grab an already completed update request (this second request is to prevent a race condition)
+                const existingResult = await this.clusterProvider.getObject<RefreshTokenSet>(updateId);
+                if (existingResult) return {
+                    refreshTokenSet: existingResult,
+                    shouldUpdateCookies: false,
+                };
+
+
+                // Store the promise
                 this.pendingRefresh.set(updateId, tokenRefreshPromise);
 
                 // Refresh the token
                 const tokenSet = await tokenRefreshPromise;
+
+                //todo: store the new token
 
                 // Check for a new token set, do update the cookies here
                 if (tokenSet) return {
@@ -112,20 +119,19 @@ export class ClusterTokenCache extends AbstractTokenCache {
                 }
             } catch (e) {
                 // Log error
-                this.config.pinoLogger?.warn(`Failed perform token refresh: ${e}`);
+                this.config.pinoLogger?.warn(`Failed perform token refresh`, e);
+            } finally {
+                // Release the lock
+
             }
 
-            // Release the lock
-            this.pendingRefresh.delete(validatedRefreshJwt);
+            // Delete the stored promise
+            this.pendingRefresh.delete(updateId);
 
-            // Delay and loop
-            await sleep(0, 250);
-
-        } while (Date.now() <= lastRetryTime);
-
-        // Could not refresh in time
-        return undefined;
-
+        } while (
+            Date.now() <= lastRetryTime &&         // Check exit condition
+            await sleep(25, 150)   // Add some random sleep for next loop
+        );
 
         return Promise.resolve(undefined);
     };

@@ -6,6 +6,7 @@ import type {BaseClient} from "openid-client";
 import {errors} from "openid-client";
 import OPError = errors.OPError;
 import * as jose from 'jose';
+import {LRUCache} from "lru-cache/dist/mjs/index.js";
 
 export interface TokenCacheConfig {
     pinoLogger?: Logger,
@@ -20,6 +21,11 @@ export abstract class AbstractTokenCache {
     protected static MAX_WAIT_SECS = 15;
     protected static REFRESH_HOLDOVER_WINDOW_SECS = 60;
     protected config: TokenCacheConfig;
+
+    protected pendingRefresh = new LRUCache<string, Promise<RefreshTokenSet | undefined>>({
+        max: 10000,
+        ttl: AbstractTokenCache.REFRESH_HOLDOVER_WINDOW_SECS * 1000,
+    });
 
     constructor(config: TokenCacheConfig) {
         this.config = config;
