@@ -1,17 +1,32 @@
 import {AbstractTokenCache} from "./abstract-token-cache.js";
-import type {TokenCacheProvider} from "./abstract-token-cache.js";
-import type {RefreshTokenSetResult, RefreshTokenSet} from "../types.js";
-import {LRUCache} from "lru-cache";
-import {promiseWait, sleep, WaitTimeoutError} from "../helpers/utils.js";
-import * as jose from 'jose';
+import type {TokenCacheConfig} from "./abstract-token-cache.js";
+import {AbstractClusterProvider, BaseClusterEvents} from "../cluster/abstract-cluster-provider.js";
+import type {RefreshTokenSetResult} from "../types.js";
+import * as jose from "jose";
+import {promiseWait, sleep} from "../helpers/utils.js";
 
-export class StandaloneTokenCache extends AbstractTokenCache {
+export class ClusterTokenCache extends AbstractTokenCache {
 
-    private pendingRefresh = new LRUCache<string, Promise<RefreshTokenSet | undefined>>({
-        max: 10000,
-        ttl: AbstractTokenCache.REFRESH_HOLDOVER_WINDOW_SECS * 1000,
-    });
+    private readonly clusterProvider: AbstractClusterProvider;
 
+    private constructor(config: TokenCacheConfig) {
+        super(config);
+
+        // Check for a cluster provider
+        if (config.clusterProvider === undefined) {
+            throw new Error(`Cannot initialize ${this.constructor.name} without a cluster provider.`);
+        }
+
+        // Store reference to the cluster provider
+        this.clusterProvider = config.clusterProvider;
+
+        // Listen for reconnections
+        this.clusterProvider.addListener(BaseClusterEvents.SUBSCRIBER_RECONNECTED, () => this.onActiveKeyUpdate);
+
+        //todo: always listen for refresh token results, we can ignore them if we need to
+    }
+
+    //todo: centralize similar code with standalone-token-cache.ts
     refreshTokenSet = async (validatedRefreshJwt: string): Promise<RefreshTokenSetResult | undefined> => {
 
         // Decode JWTs
@@ -37,21 +52,34 @@ export class StandaloneTokenCache extends AbstractTokenCache {
         const lastRetryTime = attemptStartTime + AbstractTokenCache.MAX_WAIT_SECS * 1000;
 
         do {
+
+            // Grab existing update promise (if any)
+
+                // Has existing update --> wait here for max time
+                    // Return result or return undefined
+
+            // Add token id to list of IDs to listen for if a refresh token result comes through
+
+            // Get a lock
+                // No lock
+
+                //
+
+
+
+
+
+
+
+
+
             // Grab existing update promise (if any)
             const existingRefreshPromise = this.pendingRefresh.get(updateId);
 
             // Check for existing update
             if (existingRefreshPromise) {
-
                 // Wait for the result
-                const tokenSet: RefreshTokenSet | undefined = await promiseWait(existingRefreshPromise, lastRetryTime).catch(e => {
-                    if (e instanceof WaitTimeoutError) {
-                        // Log this in order to inform the owner they may need to increase the wait timeout
-                        this.config.pinoLogger?.warn(`Timed out waiting for refresh token update promise to complete. May consider increasing the wait time or investigating why the request is taking so long.`);
-                    }
-
-                    return undefined;
-                });
+                const tokenSet = await promiseWait(existingRefreshPromise, lastRetryTime).catch(() => undefined);
 
                 // Check for a result, don't update cookies here since another connection is already handling that
                 if (tokenSet) return {
@@ -59,10 +87,12 @@ export class StandaloneTokenCache extends AbstractTokenCache {
                     shouldUpdateCookies: false,
                 }
 
+                // Delay and start from the top again
+                await sleep(0, 250);
                 continue;
             }
 
-            // No existing update
+            // No existing update or no data returned
 
             try {
                 // Get reference to token refresh promise
@@ -82,22 +112,21 @@ export class StandaloneTokenCache extends AbstractTokenCache {
                 }
             } catch (e) {
                 // Log error
-                this.config.pinoLogger?.warn(`Failed perform token refresh`, e);
+                this.config.pinoLogger?.warn(`Failed perform token refresh: ${e}`);
             }
 
             // Release the lock
             this.pendingRefresh.delete(validatedRefreshJwt);
 
-        } while (
-                Date.now() <= lastRetryTime &&         // Check exit condition
-                await sleep(25, 150)   // Add some random sleep for next loop
-            );
+            // Delay and loop
+            await sleep(0, 250);
+
+        } while (Date.now() <= lastRetryTime);
 
         // Could not refresh in time
         return undefined;
-    };
 
-    static override provider: TokenCacheProvider = async (...args: ConstructorParameters<typeof AbstractTokenCache>) => {
-        return new this(...args);
-    }
+
+        return Promise.resolve(undefined);
+    };
 }

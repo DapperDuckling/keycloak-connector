@@ -2,20 +2,32 @@
 // Source: jose (epoch.js)
 export const epoch = (date: Date = new Date()) => Math.floor(date.getTime() / 1000);
 
+/**
+ * Waits until a specified unix timestamp, throws a WaitTimeoutError if expiry time is reached
+ * @param promise
+ * @param waitUntil
+ * @throws Error
+ */
 export const promiseWait = <T>(promise: Promise<T>, waitUntil: number) => {
     // Construct sleep promise
     const sleepPromise = async () => {
         const remainingTime = waitUntil - (new Date()).getTime();
         await sleep(remainingTime);
-        throw new Error('max function duration exceeded');
+        throw new WaitTimeoutError();
     };
 
     return Promise.race<T>([promise, sleepPromise()]);
 }
 
-export const sleep = (ms: number, extraVariability?: number) => new Promise<void>(resolve => {
+export class WaitTimeoutError extends Error {
+    constructor() {
+        super(`Ran out of time waiting for promise to finish`);
+    }
+}
+
+export const sleep = (ms: number, extraVariability?: number) => new Promise<true>(resolve => {
     const timeout = Math.max(0, ms + (Math.random() * (extraVariability ?? 0)));
-    setTimeout(resolve, timeout);
+    setTimeout(() => resolve(true), timeout);
 });
 
 export function isDev() {

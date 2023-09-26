@@ -20,13 +20,12 @@ export abstract class AbstractTokenCache {
     protected static MAX_WAIT_SECS = 15;
     protected static REFRESH_HOLDOVER_WINDOW_SECS = 60;
     protected config: TokenCacheConfig;
-    protected pinoLogger: Logger | undefined = undefined;
 
     constructor(config: TokenCacheConfig) {
         this.config = config;
     }
 
-    public abstract refreshTokenSet(refreshJwt: string, accessJwt?: string): Promise<RefreshTokenSetResult | undefined>;
+    public abstract refreshTokenSet(validatedRefreshJwt: string): Promise<RefreshTokenSetResult | undefined>;
 
     protected performTokenRefresh = async (refreshJwt: string): Promise<RefreshTokenSet | undefined> => {
         // Perform the refresh
