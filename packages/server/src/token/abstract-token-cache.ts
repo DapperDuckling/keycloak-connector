@@ -7,11 +7,18 @@ import {errors} from "openid-client";
 import OPError = errors.OPError;
 import * as jose from 'jose';
 import {LRUCache} from "lru-cache/dist/mjs/index.js";
+import {EventEmitter} from "node:events";
 
 export interface TokenCacheConfig {
     pinoLogger?: Logger,
     clusterProvider?: AbstractClusterProvider,
     oidcClient: BaseClient,
+}
+
+export type HandleRefreshToken = {
+    updateId: string;
+    validatedRefreshJwt: string;
+    isFirstThisNode: boolean;
 }
 
 export type TokenCacheProvider = (...args: ConstructorParameters<typeof AbstractTokenCache>) => Promise<AbstractTokenCache>;
@@ -21,14 +28,22 @@ export abstract class AbstractTokenCache {
     protected static MAX_WAIT_SECS = 15;
     protected static REFRESH_HOLDOVER_WINDOW_SECS = 60;
     protected config: TokenCacheConfig;
+    protected readonly tokenUpdateEmitter = new EventEmitter();
 
-    protected pendingRefresh = new LRUCache<string, Promise<RefreshTokenSet | undefined>>({
+    // protected cachedRefresh = new LRUCache<string, Promise<RefreshTokenSet | undefined>>({
+    protected cachedRefresh = new LRUCache<string, RefreshTokenSet>({
         max: 10000,
         ttl: AbstractTokenCache.REFRESH_HOLDOVER_WINDOW_SECS * 1000,
     });
 
     constructor(config: TokenCacheConfig) {
         this.config = config;
+
+        // Add generic error handler to the token update emitter
+        this.tokenUpdateEmitter.on('error', (e) => {
+            // Log the error
+            this.config.pinoLogger?.error('Error in token cache', e);
+        })
     }
 
     public abstract refreshTokenSet(validatedRefreshJwt: string): Promise<RefreshTokenSetResult | undefined>;

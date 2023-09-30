@@ -3,7 +3,6 @@ import type {Logger} from "pino";
 
 import type {Listener} from "../types.js";
 import {is} from "typia";
-import * as cluster from "cluster";
 import {webcrypto} from "crypto";
 import {isObject} from "../helpers/utils.js";
 
@@ -38,7 +37,7 @@ export type SubscriberListener<T = unknown> = Listener<Promise<void> | void, [Cl
 export abstract class AbstractClusterProvider<CustomEvents extends string | void = void> {
 
     protected clusterConfig: ClusterConfig;
-    private eventEmitter = new EventEmitter();
+    private readonly eventEmitter = new EventEmitter();
     private listeners: WeakMap<SubscriberListener, Listener> = new WeakMap();
     private senderId = webcrypto.randomUUID();
 
@@ -69,7 +68,7 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
         this.eventEmitter.removeListener(event, listener);
     }
 
-    public emitEvent(event: AllEvents<CustomEvents>, ...args: any[]) {
+    public emitEvent(event: AllEvents<CustomEvents>, ...args: never[]) {
         this.clusterConfig.pinoLogger?.debug(`Emitting an event: '${event}'`);
         this.eventEmitter.emit(event, ...args);
     }

@@ -5,13 +5,13 @@ export const epoch = (date: Date = new Date()) => Math.floor(date.getTime() / 10
 /**
  * Waits until a specified unix timestamp, throws a WaitTimeoutError if expiry time is reached
  * @param promise
- * @param waitUntil
+ * @param waitUntilMs
  * @throws Error
  */
-export const promiseWait = <T>(promise: Promise<T>, waitUntil: number) => {
+export const promiseWait = <T>(promise: Promise<T>, waitUntilMs: number) => {
     // Construct sleep promise
     const sleepPromise = async () => {
-        const remainingTime = waitUntil - (new Date()).getTime();
+        const remainingTime = waitUntilMs - (new Date()).getTime();
         await sleep(remainingTime);
         throw new WaitTimeoutError();
     };

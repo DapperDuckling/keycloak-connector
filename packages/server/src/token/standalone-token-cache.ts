@@ -33,7 +33,7 @@ export class StandaloneTokenCache extends AbstractTokenCache {
 
         do {
             // Grab existing update promise (if any)
-            const existingRefreshPromise = this.pendingRefresh.get(updateId);
+            const existingRefreshPromise = this.cachedRefresh.get(updateId);
 
             // Check for existing update
             if (existingRefreshPromise) {
@@ -65,7 +65,7 @@ export class StandaloneTokenCache extends AbstractTokenCache {
 
                 // Grab a lock by setting the value here
                 // Dev note: There is no race condition since the LRUCache is synchronous
-                this.pendingRefresh.set(updateId, tokenRefreshPromise);
+                this.cachedRefresh.set(updateId, tokenRefreshPromise);
 
                 // Refresh the token
                 const tokenSet = await tokenRefreshPromise;
@@ -81,7 +81,7 @@ export class StandaloneTokenCache extends AbstractTokenCache {
             }
 
             // Release the lock
-            this.pendingRefresh.delete(updateId);
+            this.cachedRefresh.delete(updateId);
 
         } while (
             Date.now() <= lastRetryTime &&         // Check exit condition
