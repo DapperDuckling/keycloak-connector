@@ -1,9 +1,18 @@
 import {AbstractTokenCache} from "./abstract-token-cache.js";
 import type {TokenCacheConfig} from "./abstract-token-cache.js";
-import {AbstractClusterProvider, BaseClusterEvents, LockOptions} from "../cluster/abstract-cluster-provider.js";
+import {
+    AbstractClusterProvider
+} from "../cluster/abstract-cluster-provider.js";
 import type {RefreshTokenSet, RefreshTokenSetResult} from "../types.js";
 import * as jose from "jose";
-import {promiseWait, sleep, WaitTimeoutError} from "../helpers/utils.js";
+import {deferredFactory, promiseWait, sleep, WaitTimeoutError} from "../helpers/utils.js";
+import {is} from "typia";
+import {setImmediate} from "timers";
+
+type RefreshTokenSetMessage = {
+    refreshTokenSet: RefreshTokenSet,
+    updateId: string,
+}
 
 export class ClusterTokenCache extends AbstractTokenCache {
     private readonly constants = {
@@ -24,10 +33,6 @@ export class ClusterTokenCache extends AbstractTokenCache {
         // Store reference to the cluster provider
         this.clusterProvider = config.clusterProvider;
 
-        // Listen for reconnections
-        this.clusterProvider.addListener(BaseClusterEvents.SUBSCRIBER_RECONNECTED, () => this.onActiveKeyUpdate);
-
-        //todo: always listen for refresh token results, we can ignore them if we need to
     }
 
     //todo: centralize similar code with standalone-token-cache.ts
@@ -58,16 +63,12 @@ export class ClusterTokenCache extends AbstractTokenCache {
             shouldUpdateCookies: false,
         }
 
-        // Record start time
-        const attemptStartTime = Date.now();
-        const lastRetryTimeMs = attemptStartTime + AbstractTokenCache.MAX_WAIT_SECS * 1000;
-
         //todo: determine the listener count at this point
         debugger;
 
         // Determine if we are not the first listener
         if (this.tokenUpdateEmitter.listenerCount(updateId) !== 0) {
-            await this.waitForResult(updateId, lastRetryTimeMs);
+            await this.waitForResult(updateId);
         }
 
         // We are the first listener, so update the refresh token for this instance
@@ -89,7 +90,11 @@ export class ClusterTokenCache extends AbstractTokenCache {
         return refreshTokenSetResult;
     }
 
-    protected waitForResult = (updateId: string, lastRetryTimeMs: number): Promise<RefreshTokenSetResult | undefined> => {
+    protected waitForResult = (updateId: string): Promise<RefreshTokenSetResult | undefined> => {
+
+        // Record last retry time
+        const finalRetryTimeMs = Date.now() + AbstractTokenCache.MAX_WAIT_SECS * 1000;
+
         // Make typescript happy
         type RefreshListener = (refreshTokenSetResult: RefreshTokenSet | undefined) => void;
 
@@ -118,7 +123,7 @@ export class ClusterTokenCache extends AbstractTokenCache {
         });
 
         // Wait for the result (or timeout)
-        return promiseWait(updatePromise, lastRetryTimeMs).catch(e => {
+        return promiseWait(updatePromise, finalRetryTimeMs).catch(e => {
             // Stop listening
             if (refreshListener) this.tokenUpdateEmitter.removeListener(updateId, refreshListener);
 
@@ -131,25 +136,56 @@ export class ClusterTokenCache extends AbstractTokenCache {
         });
     };
 
+    protected handleIncomingUpdateToken = (message: unknown) => {
+
+        // Check for a non refresh token set message
+        if (!is<RefreshTokenSetMessage>(message)) {
+            return;
+        }
+
+        // Update the local cache with the new token message
+        this.cachedRefresh.set(message.updateId, message.refreshTokenSet);
+
+        // Call any pending promises
+        const pendingRefresh = this.pendingRefresh.get(message.updateId);
+        if (pendingRefresh) {
+            setImmediate(() => {
+                pendingRefresh.resolve(message.refreshTokenSet)
+            });
+        }
+    }
+    
     protected handleTokenRefresh = async (updateId: string, validatedRefreshJwt: string): Promise<RefreshTokenSetResult | undefined> => {
 
-        // Grab an already completed update request stored with the cluster provider
-        const existingResult = await this.clusterProvider.getObject<RefreshTokenSet>(updateId);
-        if (existingResult) return {
-            refreshTokenSet: existingResult,
-            shouldUpdateCookies: false,
-        };
+        // Start listening to cluster messages for this update id
+        const listeningChannel = `${this.constants.UPDATE_TOKEN}:${updateId}`;
+        await this.clusterProvider.subscribe(listeningChannel, this.handleIncomingUpdateToken);
 
+        // Track the lock flag
+        let lock = false;
+
+        // Build the lock options
         const lockOptions = {
             key: `${this.constants._PREFIX}:${this.constants.UPDATE_TOKEN}`,
             ttl: 60,
         }
 
-        // Attempt to regenerate the
-        do {
-            let lock = false;
+        try {
+            // Grab an already completed update request stored with the cluster provider
+            const existingResult = await this.clusterProvider.getObject<RefreshTokenSet>(updateId);
+            if (existingResult) return {
+                refreshTokenSet: existingResult,
+                shouldUpdateCookies: false,
+            };
 
-            try {
+            // Record the final retry time
+            const finalRetryTimeMs = Date.now() + AbstractTokenCache.MAX_WAIT_SECS * 1000;
+
+            do {
+                // Store the pending refresh
+                const deferredRefresh = deferredFactory<RefreshTokenSet | undefined>();
+                this.pendingRefresh.set(updateId, deferredRefresh);
+
                 // Get reference to token refresh promise
                 const tokenRefreshPromise = this.performTokenRefresh(validatedRefreshJwt);
 
@@ -158,18 +194,20 @@ export class ClusterTokenCache extends AbstractTokenCache {
 
                 // Check for no lock
                 if (!lock) {
-                    // Wait on broadcast message (or timeout)
+                    try {
+                        // Wait for a pending refresh
+                        const refreshTokenSet = await promiseWait<RefreshTokenSet | undefined>(deferredRefresh.promise, finalRetryTimeMs);
+                        if (refreshTokenSet) return {
+                            refreshTokenSet: refreshTokenSet,
+                            shouldUpdateCookies: false,
+                        };
+                    } catch (e) {
+                        // Likely timed out, ignore
+                    }
 
-                    // Timed out or no refresh token set from broadcast, loop
-                    continue
+                    // Timed out or received no token from cluster
+                    continue;
                 }
-
-                // Just in case there was an update between the last time we checked and after we obtained the lock
-                const existingResult = await this.clusterProvider.getObject<RefreshTokenSet>(updateId);
-                if (existingResult) return {
-                    refreshTokenSet: existingResult,
-                    shouldUpdateCookies: false,
-                };
 
                 // Refresh the token
                 const tokenSet = await tokenRefreshPromise;
@@ -179,18 +217,24 @@ export class ClusterTokenCache extends AbstractTokenCache {
                     refreshTokenSet: tokenSet,
                     shouldUpdateCookies: true,
                 }
-            } catch (e) {
-                // Log error
-                this.config.pinoLogger?.warn(`Failed perform token refresh`, e);
-            } finally {
-                // Release the lock
-                if (lock) await this.clusterProvider.unlock(lockOptions);
-            }
-        } while (
-            Date.now() <= lastRetryTimeMs &&         // Check exit condition
-            await sleep(25, 150)   // Add some random sleep for next loop
-        );
+            } while (
+                Date.now() <= finalRetryTimeMs &&       // Check exit condition
+                await sleep(25, 150)   // Add some random sleep for next loop
+            );
+        } catch (e) {
+            // Log error
+            this.config.pinoLogger?.warn(`Failed perform token refresh`, e);
+            
+        } finally {
+            
+            // Unsubscribe from the listener
+            await this.clusterProvider.unsubscribe(listeningChannel, this.handleIncomingUpdateToken);
+            
+            // Release the lock
+            if (lock) await this.clusterProvider.unlock(lockOptions);
+            
+        }
 
-        return Promise.resolve(undefined);
+        return undefined;
     }
 }

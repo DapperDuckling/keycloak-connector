@@ -8,6 +8,7 @@ import OPError = errors.OPError;
 import * as jose from 'jose';
 import {LRUCache} from "lru-cache/dist/mjs/index.js";
 import {EventEmitter} from "node:events";
+import type {Deferred} from "../helpers/utils.js";
 
 export interface TokenCacheConfig {
     pinoLogger?: Logger,
@@ -30,7 +31,11 @@ export abstract class AbstractTokenCache {
     protected config: TokenCacheConfig;
     protected readonly tokenUpdateEmitter = new EventEmitter();
 
-    // protected cachedRefresh = new LRUCache<string, Promise<RefreshTokenSet | undefined>>({
+    protected pendingRefresh = new LRUCache<string, Deferred<RefreshTokenSet | undefined>>({
+        max: 10000,
+        ttl: AbstractTokenCache.REFRESH_HOLDOVER_WINDOW_SECS * 1000,
+    });
+
     protected cachedRefresh = new LRUCache<string, RefreshTokenSet>({
         max: 10000,
         ttl: AbstractTokenCache.REFRESH_HOLDOVER_WINDOW_SECS * 1000,

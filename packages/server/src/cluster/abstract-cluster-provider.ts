@@ -14,11 +14,11 @@ export enum BaseClusterEvents {
     SUBSCRIBER_RECONNECTED = "SUBSCRIBER_RECONNECTED",
 }
 
-type InternalClusterMessage<T = unknown> = {
+type InternalClusterMessage = {
     senderId: string;
-    data: T | unknown;
+    data: unknown;
 };
-export type ClusterMessage<T> = T | unknown;
+export type ClusterMessage = unknown;
 type SenderId = string;
 
 type AllEvents<T extends string | void> = T extends void ? BaseClusterEvents : BaseClusterEvents | T;
@@ -32,7 +32,7 @@ export interface LockOptions {
     ttl: number, // TTL in seconds
 }
 
-export type SubscriberListener<T = unknown> = Listener<Promise<void> | void, [ClusterMessage<T>, SenderId]>;
+export type SubscriberListener = Listener<Promise<void> | void, [ClusterMessage, SenderId]>;
 
 export abstract class AbstractClusterProvider<CustomEvents extends string | void = void> {
 
@@ -76,7 +76,7 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
     public async publish<T = unknown>(channel: string, message: T): Promise<boolean> {
 
         // Create the internal message
-        const internalClusterMessage: InternalClusterMessage<T> = {
+        const internalClusterMessage: InternalClusterMessage = {
             senderId: this.senderId,
             data: message,
         }
@@ -88,13 +88,14 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
         return this.handlePublish(channel, encodedMessage);
     }
 
-    public async subscribe<T = unknown>(channel: string, listener: SubscriberListener<T>, ignoreOwnMessages = false): Promise<boolean> {
+    public async subscribe(channel: string, listener: SubscriberListener, ignoreOwnMessages = false): Promise<boolean> {
 
         // Wrap the listener
         const wrappedListener = (encodedMessage: string, channel: string) => setImmediate(async () => {
             try {
                 // Decode the message
-                const clusterMessage: InternalClusterMessage<T> = JSON.parse(encodedMessage);
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                const clusterMessage: InternalClusterMessage = JSON.parse(encodedMessage);
 
                 // Ensure the type is correct (will only check for InternalClusterMessage, not the underlying message)
                 if (!is<InternalClusterMessage>(clusterMessage)) {
@@ -119,7 +120,7 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
         return this.handleSubscribe(channel, wrappedListener);
     }
 
-    public async unsubscribe(channel: string, listener: SubscriberListener<any>, silently = false): Promise<boolean> {
+    public async unsubscribe(channel: string, listener: SubscriberListener, silently = false): Promise<boolean> {
         // Grab the wrapped listener
         const wrappedListener = this.listeners.get(listener);
 
