@@ -96,6 +96,13 @@ export abstract class AbstractTokenCache {
         // Update the refresh token for this instance
         const refreshTokenSetResult = await this.handleTokenRefresh(updateId, validatedRefreshJwt);
 
+        // Determine if we still have the lock (or no one has the instance lock)
+        const currentInstanceLock = this.instanceLevelUpdateLock.get(updateId);
+        const stillHadLock = (currentInstanceLock === instanceLockId || currentInstanceLock === undefined);
+
+        // Clear the instance level lock
+        if (stillHadLock) this.instanceLevelUpdateLock.delete(updateId);
+
         // Check for no result
         if (refreshTokenSetResult === undefined) {
             this.config.pinoLogger?.debug(`No token refresh acquired, emit undefined response`);
@@ -105,12 +112,8 @@ export abstract class AbstractTokenCache {
 
         this.config.pinoLogger?.debug(`Token refresh acquired, storing and emitting`);
 
-        // Ensure we still have the instance lock (or no one has the instance lock)
-        const currentInstanceLock = this.instanceLevelUpdateLock.get(updateId);
-        if (currentInstanceLock === instanceLockId || currentInstanceLock === undefined) {
-            // Clear the instance level lock
-            this.instanceLevelUpdateLock.delete(updateId);
-
+        // Ensure we still had the instance lock
+        if (stillHadLock) {
             // Store the result in local cache
             this.cachedRefresh.set(updateId, refreshTokenSetResult.refreshTokenSet);
 
