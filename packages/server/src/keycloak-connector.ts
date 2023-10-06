@@ -5,7 +5,6 @@ import type {
     ConnectorResponse,
     CookieOptionsBase,
     CookieParams,
-    KcAccessJWT,
     KeycloakConnectorConfigBase,
     KeycloakConnectorConfigCustom,
     KeycloakConnectorInternalConfiguration,
@@ -405,9 +404,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         // Build the post login redirect uri
-        let postAuthRedirectUri = inputCookies.redirectUriRaw ?? null;
+        const postAuthRedirectUri = inputCookies.redirectUriRaw ?? null;
 
-        // Validate the redirect uri
+        // Validate the redirect uri (or throw)
         this.validateRedirectUriOrThrow(postAuthRedirectUri);
 
         try {
@@ -518,9 +517,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
             const logoutRedirectUri64 = req.cookies?.[`${Cookies.LOGOUT_REDIRECT_URI_B64}-${authFlowNonce}`];
 
             // Decode the base64 uri
-            const postAuthRedirectUri = (!!logoutRedirectUri64) ? Buffer.from(logoutRedirectUri64, 'base64').toString() : null;
+            postAuthRedirectUri = (!!logoutRedirectUri64) ? Buffer.from(logoutRedirectUri64, 'base64').toString() : null;
 
-            // Validate the redirect uri
+            // Validate the redirect uri (or throw)
             this.validateRedirectUriOrThrow(postAuthRedirectUri);
         }
 
@@ -558,6 +557,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         //todo: finish backchannel logout. what does keycloak send us???
         console.log(req);
 
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const logoutToken = req.body?.['logout_token'];
 
         // Check for a lack of logout token(s)
@@ -569,6 +569,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const result = await this.validateJwtOrThrow(logoutToken, VerifiableJwtTokenTypes.LOGOUT);
 
         // ({payload: userData.accessToken} = await this.validateJwt(accessJwt));
+
+        console.log(result);
 
 
         return {
@@ -798,7 +800,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 userDataResponse.cookies.push(...cookies);
             }
         } catch (e) {
-            this._config.pinoLogger?.warn(`Failed to get new TokenSet using refresh token: ${e}`);
+            this._config.pinoLogger?.warn(`Failed to get new TokenSet using refresh token`, e);
             return;
         }
     }
@@ -855,7 +857,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             return await this.components.tokenCache.refreshTokenSet(refreshJwt);
 
         } catch (e) {
-            this._config.pinoLogger?.debug(`Could not validate refresh token, could not perform refresh. ${e}`);
+            this._config.pinoLogger?.debug(`Could not validate refresh token, could not perform refresh.`, e);
         }
 
         // Could not refresh
@@ -1032,8 +1034,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
                     return false;
                 }
 
-                // Attempt to grab an updated set of remote JWKs
-                const newRemoteJWKS = KeycloakConnector.createRemoteJWTSet(this.components.oidcConfig.jwks_uri)
+                // Update the remote JWT set function
+                this.components.remoteJWKS = KeycloakConnector.createRemoteJWTSet(this.components.oidcConfig.jwks_uri);
 
                 // Grab the latest connector keys
                 const newConnectorKeys = await this.components.keyProvider.getActiveKeys();
@@ -1060,7 +1062,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 return true;
 
             } catch (e) {
-                this._config.pinoLogger?.error(`Failed to update OIDC configuration: ${e}`);
+                this._config.pinoLogger?.error(`Failed to update OIDC configuration`, e);
                 return false;
             } finally {
                 // Clear the active update promise

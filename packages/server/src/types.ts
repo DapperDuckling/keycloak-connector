@@ -1,4 +1,4 @@
-import type {Client, ClientMetadata, Issuer, IssuerMetadata, TokenSet} from "openid-client";
+import type {Client, ClientMetadata, Issuer, IssuerMetadata} from "openid-client";
 import type {CookieSerializeOptions} from "@fastify/cookie";
 import type {CookieOptions} from "express-serve-static-core";
 import type {JWK, KeyLike} from "jose";
@@ -166,7 +166,7 @@ export interface ConnectorRequest {
     routeConfig: KeycloakRouteConfig;
 
     keycloak?: UserData;
-    body?: Record<any, any>;
+    body?: Record<string, string>;
 }
 
 export interface UserDataResponse<Server extends SupportedServers> {

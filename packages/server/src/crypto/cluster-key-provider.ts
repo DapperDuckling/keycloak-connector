@@ -40,7 +40,7 @@ interface PendingNewJwks {
 export class ClusterKeyProvider extends AbstractKeyProvider {
     
     private readonly constants = {
-        MAX_INITIALIZE_RETRIES: 10,
+        MAX_INITIALIZE_ATTEMPTS: 10,
         CURR_JWKS_START_DELAY_SECS: 2 * 60,         // 2 minutes
         MAX_CURR_JWKS_START_DELAY_SECS: 10 * 60,    // 10 minutes
         PREV_JWKS_EXPIRATION_SECS: 10 * 60,         // 10 minutes
@@ -53,10 +53,7 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
 
     private readonly clusterProvider: AbstractClusterProvider;
     private clusterConnectorKeys: ClusterConnectorKeys | null = null;
-    private pendingNewJwksLru = new LRUCache<string, PendingNewJwks>({
-        max: 100,
-        dispose: this.pendingNewJwksDispose,
-    });
+    private pendingNewJwksLru;
 
     private constructor(keyProviderConfig: KeyProviderConfig) {
         super(keyProviderConfig);
@@ -68,6 +65,12 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
 
         // Store reference to the cluster provider
         this.clusterProvider = keyProviderConfig.clusterProvider;
+
+        // Create the pending Jwks store
+        this.pendingNewJwksLru = new LRUCache<string, PendingNewJwks>({
+            max: 100,
+            dispose: this.pendingNewJwksDispose,
+        });
 
         // Listen for reconnections
         this.clusterProvider.addListener(BaseClusterEvents.SUBSCRIBER_RECONNECTED, () => this.onActiveKeyUpdate);
@@ -119,11 +122,13 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
             // Return the keys from cluster generation
             if (this.clusterConnectorKeys) return this.getActiveConnectorKeys(this.clusterConnectorKeys);
 
+        } while(
+            attempt < this.constants.MAX_INITIALIZE_ATTEMPTS &&
             // Add wait period before next attempt
-            await sleep(attempt *  500);
-        } while(attempt <= this.constants.MAX_INITIALIZE_RETRIES);
+            await sleep(attempt++ *  500)
+        );
 
-        throw new Error(`Failed to generate keys after ${this.constants.MAX_INITIALIZE_RETRIES} attempts`);
+        throw new Error(`Failed to generate keys after ${this.constants.MAX_INITIALIZE_ATTEMPTS} attempts`);
     }
 
     private async generateClusterKeys(config: GenerateClusterKeysConfig = {}): Promise<ClusterConnectorKeys | null> {
@@ -295,7 +300,7 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
                 }
 
                 // Send job finish notification
-                config.clusterJob?.finish();
+                await config.clusterJob?.finish();
                 logger?.debug(`Finished update`);
             }, secondsUntilNewKeyStart * 1000);
 
@@ -324,6 +329,7 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
 
         try {
             // Attempt to restore the data
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             keys = JSON.parse(keysJSON);
         } catch (e) {
             this.keyProviderConfig.pinoLogger?.error(`Stored key string is not valid JSON`);
@@ -360,12 +366,12 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
             return subResults;
 
         } catch (e) {
-            this.keyProviderConfig.pinoLogger?.error(`Error while subscribing to ${listeningChannel}: ${e}`);
+            this.keyProviderConfig.pinoLogger?.error(`Error while subscribing to ${listeningChannel}`, e);
             return false;
         }
     }
 
-    private pubSubMessageHandler = async (message: ClusterMessage<ClusterKeyProviderMsgs>, senderId: string) => {
+    private pubSubMessageHandler = async (message: ClusterMessage, senderId: string) => {
 
         // Ensure we have the correct message back
         if (!is<ClusterKeyProviderMsgs>(message)) {
@@ -438,7 +444,7 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
         }
     }
 
-    private pendingNewJwksDispose(pendingNewJwks: PendingNewJwks, key: string, reason: LRUCache.DisposeReason): void {
+    private pendingNewJwksDispose = (pendingNewJwks: PendingNewJwks, key: string, reason: LRUCache.DisposeReason): void => {
         // Log an eviction
         if (reason === "evict") {
             this.keyProviderConfig.pinoLogger?.error(`Too many pending jwks messages, purging LRU request (${key}) with sender (${pendingNewJwks.senderId}). Is there a rogue message sender flooding the channel?!`);
@@ -446,7 +452,7 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
 
         // Clear the timeout
         clearTimeout(pendingNewJwks.timeout);
-    }
+    };
 
     private async handleNewJwks(processId: string, newClusterConnectorKeys?: ClusterConnectorKeys) {
 
