@@ -116,6 +116,9 @@ export interface KeycloakConnectorConfigBase {
 
     /** Allows you to specify a built-in token cache provider or provide a custom implementation */
     tokenCacheProvider?: TokenCacheProvider;
+
+    /** Forces the server to validate all access tokens provided by during a user request, regardless of route */
+    alwaysVerifyAccessTokenWithServer?: boolean;
 }
 
 export type KeyProvider = (keyProviderConfig: KeyProviderConfig) => Promise<AbstractKeyProvider>;
@@ -212,7 +215,9 @@ type RouteConfigRoles<Roles extends KeycloakRole> = {
 
 type RouteConfigBase = {
     autoRedirect?: boolean;
+    verifyAccessTokenWithServer?: boolean;
 }
+
 /**
  * Dev note - Unable to limit the number of properties declared when using a dynamic key in typescript
  * Even though typescript may not throw errors, the runtime script still may.

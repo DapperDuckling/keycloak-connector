@@ -768,8 +768,14 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const accessJwt = connectorRequest.cookies?.[Cookies.ACCESS_TOKEN];
         const refreshJwt = connectorRequest.cookies?.[Cookies.REFRESH_TOKEN];
 
+        // Determine if we need to verify the access token with keycloak
+        const validateAccessTokenWithServer =
+            this._config.alwaysVerifyAccessTokenWithServer ??
+            connectorRequest.routeConfig.verifyAccessTokenWithServer ??
+            false;
+
         // Grab the access token
-        const accessToken = await this.accessTokenFromJwt(accessJwt);
+        const accessToken = await this.accessTokenFromJwt(accessJwt, validateAccessTokenWithServer);
 
         // Check for an access token
         if (accessToken) {
@@ -779,6 +785,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         try {
+
             // Grab a new pair of tokens using the refresh token
             const refreshTokenSetResult = await this.refreshTokenSet(refreshJwt);
 
@@ -807,11 +814,12 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     /**
      * Returns the access token from the provided Jwt. Will return the new access token for a short-period to account
-     * for network delays and queued requests.
+     * for network delays and queued requests on the end-user side.
      * @param accessJwt
+     * @param validateAccessTokenWithServer
      * @private
      */
-    private async accessTokenFromJwt(accessJwt?: string): Promise<JWTPayload|undefined> {
+    private async accessTokenFromJwt(accessJwt?: string, validateAccessTokenWithServer?: boolean): Promise<JWTPayload|undefined> {
 
         // No access token
         if (accessJwt === undefined) return;
@@ -821,7 +829,17 @@ export class KeycloakConnector<Server extends SupportedServers> {
             // Validate and save the access token payload
             const jwtResult = await this.validateJwtOrThrow(accessJwt, VerifiableJwtTokenTypes.ACCESS);
 
-            // todo: check with OP if the access token is legit (if configured that way) // if it's not, call this.populateNewTokensFromRefresh()
+            // Validate access token with keycloak server if required
+            if (validateAccessTokenWithServer) {
+                const introspectResult = await this.components.oidcClient.introspect(accessJwt);
+
+                // Check result
+                if (!introspectResult.active) {
+                    // Log if only to detect attacks
+                    this._config.pinoLogger?.warn(`Checked validated access token with server. Server says token is no longer active, not allowing use of access token`);
+                    return undefined;
+                }
+            }
 
             // Return the access token in the user data response
             return jwtResult.payload;
