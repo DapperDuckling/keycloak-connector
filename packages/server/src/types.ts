@@ -10,6 +10,7 @@ import type {AbstractClusterProvider} from "./cluster/abstract-cluster-provider.
 import type {TokenCacheProvider} from "./token/abstract-token-cache.js";
 import {AbstractTokenCache} from "./token/abstract-token-cache.js";
 import type {TokenSetParameters} from "openid-client";
+import type {UserinfoResponse} from "openid-client";
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -119,6 +120,12 @@ export interface KeycloakConnectorConfigBase {
 
     /** Forces the server to validate all access tokens provided by during a user request, regardless of route */
     alwaysVerifyAccessTokenWithServer?: boolean;
+
+    /** Provide a custom isAuthorized function to extend authorization determination functionality */
+    customIsAuthorized?: (connectorRequest: ConnectorRequest, userData: UserData) => boolean;
+
+    /** Requires server to fetch user info for each validated access token */
+    fetchUserInfo?: boolean | ((userInfo: UserinfoResponse<any>) => UserinfoResponse<any>);
 }
 
 export type KeyProvider = (keyProviderConfig: KeyProviderConfig) => Promise<AbstractKeyProvider>;
@@ -463,6 +470,7 @@ export interface UserData {
     isAuthorized: boolean;
     roles: KeycloakRole[];
     accessToken?: KcAccessJWT;
+    userInfo?: UserinfoResponse<any>
 }
 
 export enum RoleConfigurationStyle {

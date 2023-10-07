@@ -1,5 +1,13 @@
 import {epoch, isDev, sleep} from "./helpers/utils.js";
-import {type ClientMetadata, errors, generators, Issuer, type IssuerMetadata, TokenSet} from "openid-client";
+import {
+    type ClientMetadata,
+    errors,
+    generators,
+    Issuer,
+    type IssuerMetadata,
+    TokenSet,
+    type UserinfoResponse
+} from "openid-client";
 import type {
     ConnectorRequest,
     ConnectorResponse,
@@ -22,13 +30,13 @@ import {CookieNames, Cookies, CookiesToKeep} from "./helpers/cookies.js";
 import {RouteUrlDefaults, UserDataDefault} from "./helpers/defaults.js";
 import type {JWTPayload, JWTVerifyResult} from "jose/dist/types/types.js";
 import {RoleHelper} from "./helpers/role-helper.js";
-import {standaloneKeyProvider} from "./crypto/standalone-key-provider.js";
-import type {KeyProviderConfig} from "./crypto/abstract-key-provider.js";
+import {standaloneKeyProvider} from "./crypto/index.js";
+import type {KeyProviderConfig} from "./crypto/index.js";
 import {webcrypto} from "crypto";
 import RPError = errors.RPError;
 import OPError = errors.OPError;
-import {StandaloneTokenCache} from "./token/standalone-token-cache.js";
-import type {TokenCacheConfig} from "./token/abstract-token-cache.js";
+import {StandaloneTokenCache} from "./token/index.js";
+import type {TokenCacheConfig} from "./token/index.js";
 
 export class KeycloakConnector<Server extends SupportedServers> {
 
@@ -725,26 +733,22 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const userData: UserData = userDataResponse.userData;
 
         // Grab the access token from the request
-        await this.populateTokensFromRequest(connectorRequest, userDataResponse);
+        const validatedAccessJwt = await this.populateTokensFromRequest(connectorRequest, userDataResponse);
 
         // Check for no access token
-        if (userData.accessToken === undefined) return userDataResponse;
+        if (userData.accessToken === undefined || validatedAccessJwt === undefined) return userDataResponse;
+
+        // Handle grabbing user info if required
+        if (this._config.fetchUserInfo) {
+            userDataResponse.userData.userInfo = this.fetchUserInfo(validatedAccessJwt);
+        }
 
         // User is authenticated since they have a valid access token
         userData.isAuthenticated = true;
 
-        // Check if the page is public anyway OR is the page is protected, but there is no role requirement
-        if (connectorRequest.routeConfig.public || (Array.isArray(connectorRequest.routeConfig.roles) && connectorRequest.routeConfig.roles.length === 0)) {
-            userData.isAuthorized = true;
-
-        } else if (connectorRequest.routeConfig.roles) {
-            // Check for required roles
-            userData.isAuthorized = this.roleHelper.userHasRoles(connectorRequest.routeConfig.roles, userData.accessToken);
-
-        } else {
-            this._config.pinoLogger?.error("Invalid route configuration, must specify roles if route is not public.");
-            throw new Error('Invalid route configuration, must specify roles if route is not public.');
-        }
+        // Handle authorizing user based on request and user data
+        const isAuthorizedFunction = this._config.customIsAuthorized ?? this.isUserAuthorized;
+        userData.isAuthorized = isAuthorizedFunction(connectorRequest, userData);
 
         // Add reference to user data on the connector request as well
         connectorRequest.keycloak = userData;
@@ -752,14 +756,34 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return userDataResponse;
     }
 
+    public isUserAuthorized = (connectorRequest: ConnectorRequest, userData: UserData): boolean => {
+        // Check if the page is public anyway OR is the page is protected, but there is no role requirement
+        if (connectorRequest.routeConfig.public || (Array.isArray(connectorRequest.routeConfig.roles) && connectorRequest.routeConfig.roles.length === 0)) {
+            return true;
+
+        } else if (connectorRequest.routeConfig.roles) {
+
+            // Check for missing access token
+            if (userData.accessToken === undefined) return false;
+
+            // Check for required roles
+            return this.roleHelper.userHasRoles(connectorRequest.routeConfig.roles, userData.accessToken);
+
+        }
+
+        this._config.pinoLogger?.error("Invalid route configuration, must specify roles if route is not public.");
+        throw new Error('Invalid route configuration, must specify roles if route is not public.');
+    }
+
     /**
      * Gets an end-user's access token from the request and stores the validated version in the response, or,
      * if the access token is not valid, uses the refresh token to grab a new TokenSet, if possible.
      * @param connectorRequest
      * @param userDataResponse
+     * @return string|undefined Returns the validated accessJwt
      * @private
      */
-    private async populateTokensFromRequest(connectorRequest: ConnectorRequest, userDataResponse: UserDataResponse<Server>): Promise<void> {
+    private async populateTokensFromRequest(connectorRequest: ConnectorRequest, userDataResponse: UserDataResponse<Server>): Promise<string | undefined> {
 
         // Check the state configuration
         //todo: add support for stateful configurations
@@ -781,7 +805,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
         if (accessToken) {
             // Store access token in response
             userDataResponse.userData.accessToken = accessToken;
-            return;
+
+            // Return the validated access token
+            return accessJwt;
         }
 
         try {
@@ -808,11 +834,26 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 userDataResponse.cookies ??= [];
                 userDataResponse.cookies.push(...cookies);
             }
+
+            // Return the validated access token
+            return refreshTokenSetResult.refreshTokenSet.access_token;
         } catch (e) {
             this._config.pinoLogger?.warn(e, `Failed to get new TokenSet using refresh token`);
             return;
         }
     }
+
+    private fetchUserInfo = async (validatedAccessJwt: string): Promise<UserinfoResponse | undefined> => {
+        try {
+            // todo: move to class (for use in standalone and cluster configurations)
+            // todo: Take into account the `sub` of the token and use caching techniques to ensure we don't slam keycloak too often
+            return await this.components.oidcClient.userinfo(validatedAccessJwt);
+
+        } catch (e) {
+            this._config.pinoLogger?.warn(e, `Failed to fetch user info with provided access token`);
+            return;
+        }
+    };
 
     /**
      * Returns the access token from the provided Jwt. Will return the new access token for a short-period to account
