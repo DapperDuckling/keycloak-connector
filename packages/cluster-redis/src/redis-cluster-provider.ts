@@ -224,17 +224,17 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
         try {
             await this.client.connect();
-        } catch (err) {
-            const errMsg = `Client failed to connect to redis cluster - ${err}`;
-            this.clusterConfig.pinoLogger?.error(errMsg);
+        } catch (e) {
+            const errMsg = `Client failed to connect to redis cluster`;
+            this.clusterConfig.pinoLogger?.error(e, errMsg);
             throw new Error(errMsg);
         }
 
         try {
             await this.subscriber.connect();
-        } catch (err) {
-            const errMsg = `Subscriber failed to connect to redis cluster - ${err}`;
-            this.clusterConfig.pinoLogger?.error(errMsg);
+        } catch (e) {
+            const errMsg = `Subscriber failed to connect to redis cluster`;
+            this.clusterConfig.pinoLogger?.error(e, errMsg);
             throw new Error(errMsg);
         }
 
@@ -264,15 +264,15 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
         try {
             this.client.disconnect();
-        } catch (err) {
-            this.clusterConfig.pinoLogger?.error(`Failed to disconnect from redis cluster - ${err}`);
+        } catch (e) {
+            this.clusterConfig.pinoLogger?.error(e, `Failed to disconnect from redis cluster`);
             return false;
         }
 
         try {
             this.subscriber.disconnect();
-        } catch (err) {
-            this.clusterConfig.pinoLogger?.error(`Failed to disconnect from redis cluster - ${err}`);
+        } catch (e) {
+            this.clusterConfig.pinoLogger?.error(e, `Failed to disconnect from redis cluster`);
             return false;
         }
 
@@ -305,7 +305,7 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
             return true;
         } catch (e) {
-            this.clusterConfig.pinoLogger?.debug(`Failed to subscribe to ${channelName}`, e);
+            this.clusterConfig.pinoLogger?.debug(e, `Failed to subscribe to ${channelName}`);
             return false;
         }
     }
@@ -328,7 +328,7 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
             return true;
         } catch (e) {
-            this.clusterConfig.pinoLogger?.debug(`Failed to unsubscribe from ${channelName}`, e);
+            this.clusterConfig.pinoLogger?.debug(e, `Failed to unsubscribe from ${channelName}`);
             return false;
         }
     }
@@ -343,7 +343,7 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
             await this.client.publish(channelName, message);
             return true;
         } catch (e) {
-            this.clusterConfig.pinoLogger?.debug(`Failed to publish message to ${channelName}`, e);
+            this.clusterConfig.pinoLogger?.debug(e, `Failed to publish message to ${channelName}`);
             return false;
         }
     }
@@ -357,13 +357,19 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
         this.clusterConfig.pinoLogger?.debug(`Setting value of key ${this.clusterConfig.prefix}${key}`);
 
-        // Note: Typescript cannot properly infer the arguments due to the ridiculous overloading ioredis does, so we must specify each call individually...
         let promise;
         if (lockKey) {
-            promise = (ttl) ?
-                this.client.setIfLocked(lockKey, key, this.uniqueClientId, value, "EX", ttl) :
-                this.client.setIfLocked(lockKey, key, this.uniqueClientId, value);
+            // Build the options
+            const options = {
+                ...ttl !== null && { EX: ttl },
+            }
+
+            // Convert option into JSON
+            const optionsJson = JSON.stringify(options);
+
+            promise = this.client.setIfLocked(lockKey, key, this.uniqueClientId, value, optionsJson);
         } else {
+            // Note: Typescript cannot properly infer the arguments due to the ridiculous overloading ioredis does, so we must specify each call individually...
             promise = (ttl) ?
                 this.client.set(key, value, "EX", ttl) :
                 this.client.set(key, value);

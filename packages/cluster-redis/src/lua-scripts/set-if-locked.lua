@@ -6,25 +6,40 @@ local options = cjson.decode(ARGV[3] or "{}") -- Use an empty JSON object if thi
 
 local currentLock = redis.call("GET", lockKey)
 
+local function convertKeysToUpperCase(inputTable)
+    local outputTable = {}
+    for key, value in pairs(inputTable) do
+        if type(key) == "string" then
+            outputTable[key:upper()] = value
+        else
+            outputTable[key] = value
+        end
+    end
+    return outputTable
+end
+
+-- Convert all the incoming keys to upper case
+options = convertKeysToUpperCase(options)
+
 if currentLock == clientId then
     -- Lock matches, perform the SET operation with options
     local args = {}
 
-    if options["ex"] then
+    if options["EX"] then
         table.insert(args, "EX")
-        table.insert(args, options["ex"])
+        table.insert(args, options["EX"])
     end
 
-    if options["px"] then
+    if options["PX"] then
         table.insert(args, "PX")
-        table.insert(args, options["px"])
+        table.insert(args, options["PX"])
     end
 
-    if options["nx"] then
+    if options["NX"] then
         table.insert(args, "NX")
     end
 
-    if options["xx"] then
+    if options["XX"] then
         table.insert(args, "XX")
     end
 

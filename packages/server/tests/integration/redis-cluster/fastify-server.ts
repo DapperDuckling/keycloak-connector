@@ -10,9 +10,9 @@ import {clusterKeyProvider, clusterTokenCacheProvider} from "keycloak-connector-
 import {RedisClusterProvider} from "keycloak-connector-server-cluster-redis";
 import {loggerOpts} from "./main.test.js";
 
-export async function makeFastifyServer(serverId: number) {
+export async function makeFastifyServer(port: number) {
     const loggerOptsCloned = structuredClone(loggerOpts);
-    loggerOptsCloned['msgPrefix'] = `fastify-${serverId} :: `;
+    loggerOptsCloned['msgPrefix'] = `fastify-${port} :: `;
     const fastifyOptions = {
         logger: loggerOptsCloned,
         pluginTimeout: 0,
@@ -35,7 +35,7 @@ export async function makeFastifyServer(serverId: number) {
 
     // Initialize the keycloak-connector
     await fastify.register(keycloakConnectorFastify, {
-        serverOrigin: 'http://localhost:3005',
+        serverOrigin: `http://localhost:${port}`,
         authServerUrl: 'http://localhost:8080/',
         realm: 'local-dev',
         refreshConfigMins: -1, // Disable for dev testing

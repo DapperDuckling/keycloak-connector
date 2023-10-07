@@ -366,7 +366,7 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
             return subResults;
 
         } catch (e) {
-            this.keyProviderConfig.pinoLogger?.error(`Error while subscribing to ${listeningChannel}`, e);
+            this.keyProviderConfig.pinoLogger?.error(e, `Error while subscribing to ${listeningChannel}`);
             return false;
         }
     }

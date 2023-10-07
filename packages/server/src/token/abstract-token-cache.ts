@@ -46,7 +46,7 @@ export abstract class AbstractTokenCache {
         // Add generic error handler to the token update emitter
         this.tokenUpdateEmitter.on('error', (e) => {
             // Log the error
-            this.config.pinoLogger?.error('Error in token cache', e);
+            this.config.pinoLogger?.error(e, 'Error in token cache');
         })
     }
 

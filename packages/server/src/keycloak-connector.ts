@@ -785,6 +785,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         try {
+            // Check for no refresh jwt
+            if (refreshJwt === undefined) return;
 
             // Grab a new pair of tokens using the refresh token
             const refreshTokenSetResult = await this.refreshTokenSet(refreshJwt);
@@ -807,7 +809,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 userDataResponse.cookies.push(...cookies);
             }
         } catch (e) {
-            this._config.pinoLogger?.warn(`Failed to get new TokenSet using refresh token`, e);
+            this._config.pinoLogger?.warn(e, `Failed to get new TokenSet using refresh token`);
             return;
         }
     }
@@ -875,7 +877,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             return await this.components.tokenCache.refreshTokenSet(refreshJwt);
 
         } catch (e) {
-            this._config.pinoLogger?.debug(`Could not validate refresh token, could not perform refresh.`, e);
+            this._config.pinoLogger?.debug(e, `Could not validate refresh token, could not perform refresh.`);
         }
 
         // Could not refresh
@@ -1080,7 +1082,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 return true;
 
             } catch (e) {
-                this._config.pinoLogger?.error(`Failed to update OIDC configuration`, e);
+                this._config.pinoLogger?.error(e, `Failed to update OIDC configuration`);
                 return false;
             } finally {
                 // Clear the active update promise

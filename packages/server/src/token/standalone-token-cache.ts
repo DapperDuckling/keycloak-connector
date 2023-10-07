@@ -14,7 +14,7 @@ export class StandaloneTokenCache extends AbstractTokenCache {
 
         } catch (e) {
             // Log error
-            this.config.pinoLogger?.warn(`Failed perform token refresh`, e);
+            this.config.pinoLogger?.warn(e, `Failed to perform token refresh`);
         }
 
         // Return the result of the refresh or undefined

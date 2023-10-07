@@ -7,9 +7,9 @@ import logger from "pino-http";
 import {clusterKeyProvider, clusterTokenCacheProvider} from "keycloak-connector-server";
 import {loggerOpts} from "./main.test.js";
 
-export async function makeExpressServer(serverId: number) {
+export async function makeExpressServer(port: number) {
     const loggerOptsCloned = structuredClone(loggerOpts);
-    loggerOptsCloned['msgPrefix'] = `express-${serverId} :: `;
+    loggerOptsCloned['msgPrefix'] = `express-${port} :: `;
 
     const loggerHttp = logger(loggerOptsCloned);
 
@@ -27,7 +27,7 @@ export async function makeExpressServer(serverId: number) {
 
     // Initialize the keycloak connector
     const lock = await keycloakConnectorExpress(app, {
-        serverOrigin: 'http://localhost:3005',
+        serverOrigin: `http://localhost:${port}`,
         authServerUrl: 'http://localhost:8080/',
         realm: 'local-dev',
         refreshConfigMins: -1, // Disable for dev testing

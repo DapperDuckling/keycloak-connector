@@ -116,10 +116,16 @@ export class ClusterTokenCache extends AbstractTokenCache {
                 // Refresh the token
                 const tokenSet = await tokenRefreshPromise;
 
-                // Check for a new token set, do update the cookies here
-                if (tokenSet) return {
-                    refreshTokenSet: tokenSet,
-                    shouldUpdateCookies: true,
+                // Check for a new token set
+                if (tokenSet) {
+                    // Store the result in the cluster
+                    await this.clusterProvider.storeObject(updateId, tokenSet, AbstractTokenCache.REFRESH_HOLDOVER_WINDOW_SECS, lockOptions.key);
+
+                    // Return the new token set and do update the cookies here
+                    return {
+                        refreshTokenSet: tokenSet,
+                        shouldUpdateCookies: true,
+                    }
                 }
             } while (
                 Date.now() <= finalRetryTimeMs &&       // Check exit condition
@@ -127,7 +133,7 @@ export class ClusterTokenCache extends AbstractTokenCache {
             );
         } catch (e) {
             // Log error
-            this.config.pinoLogger?.warn(`Failed perform token refresh`, e);
+            this.config.pinoLogger?.info(e, `Failed to perform token refresh`);
             
         } finally {
             

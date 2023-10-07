@@ -116,6 +116,9 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
             }
         });
 
+        // Store a reference to the wrapped listener
+        this.listeners.set(listener, wrappedListener);
+
         // Subscribe to the channel
         return this.handleSubscribe(channel, wrappedListener);
     }
