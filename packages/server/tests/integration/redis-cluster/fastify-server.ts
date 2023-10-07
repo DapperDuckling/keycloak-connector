@@ -56,7 +56,7 @@ export async function startFastifyServer(port: number, fastifyServer: FastifyIns
             await fastifyServer.listen({
                 port: port,
                 host: '0.0.0.0',
-            }), (async () => console.log(`${port} :: Listening`))()
+            }), (async () => console.log(`fastify-${port} :: Listening`))()
         ]);
     } catch (err) {
         fastifyServer.log.error(`${port}:: Fasify server crashed **********************`, err);

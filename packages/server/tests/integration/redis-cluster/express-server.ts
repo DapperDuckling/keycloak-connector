@@ -83,6 +83,6 @@ export async function makeExpressServer(serverId: number) {
 
 export async function startExpressServer(portId: number, app: Express) {
     app.listen(portId, () => {
-        console.log(`${portId} :: Listening`);
+        console.log(`express-${portId} :: Listening`);
     });
 }

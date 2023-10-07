@@ -11,8 +11,8 @@ import type {
 import {AbstractKeyProvider} from "keycloak-connector-server";
 
 export const numberOfServers = {
-    express: 100,
-    fastify: 100,
+    express: 10,
+    fastify: 10,
 } as const;
 
 // Remove existing keys

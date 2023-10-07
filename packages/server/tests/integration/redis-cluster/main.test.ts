@@ -3,10 +3,13 @@ import { EventEmitter } from 'node:events';
 import {makeFastifyServer, startFastifyServer} from "./fastify-server.js";
 import {makeExpressServer, startExpressServer} from "./express-server.js";
 import {numberOfServers, promptPromise} from "./orchestrator.js";
+// @ts-ignore
 import {sleep} from "../../../src/helpers/utils.js";
+import type {Express} from "express-serve-static-core";
+import type {FastifyInstance} from "fastify";
 
-EventEmitter.setMaxListeners(1000);
-EventEmitter.defaultMaxListeners = 1000;
+EventEmitter.setMaxListeners(10000);
+EventEmitter.defaultMaxListeners = 10000;
 
 export const loggerOpts = {
     msgPrefix: "base",
@@ -21,12 +24,21 @@ export const loggerOpts = {
     },
 };
 
-function buildServer(port: number, serverType: string) {
-    let makeServerPromise: Promise<any>;
-    let startServerPromiseFunc;
+type MakeServerFunction = typeof makeFastifyServer | typeof makeExpressServer;
+type MakeServerPromise = () => Promise<Express | FastifyInstance>;
+type StartServerFunction = (port: number, server: any) => Promise<void>;
+type StartServerFactory = (server: Express | FastifyInstance) => StartServerFunction;
+type BuildServerComponents = {
+    makeServerPromise: MakeServerPromise
+    startServerFactory: StartServerFactory
+}
 
-    let makeServerFunc;
-    let startServerFunc: (port: number, server: any) => Promise<void>;
+function buildServer(port: number, serverType: string): BuildServerComponents {
+    let makeServerPromise: MakeServerPromise;
+    let startServerFactory: StartServerFactory;
+
+    let makeServerFunc: MakeServerFunction;
+    let startServerFunc: StartServerFunction;
 
     switch (serverType) {
         case 'fastify':
@@ -41,37 +53,42 @@ function buildServer(port: number, serverType: string) {
             throw new Error('Unknown server type');
     }
 
-    makeServerPromise = makeServerFunc(port);
-    startServerPromiseFunc = () => makeServerPromise.then(server => startServerFunc(port, server));
+    makeServerPromise = () => makeServerFunc(port);
+    startServerFactory = (server: Express | FastifyInstance) => {
+        return () => startServerFunc(port, server);
+    }
 
     return {
         makeServerPromise,
-        startServerPromiseFunc,
+        startServerFactory,
     }
 }
 
-// Make all our servers
-const makeServerPromises: any[] = [];
-const startServerPromiseFuncs: any[] = [];
+// Build all our servers
+const buildServerComponents: BuildServerComponents[] = [];
+const startServerFunctions: any[] = [];
 let portNumber = 3005;
 for (const [serverType, count] of Object.entries(numberOfServers)) {
     for (let i=0; i<count; i++) {
-        const {makeServerPromise, startServerPromiseFunc} = buildServer(portNumber++, serverType);
-        makeServerPromises.push(makeServerPromise);
-        startServerPromiseFuncs.push(startServerPromiseFunc);
+        const serverComponents = buildServer(portNumber++, serverType);
+        buildServerComponents.push(serverComponents);
     }
 }
 
-// Wait for the servers to get created
-for (const makeServerPromise of makeServerPromises) {
-    await makeServerPromise;
+// Initialize all the servers
+for (const serverComponents of buildServerComponents) {
+    const server = await serverComponents.makeServerPromise();
+    const startServerPromiseFunc = serverComponents.startServerFactory(server);
+    startServerFunctions.push(startServerPromiseFunc);
     await sleep(10);
 }
 
 // Start all servers
 try {
+    await sleep(1500);
     console.log('Starting servers...');
-    await Promise.all([promptPromise, ...startServerPromiseFuncs.map(fn => fn())]);
+    let delay = 0;
+    await Promise.all([promptPromise, ...startServerFunctions.map(fn => sleep(delay++).then(() => fn()))]);
     console.log('fin');
 } catch (e) {
     console.log('error fin');

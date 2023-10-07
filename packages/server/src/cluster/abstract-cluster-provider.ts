@@ -126,8 +126,13 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
 
         // Check for no listener
         if (!wrappedListener) {
+            // If silent unsubscribe requested, return true
+            if (silently) {
+                return true;
+            }
+
             // Push an error message
-            if (!silently) this.clusterConfig.pinoLogger?.error(`Failed to unsubscribe from ${channel}, provided listener not currently subscribed to any channel`);
+            this.clusterConfig.pinoLogger?.error(`Failed to unsubscribe from ${channel}, provided listener not currently subscribed to any channel`);
 
             return false;
         }
