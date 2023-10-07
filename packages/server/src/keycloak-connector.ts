@@ -847,6 +847,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         try {
             // todo: move to class (for use in standalone and cluster configurations)
             // todo: Take into account the `sub` of the token and use caching techniques to ensure we don't slam keycloak too often
+            // todo: allow developer-user to configure a route that requires a recheck of group membership
             return await this.components.oidcClient.userinfo(validatedAccessJwt);
 
         } catch (e) {
