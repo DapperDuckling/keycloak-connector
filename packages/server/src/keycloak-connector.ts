@@ -831,7 +831,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             // Validate access token with keycloak server if required
             if (validateAccessTokenWithServer) {
-                const introspectResult = await this.components.oidcClient.introspect(accessJwt);
+                const introspectResult = await this.components.oidcClient.introspect(accessJwt, 'access_token');
 
                 // Check result
                 if (!introspectResult.active) {
