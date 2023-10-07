@@ -27,7 +27,7 @@ export abstract class AbstractTokenCache {
 
     protected static MAX_UPDATE_JWT_ID_LENGTH = 1000;
     protected static MAX_WAIT_SECS = 15;
-    protected static REFRESH_HOLDOVER_WINDOW_SECS = 60;
+    protected static REFRESH_HOLDOVER_WINDOW_SECS = 60; // Will be up to double this value if cluster-token-cache is used
     protected config: TokenCacheConfig;
     protected readonly tokenUpdateEmitter = new EventEmitter();
 

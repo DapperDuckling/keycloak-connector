@@ -2,7 +2,7 @@ import {AbstractTokenCache} from "./abstract-token-cache.js";
 import type {TokenCacheConfig, TokenCacheProvider} from "./abstract-token-cache.js";
 import {
     AbstractClusterProvider
-} from "../cluster/abstract-cluster-provider.js";
+} from "../cluster/index.js";
 import type {RefreshTokenSet, RefreshTokenSetResult} from "../types.js";
 import {deferredFactory, promiseWait, sleep} from "../helpers/utils.js";
 import type {Deferred} from "../helpers/utils.js";
@@ -74,9 +74,12 @@ export class ClusterTokenCache extends AbstractTokenCache {
             ttl: 60,
         }
 
+        // Build the storage key
+        const storageKey = `${this.constants._PREFIX}:${updateId}`;
+
         try {
             // Grab an already completed update request stored with the cluster provider
-            const existingResult = await this.clusterProvider.getObject<RefreshTokenSet>(updateId);
+            const existingResult = await this.clusterProvider.getObject<RefreshTokenSet>(storageKey);
             if (existingResult) return {
                 refreshTokenSet: existingResult,
                 shouldUpdateCookies: false,
@@ -119,7 +122,7 @@ export class ClusterTokenCache extends AbstractTokenCache {
                 // Check for a new token set
                 if (tokenSet) {
                     // Store the result in the cluster
-                    await this.clusterProvider.storeObject(updateId, tokenSet, AbstractTokenCache.REFRESH_HOLDOVER_WINDOW_SECS, lockOptions.key);
+                    await this.clusterProvider.storeObject(storageKey, tokenSet, AbstractTokenCache.REFRESH_HOLDOVER_WINDOW_SECS, lockOptions.key);
 
                     // Return the new token set and do update the cookies here
                     return {

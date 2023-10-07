@@ -48,11 +48,11 @@ fastify.setNotFoundHandler(async (request, reply) => {
 });
 
 // To store the session state cookie
-fastify.register(cookie, {
+await fastify.register(cookie, {
     prefix: "keycloak-connector_",
 });
 
-fastify.register(fastifyStatic, {
+await fastify.register(fastifyStatic, {
     root: path.join(path.resolve(), 'public'),
     prefix: '/public/', // optional: default '/'
 });
@@ -114,7 +114,7 @@ await fastify.register(keycloakConnectorFastify, {
 // await awsRedisClusterProvider.unsubscribe('my-topic2', listener);
 
 // Register our routes
-fastify.register(routes);
+await fastify.register(routes);
 
 // Test key update service
 let okay = false
@@ -125,10 +125,10 @@ const updateKeys = async () => {
     const requestTime = Date.now()/1000;
     const listeningChannel = `listen-to-me:${requestTime}`;
 
-    const listener: SubscriberListener<ClusterJobMessage> = (message, senderId) => {
+    const listener: SubscriberListener = (message, senderId) => {
         console.log(`Received message from ${senderId}`, message);
     };
-    await clusterProvider.subscribe<ClusterJobMessage>(listeningChannel, listener);
+    await clusterProvider.subscribe(listeningChannel, listener);
     await clusterProvider.publish<RequestUpdateSystemJwksMsg>("key-provider:listening-channel", {
         event: "request-update-system-jwks",
         listeningChannel: listeningChannel,
