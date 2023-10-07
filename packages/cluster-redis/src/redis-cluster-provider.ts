@@ -1,18 +1,16 @@
-import type {ClusterConfig, Listener, LockOptions} from "keycloak-connector-server";
+import type {Listener, LockOptions} from "keycloak-connector-server";
 import {AbstractClusterProvider, BaseClusterEvents} from "keycloak-connector-server";
 import {webcrypto} from "crypto";
 import * as fs from "fs";
 import {fileURLToPath} from 'url';
 import {dirname} from 'path';
 import Redis, {Cluster} from "ioredis";
-import {is} from "typia";
 import type {
     ClusterMode,
     RedisClient,
     RedisClusterConfig,
 } from "./types.js";
 import {RedisClusterEvents} from "./types.js";
-import type {DelIfLocked, SetIfLockedArgs} from "./ioredis.js";
 import {EventEmitter} from "node:events";
 
 export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
@@ -265,14 +263,14 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
         this.clusterConfig.pinoLogger?.debug(`Disconnecting from redis server`);
 
         try {
-            await this.client.disconnect();
+            this.client.disconnect();
         } catch (err) {
             this.clusterConfig.pinoLogger?.error(`Failed to disconnect from redis cluster - ${err}`);
             return false;
         }
 
         try {
-            await this.subscriber.disconnect();
+            this.subscriber.disconnect();
         } catch (err) {
             this.clusterConfig.pinoLogger?.error(`Failed to disconnect from redis cluster - ${err}`);
             return false;
@@ -321,7 +319,6 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
             // Remove listener from store
             this.subscriptionListeners.removeListener(`${this.SUB_EVENT_PREFIX}${channelName}`, listener);
-
 
             // Unsubscribe if no more listeners
             if (this.subscriptionListeners.listenerCount(`${this.SUB_EVENT_PREFIX}${channelName}`) === 0) {

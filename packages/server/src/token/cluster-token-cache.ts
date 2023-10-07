@@ -1,5 +1,5 @@
 import {AbstractTokenCache} from "./abstract-token-cache.js";
-import type {TokenCacheConfig} from "./abstract-token-cache.js";
+import type {TokenCacheConfig, TokenCacheProvider} from "./abstract-token-cache.js";
 import {
     AbstractClusterProvider
 } from "../cluster/abstract-cluster-provider.js";
@@ -141,4 +141,10 @@ export class ClusterTokenCache extends AbstractTokenCache {
 
         return undefined;
     }
+
+    static override provider: TokenCacheProvider = async (...args: ConstructorParameters<typeof AbstractTokenCache>) => {
+        return new this(...args);
+    }
 }
+
+export const clusterTokenCacheProvider: TokenCacheProvider = async (...args: ConstructorParameters<typeof AbstractTokenCache>) => ClusterTokenCache.provider(...args);

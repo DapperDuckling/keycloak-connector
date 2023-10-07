@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events';
 import {makeFastifyServer, startFastifyServer} from "./fastify-server.js";
 import {makeExpressServer, startExpressServer} from "./express-server.js";
 import {numberOfServers, promptPromise} from "./orchestrator.js";
+import {sleep} from "../../../src/helpers/utils.js";
 
 EventEmitter.setMaxListeners(1000);
 EventEmitter.defaultMaxListeners = 1000;
@@ -62,7 +63,10 @@ for (const [serverType, count] of Object.entries(numberOfServers)) {
 }
 
 // Wait for the servers to get created
-await Promise.all(makeServerPromises);
+for (const makeServerPromise of makeServerPromises) {
+    await makeServerPromise;
+    await sleep(10);
+}
 
 // Start all servers
 try {

@@ -68,7 +68,7 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
         this.eventEmitter.removeListener(event, listener);
     }
 
-    public emitEvent(event: AllEvents<CustomEvents>, ...args: never[]) {
+    public emitEvent(event: AllEvents<CustomEvents>, ...args: unknown[]) {
         this.clusterConfig.pinoLogger?.debug(`Emitting an event: '${event}'`);
         this.eventEmitter.emit(event, ...args);
     }

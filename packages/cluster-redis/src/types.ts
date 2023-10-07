@@ -1,4 +1,3 @@
-import type RedisCommander from "ioredis/built/utils/RedisCommander.js";
 import type {ClusterConfig} from "keycloak-connector-server";
 import type {ClusterNode, ClusterOptions, RedisOptions} from "ioredis";
 import Redis, {Cluster} from "ioredis";

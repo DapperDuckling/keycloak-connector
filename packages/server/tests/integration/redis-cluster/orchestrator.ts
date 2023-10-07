@@ -11,8 +11,8 @@ import type {
 import {AbstractKeyProvider} from "keycloak-connector-server";
 
 export const numberOfServers = {
-    express: 2,
-    fastify: 2,
+    express: 100,
+    fastify: 100,
 } as const;
 
 // Remove existing keys
@@ -97,7 +97,7 @@ async function syncCheck() {
     const results: Record<string, number> = {};
     const listeningChannel = `key-sync-check-${Date.now()/1000}`;
 
-    function handleSyncCheckResponse(message: ClusterMessage<ServerActiveKey>) {
+    function handleSyncCheckResponse(message: ClusterMessage) {
         // We will assume this is the correct message
         const activeKey = message as ServerActiveKey;
 
@@ -107,7 +107,7 @@ async function syncCheck() {
     }
 
     // Subscribe to the new channel
-    await mainRedisClusterProvider.subscribe<ServerActiveKey>(listeningChannel, handleSyncCheckResponse);
+    await mainRedisClusterProvider.subscribe(listeningChannel, handleSyncCheckResponse);
 
     // Push out our request message
     await mainRedisClusterProvider.publish<RequestActiveKey>('key-provider:listening-channel', {
@@ -152,4 +152,4 @@ async function syncCheck() {
 }
 
 // Start the sync check
-setImmediate(syncCheck);
+// setImmediate(syncCheck);
