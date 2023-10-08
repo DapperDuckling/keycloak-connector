@@ -15,7 +15,7 @@ type UpdateDataMessage<T> = {
     key: string,
 }
 
-class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[] = any[]> extends CacheProvider<T, A> {
+export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[] = any[]> extends CacheProvider<T, A> {
     private readonly constants = {
         _PREFIX: "cluster-cache",
         UPDATE_DATA: "update-data",
@@ -24,7 +24,7 @@ class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[] = any
     private readonly clusterProvider: AbstractClusterProvider;
     private readonly pendingRefresh;
 
-    private constructor(config: CacheProviderConfig<T>) {
+    constructor(config: CacheProviderConfig<T>) {
         super(config);
 
         // Check for a cluster provider

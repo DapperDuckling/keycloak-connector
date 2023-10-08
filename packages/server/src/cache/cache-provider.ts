@@ -34,7 +34,7 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
     protected readonly instanceLevelUpdateLock;
     protected readonly cachedResult;
 
-    protected constructor(config: CacheProviderConfig<T>) {
+    constructor(config: CacheProviderConfig<T>) {
         // Update pino logger reference
         if (config.pinoLogger) {
             config.pinoLogger = config.pinoLogger.child({"Source": "CacheProvider"}).child({"Source": config.title});

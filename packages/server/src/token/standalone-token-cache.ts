@@ -1,8 +1,8 @@
-import {AbstractTokenCache} from "./abstract-token-cache.js";
-import type {TokenCacheProvider} from "./abstract-token-cache.js";
+import {TokenCache} from "./token-cache.js";
+import type {TokenCacheProvider} from "./token-cache.js";
 import type {RefreshTokenSetResult} from "../types.js";
 
-export class StandaloneTokenCache extends AbstractTokenCache {
+export class StandaloneTokenCache extends TokenCache {
 
     protected handleTokenRefresh = async (updateId: string, validatedRefreshJwt: string): Promise<RefreshTokenSetResult | undefined> => {
 
@@ -24,7 +24,7 @@ export class StandaloneTokenCache extends AbstractTokenCache {
         } : undefined;
     }
 
-    static override provider: TokenCacheProvider = async (...args: ConstructorParameters<typeof AbstractTokenCache>) => {
+    static override provider: TokenCacheProvider = async (...args: ConstructorParameters<typeof TokenCache>) => {
         return new this(...args);
     }
 }

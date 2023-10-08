@@ -7,8 +7,8 @@ import type {IncomingHttpHeaders} from "node:http";
 import type {JWTPayload} from "jose/dist/types/types.js";
 import type {AbstractKeyProvider, KeyProviderConfig} from "./crypto/abstract-key-provider.js";
 import type {AbstractClusterProvider} from "./cluster/abstract-cluster-provider.js";
-import type {TokenCacheProvider} from "./token/abstract-token-cache.js";
-import {AbstractTokenCache} from "./token/abstract-token-cache.js";
+import type {TokenCacheProvider} from "./token/token-cache.js";
+import {TokenCache} from "./token/token-cache.js";
 import type {TokenSetParameters} from "openid-client";
 import type {UserinfoResponse} from "openid-client";
 
@@ -20,7 +20,7 @@ export interface KeycloakConnectorInternalConfiguration {
     oidcIssuer: Issuer;
     oidcClient: Client;
     keyProvider: AbstractKeyProvider;
-    tokenCache: AbstractTokenCache;
+    tokenCache: TokenCache;
     remoteJWKS: () => Promise<KeyLike>;
     connectorKeys: ConnectorKeys;
     notBefore?: number;
