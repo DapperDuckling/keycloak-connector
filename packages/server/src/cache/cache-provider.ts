@@ -7,7 +7,7 @@ import {webcrypto} from "crypto";
 
 export type CacheMissCallback<T, A extends any[] = any[]> = (key: string, ...args: A) => Promise<T | undefined>;
 
-export type AbstractCacheProviderConfig<T, A extends any[] = any[]> = {
+export type CacheProviderConfig<T, A extends any[] = any[]> = {
     title: string,
     ttl: number,
     cacheMissCallback: CacheMissCallback<T, A>,
@@ -22,19 +22,19 @@ export type CacheResult<T> = undefined | {
     dataGenerator?: true,
 }
 
-type WrappedCacheMissCallback<T> = () => Promise<T | undefined>;
+export type WrappedCacheMissCallback<T> = () => Promise<T | undefined>;
 
-export abstract class AbstractCacheProvider<T extends NonNullable<unknown>, A extends any[] = any[]> {
+export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any[]> {
 
     protected static MAX_WAIT_SECS = 15;
     protected static CACHE_MISS_MAX_WAIT_SECS = 120;
 
-    protected readonly config: AbstractCacheProviderConfig<T, A>;
+    protected readonly config: CacheProviderConfig<T, A>;
     protected readonly updateEmitter = new EventEmitter();
     protected readonly instanceLevelUpdateLock;
     protected readonly cachedResult;
 
-    protected constructor(config: AbstractCacheProviderConfig<T>) {
+    protected constructor(config: CacheProviderConfig<T>) {
         // Update pino logger reference
         if (config.pinoLogger) {
             config.pinoLogger = config.pinoLogger.child({"Source": "CacheProvider"}).child({"Source": config.title});
@@ -61,7 +61,7 @@ export abstract class AbstractCacheProvider<T extends NonNullable<unknown>, A ex
         this.config = config;
     }
 
-    get = async (key: string, callbackArgs: A): Promise<CacheResult<T>> => {
+    readonly get = async (key: string, callbackArgs: A): Promise<CacheResult<T>> => {
 
         // Check for result in local cache
         const cachedResult = this.cachedResult.get(key);
@@ -87,7 +87,7 @@ export abstract class AbstractCacheProvider<T extends NonNullable<unknown>, A ex
         // Build the cache miss callback
         const wrappedCacheMissCallback = this.wrapCacheMissCallback(key, callbackArgs);
 
-        const result = await this.cacheMiss(key, wrappedCacheMissCallback);
+        const result = await this.handleCacheMiss(key, wrappedCacheMissCallback);
 
         // Ensure we still have the instance lock
         const currentInstanceLock = this.instanceLevelUpdateLock.get(key);
@@ -114,10 +114,20 @@ export abstract class AbstractCacheProvider<T extends NonNullable<unknown>, A ex
         return result;
     }
 
+    protected async handleCacheMiss(key: string, wrappedCacheMissCallback: WrappedCacheMissCallback<T>): Promise<CacheResult<T>> {
+        // Execute the wrapped cache miss callback
+        const data = await wrappedCacheMissCallback();
+
+        return (data) ? {
+            data: data,
+            dataGenerator: true,
+        } : undefined;
+    }
+
     private wrapCacheMissCallback(key: string, callbackArgs: A): WrappedCacheMissCallback<T> {
         return async () => {
             // Calculate the max cache miss wait time
-            const maxCacheMissWaitSecs = this.config.cacheMissMaxWaitSecs ?? AbstractCacheProvider.CACHE_MISS_MAX_WAIT_SECS;
+            const maxCacheMissWaitSecs = this.config.cacheMissMaxWaitSecs ?? CacheProvider.CACHE_MISS_MAX_WAIT_SECS;
 
             try {
                 // Grab the cache miss callback promise
@@ -141,7 +151,7 @@ export abstract class AbstractCacheProvider<T extends NonNullable<unknown>, A ex
     private waitForResult = (updateId: string): Promise<CacheResult<T>> => {
 
         // Record final retry time
-        const finalRetryTimeMs = Date.now() + (this.config.maxWaitSecs ?? AbstractCacheProvider.MAX_WAIT_SECS) * 1000;
+        const finalRetryTimeMs = Date.now() + (this.config.maxWaitSecs ?? CacheProvider.MAX_WAIT_SECS) * 1000;
 
         // Make typescript happy
         type RefreshListener = (data: T | undefined) => void;
@@ -176,7 +186,5 @@ export abstract class AbstractCacheProvider<T extends NonNullable<unknown>, A ex
 
             return undefined;
         });
-    };
-
-    abstract cacheMiss(key: string, wrappedCacheMissCallback: WrappedCacheMissCallback<T>): Promise<CacheResult<T>>;
+    }
 }

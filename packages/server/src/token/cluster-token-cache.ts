@@ -18,7 +18,7 @@ type RefreshTokenSetMessage = {
 export class ClusterTokenCache extends AbstractTokenCache {
     private readonly constants = {
         _PREFIX: "token-cache",
-        UPDATE_TOKEN: "update-token",
+        UPDATE_DATA: "update-token",
         LISTENING_CHANNEL: "listening-channel",
     } as const;
     private readonly clusterProvider: AbstractClusterProvider;
@@ -62,7 +62,7 @@ export class ClusterTokenCache extends AbstractTokenCache {
     protected handleTokenRefresh = async (updateId: string, validatedRefreshJwt: string): Promise<RefreshTokenSetResult | undefined> => {
 
         // Start listening to cluster messages for this update id
-        const listeningChannel = `${this.constants.UPDATE_TOKEN}:${updateId}`;
+        const listeningChannel = `${this.constants.UPDATE_DATA}:${updateId}`;
         await this.clusterProvider.subscribe(listeningChannel, this.handleIncomingUpdateToken);
 
         // Track the lock flag
@@ -70,7 +70,7 @@ export class ClusterTokenCache extends AbstractTokenCache {
 
         // Build the lock options
         const lockOptions = {
-            key: `${this.constants._PREFIX}:${this.constants.UPDATE_TOKEN}`,
+            key: `${this.constants._PREFIX}:${this.constants.UPDATE_DATA}`,
             ttl: 60,
         }
 
