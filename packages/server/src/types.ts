@@ -5,12 +5,12 @@ import type {JWK, KeyLike} from "jose";
 import type {Logger} from "pino";
 import type {IncomingHttpHeaders} from "node:http";
 import type {JWTPayload} from "jose/dist/types/types.js";
-import type {AbstractKeyProvider, KeyProviderConfig} from "./crypto/abstract-key-provider.js";
-import type {AbstractClusterProvider} from "./cluster/abstract-cluster-provider.js";
-import type {TokenCacheProvider} from "./token/token-cache.js";
-import {TokenCache} from "./token/token-cache.js";
+import type {AbstractKeyProvider, KeyProviderConfig} from "./crypto/index.js";
+import type {AbstractClusterProvider} from "./cluster/index.js";
+import {TokenCache} from "./cache-adapters/index.js";
 import type {TokenSetParameters} from "openid-client";
 import type {UserinfoResponse} from "openid-client";
+import {UserInfoCache} from "./cache-adapters/index.js";
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -21,6 +21,7 @@ export interface KeycloakConnectorInternalConfiguration {
     oidcClient: Client;
     keyProvider: AbstractKeyProvider;
     tokenCache: TokenCache;
+    userInfoCache: UserInfoCache;
     remoteJWKS: () => Promise<KeyLike>;
     connectorKeys: ConnectorKeys;
     notBefore?: number;
@@ -114,9 +115,6 @@ export interface KeycloakConnectorConfigBase {
 
     /** Allows you to specify a built-in or pass a custom key provider */
     keyProvider?: KeyProvider;
-
-    /** Allows you to specify a built-in token cache provider or provide a custom implementation */
-    tokenCacheProvider?: TokenCacheProvider;
 
     /** Forces the server to validate all access tokens provided by during a user request, regardless of route */
     alwaysVerifyAccessTokenWithServer?: boolean;
@@ -223,6 +221,7 @@ type RouteConfigRoles<Roles extends KeycloakRole> = {
 type RouteConfigBase = {
     autoRedirect?: boolean;
     verifyAccessTokenWithServer?: boolean;
+    verifyUserInfoWithServer?: boolean;
 }
 
 /**

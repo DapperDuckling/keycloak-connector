@@ -7,29 +7,28 @@ import OPError = errors.OPError;
 import * as jose from 'jose';
 import type {CacheProvider} from "../cache/cache-provider.js";
 import {cacheFactory} from "../cache/cache-factory.js";
+import type {CacheAdapterConfig} from "./abstract-cache-adapter.js";
+import {AbstractCacheAdapter} from "./abstract-cache-adapter.js";
 
-export interface TokenCacheConfig {
-    pinoLogger?: Logger,
-    clusterProvider?: AbstractClusterProvider,
+export type TokenCacheConfig = CacheAdapterConfig & {
     oidcClient: BaseClient,
 }
 
 export type TokenCacheProvider = (...args: ConstructorParameters<typeof TokenCache>) => Promise<TokenCache>;
-export abstract class TokenCache {
 
-    protected static MAX_UPDATE_JWT_ID_LENGTH = 1000;
+export class TokenCache extends AbstractCacheAdapter<RefreshTokenSet, [string]> {
+
     protected static REFRESH_HOLDOVER_WINDOW_SECS = 60; // Will be up to double this value if cluster cache is used
 
     private config: TokenCacheConfig;
-    private cacheProvider: CacheProvider<RefreshTokenSet, [string]>;
 
     constructor(config: TokenCacheConfig) {
+        super(config);
         this.config = config;
 
-        this.cacheProvider = cacheFactory<RefreshTokenSet>({
+        this.cacheProvider = cacheFactory<RefreshTokenSet, [string]>({
+            ...this.cacheConfig,
             title: `TokenCache`,
-            ...this.config.pinoLogger && {pinoLogger: this.config.pinoLogger},
-            ...this.config.clusterProvider && {clusterProvider: this.config.clusterProvider},
             ttl: TokenCache.REFRESH_HOLDOVER_WINDOW_SECS,
             cacheMissCallback: this.performTokenRefresh,
         });
@@ -37,26 +36,8 @@ export abstract class TokenCache {
 
     refreshTokenSet = async (validatedRefreshJwt: string): Promise<RefreshTokenSetResult | undefined> => {
 
-        // Decode JWTs
-        const refreshToken = jose.decodeJwt(validatedRefreshJwt);
-
-        // Make the update id the JWT ID
-        const updateId = refreshToken.jti;
-
-        // Check for a valid id
-        if (updateId === undefined) {
-            this.config.pinoLogger?.error('No JWT ID found on a validated refresh token.');
-            return undefined;
-        }
-
-        // Check for reasonable update id length
-        if (updateId.length > TokenCache.MAX_UPDATE_JWT_ID_LENGTH) {
-            this.config.pinoLogger?.error(`JWT ID length exceeded ${TokenCache.MAX_UPDATE_JWT_ID_LENGTH}, received ${updateId.length} characters`);
-            return undefined;
-        }
-
         // Grab the token set from cache (or generate it into cache)
-        const cacheResult = await this.cacheProvider.get(updateId, [validatedRefreshJwt]);
+        const cacheResult = await this.cacheProvider.getFromJwt(validatedRefreshJwt);
 
         return (cacheResult) ? {
             refreshTokenSet: cacheResult.data,

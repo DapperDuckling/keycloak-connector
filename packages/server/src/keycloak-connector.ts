@@ -35,8 +35,7 @@ import type {KeyProviderConfig} from "./crypto/index.js";
 import {webcrypto} from "crypto";
 import RPError = errors.RPError;
 import OPError = errors.OPError;
-import {StandaloneTokenCache} from "./token/index.js";
-import type {TokenCacheConfig} from "./token/index.js";
+import {TokenCache, UserInfoCache} from "./cache-adapters/index.js";
 
 export class KeycloakConnector<Server extends SupportedServers> {
 
@@ -1220,19 +1219,25 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Store the OP JWK set
         const remoteJWKS = KeycloakConnector.createRemoteJWTSet(oidcClients.oidcIssuer.metadata.jwks_uri);
 
-        // Initialize the token cache
-        const tokenCacheConfig: TokenCacheConfig = {
+        // Prepare the caches
+        const cacheOptions = {
             ...config.pinoLogger && {pinoLogger: config.pinoLogger},
             ...config.clusterProvider && {clusterProvider: config.clusterProvider},
             oidcClient: oidcClients.oidcClient,
-        }
-        const tokenCache = await (config.tokenCacheProvider ?? StandaloneTokenCache.provider)(tokenCacheConfig);
+        };
+
+        // Initialize the token cache
+        const tokenCache = new TokenCache(cacheOptions);
+
+        // Initialize the user info cache
+        const userInfoCache = new UserInfoCache(cacheOptions);
 
         const components: KeycloakConnectorInternalConfiguration = {
             oidcDiscoveryUrl: oidcDiscoveryUrl,
             oidcConfig: openIdConfig,
             keyProvider: keyProvider,
             tokenCache: tokenCache,
+            userInfoCache: userInfoCache,
             ...oidcClients,
             remoteJWKS: remoteJWKS,
             connectorKeys: connectorKeys,

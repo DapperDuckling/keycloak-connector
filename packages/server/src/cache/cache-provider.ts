@@ -4,6 +4,7 @@ import {EventEmitter} from "node:events";
 import {LRUCache} from "lru-cache";
 import {promiseWait, WaitTimeoutError} from "../helpers/utils.js";
 import {webcrypto} from "crypto";
+import * as jose from 'jose';
 
 export type CacheMissCallback<T, A extends any[] = any[]> = (...args: A) => Promise<T | undefined>;
 
@@ -26,7 +27,8 @@ export type WrappedCacheMissCallback<T> = () => Promise<T | undefined>;
 
 export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any[]> {
 
-    protected static MAX_WAIT_SECS = 15;
+    protected static MAX_UPDATE_JWT_ID_LENGTH = 1000;
+    protected static MAX_WAIT_SECS = 10;
     protected static CACHE_MISS_MAX_WAIT_SECS = 120;
 
     protected readonly config: CacheProviderConfig<T, A>;
@@ -61,6 +63,28 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         this.config = config;
     }
 
+    readonly getFromJwt = async (validatedJwt: string, callbackArgs: A = [validatedJwt]) => {
+        // Decode JWT
+        const refreshToken = jose.decodeJwt(validatedJwt);
+
+        // Make the key the JWT ID
+        const key = refreshToken.jti;
+
+        // Check for a valid id
+        if (key === undefined) {
+            this.config.pinoLogger?.error('No JWT ID found on a validated refresh token.');
+            return undefined;
+        }
+
+        // Check for reasonable update id length
+        if (key.length > CacheProvider.MAX_UPDATE_JWT_ID_LENGTH) {
+            this.config.pinoLogger?.error(`JWT ID length exceeded ${CacheProvider.MAX_UPDATE_JWT_ID_LENGTH}, received ${key.length} characters`);
+            return undefined;
+        }
+
+        return this.get(key, callbackArgs);
+    }
+
     readonly get = async (key: string, callbackArgs: A): Promise<CacheResult<T>> => {
 
         // Check for result in local cache
@@ -85,7 +109,7 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         this.instanceLevelUpdateLock.set(key, instanceLockId);
 
         // Build the cache miss callback
-        const wrappedCacheMissCallback = this.wrapCacheMissCallback(key, callbackArgs);
+        const wrappedCacheMissCallback = this.wrapCacheMissCallback(callbackArgs);
 
         const result = await this.handleCacheMiss(key, wrappedCacheMissCallback);
 
@@ -124,7 +148,7 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         } : undefined;
     }
 
-    private wrapCacheMissCallback(key: string, callbackArgs: A): WrappedCacheMissCallback<T> {
+    private wrapCacheMissCallback(callbackArgs: A): WrappedCacheMissCallback<T> {
         return async () => {
             // Calculate the max cache miss wait time
             const maxCacheMissWaitSecs = this.config.cacheMissMaxWaitSecs ?? CacheProvider.CACHE_MISS_MAX_WAIT_SECS;
