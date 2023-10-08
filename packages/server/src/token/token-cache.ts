@@ -1,15 +1,12 @@
-import type {RefreshTokenSetResult, RefreshTokenSet} from "../types.js";
+import type {RefreshTokenSet, RefreshTokenSetResult} from "../types.js";
 import type {Logger} from "pino";
-import {AbstractClusterProvider} from "../cluster/abstract-cluster-provider.js";
+import {AbstractClusterProvider} from "../cluster/index.js";
 import type {BaseClient} from "openid-client";
 import {errors} from "openid-client";
 import OPError = errors.OPError;
 import * as jose from 'jose';
-import {LRUCache} from "lru-cache";
-import {EventEmitter} from "node:events";
-import {promiseWait, WaitTimeoutError} from "../helpers/utils.js";
-import {webcrypto} from "crypto";
 import type {CacheProvider} from "../cache/cache-provider.js";
+import {cacheFactory} from "../cache/cache-factory.js";
 
 export interface TokenCacheConfig {
     pinoLogger?: Logger,
@@ -17,23 +14,25 @@ export interface TokenCacheConfig {
     oidcClient: BaseClient,
 }
 
-export type HandleRefreshToken = {
-    updateId: string;
-    validatedRefreshJwt: string;
-    isFirstThisNode: boolean;
-}
-
 export type TokenCacheProvider = (...args: ConstructorParameters<typeof TokenCache>) => Promise<TokenCache>;
 export abstract class TokenCache {
 
-    private static MAX_UPDATE_JWT_ID_LENGTH = 1000;
+    protected static MAX_UPDATE_JWT_ID_LENGTH = 1000;
+    protected static REFRESH_HOLDOVER_WINDOW_SECS = 60; // Will be up to double this value if cluster cache is used
+
     private config: TokenCacheConfig;
     private cacheProvider: CacheProvider<RefreshTokenSet, [string]>;
 
     constructor(config: TokenCacheConfig) {
         this.config = config;
 
-        this.cacheProvider = new Cac
+        this.cacheProvider = cacheFactory<RefreshTokenSet>({
+            title: `TokenCache`,
+            ...this.config.pinoLogger && {pinoLogger: this.config.pinoLogger},
+            ...this.config.clusterProvider && {clusterProvider: this.config.clusterProvider},
+            ttl: TokenCache.REFRESH_HOLDOVER_WINDOW_SECS,
+            cacheMissCallback: this.performTokenRefresh,
+        });
     }
 
     refreshTokenSet = async (validatedRefreshJwt: string): Promise<RefreshTokenSetResult | undefined> => {
@@ -56,9 +55,13 @@ export abstract class TokenCache {
             return undefined;
         }
 
-        // Handle
+        // Grab the token set from cache (or generate it into cache)
+        const cacheResult = await this.cacheProvider.get(updateId, [validatedRefreshJwt]);
 
-        return refreshTokenSetResult;
+        return (cacheResult) ? {
+            refreshTokenSet: cacheResult.data,
+            shouldUpdateCookies: cacheResult.dataGenerator ?? false
+        } : undefined;
     }
 
     protected performTokenRefresh = async (validatedRefreshJwt: string): Promise<RefreshTokenSet | undefined> => {
@@ -81,6 +84,4 @@ export abstract class TokenCache {
         }
 
     };
-
-    static provider: TokenCacheProvider;
 }

@@ -49,5 +49,5 @@
     "./tests/**/*",
     "./dist/**/*"
   ],
-  "baseUrl": "src"
+  "baseUrl": "./src"
 }

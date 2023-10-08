@@ -1,11 +1,11 @@
 import {AbstractClusterProvider} from "../cluster/index.js";
 import type {Logger} from "pino";
 import {EventEmitter} from "node:events";
-import {LRUCache} from "lru-cache/dist/mjs/index.js";
+import {LRUCache} from "lru-cache";
 import {promiseWait, WaitTimeoutError} from "../helpers/utils.js";
 import {webcrypto} from "crypto";
 
-export type CacheMissCallback<T, A extends any[] = any[]> = (key: string, ...args: A) => Promise<T | undefined>;
+export type CacheMissCallback<T, A extends any[] = any[]> = (...args: A) => Promise<T | undefined>;
 
 export type CacheProviderConfig<T, A extends any[] = any[]> = {
     title: string,
@@ -34,7 +34,7 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
     protected readonly instanceLevelUpdateLock;
     protected readonly cachedResult;
 
-    constructor(config: CacheProviderConfig<T>) {
+    constructor(config: CacheProviderConfig<T, A>) {
         // Update pino logger reference
         if (config.pinoLogger) {
             config.pinoLogger = config.pinoLogger.child({"Source": "CacheProvider"}).child({"Source": config.title});
@@ -131,7 +131,7 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
 
             try {
                 // Grab the cache miss callback promise
-                const cacheMissPromise = this.config.cacheMissCallback(key, ...callbackArgs);
+                const cacheMissPromise = this.config.cacheMissCallback(...callbackArgs);
 
                 // Wait for the cache miss callback to execute
                 return await promiseWait(cacheMissPromise, maxCacheMissWaitSecs * 1000);

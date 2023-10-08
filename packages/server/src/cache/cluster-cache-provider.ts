@@ -5,7 +5,7 @@ import {
     type WrappedCacheMissCallback
 } from "./cache-provider.js";
 import {AbstractClusterProvider} from "../cluster/index.js";
-import {LRUCache} from "lru-cache/dist/mjs/index.js";
+import {LRUCache} from "lru-cache";
 import {type Deferred, deferredFactory, promiseWait, sleep, WaitTimeoutError} from "../helpers/utils.js";
 import {is} from "typia";
 import {setImmediate} from "timers";
@@ -24,7 +24,7 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
     private readonly clusterProvider: AbstractClusterProvider;
     private readonly pendingRefresh;
 
-    constructor(config: CacheProviderConfig<T>) {
+    constructor(config: CacheProviderConfig<T, A>) {
         super(config);
 
         // Check for a cluster provider
