@@ -87,7 +87,7 @@ export abstract class AbstractTokenCache {
             return await this.waitForResult(updateId);
         }
 
-        this.config.pinoLogger?.debug(`Waiting for result from a different provider`);
+        this.config.pinoLogger?.debug(`No other update occurring this instance, attempting to update cache`);
 
         // Grab instance level lock for updating the refresh token
         const instanceLockId = webcrypto.randomUUID();
@@ -96,9 +96,9 @@ export abstract class AbstractTokenCache {
         // Update the refresh token for this instance
         const refreshTokenSetResult = await this.handleTokenRefresh(updateId, validatedRefreshJwt);
 
-        // Determine if we still have the lock (or no one has the instance lock)
+        // Determine if we still have the lock
         const currentInstanceLock = this.instanceLevelUpdateLock.get(updateId);
-        const stillHadLock = (currentInstanceLock === instanceLockId || currentInstanceLock === undefined);
+        const stillHadLock = (currentInstanceLock === instanceLockId);
 
         // Check if we still have a lock
         if (stillHadLock) {
