@@ -1,8 +1,8 @@
 import type {CacheAdapterConfig} from "./abstract-cache-adapter.js";
 import {AbstractCacheAdapter} from "./abstract-cache-adapter.js";
-import {BaseClient, UserinfoResponse} from "openid-client";
+import type {BaseClient, UserinfoResponse} from "openid-client";
 import {cacheFactory} from "../cache/cache-factory.js";
-import {RefreshTokenSet} from "../types.js";
+import {CacheProvider} from "../cache/cache-provider.js";
 
 export type UserInfoCacheConfig = CacheAdapterConfig & {
     oidcClient: BaseClient,
@@ -10,13 +10,14 @@ export type UserInfoCacheConfig = CacheAdapterConfig & {
 
 export class UserInfoCache extends AbstractCacheAdapter<UserinfoResponse, [string]> {
 
-    private config: UserInfoCacheConfig;
+    protected override config: UserInfoCacheConfig;
+    protected cacheProvider: CacheProvider<UserinfoResponse, [string]>;
 
     constructor(config: UserInfoCacheConfig) {
         super(config);
         this.config = config;
 
-        this.cacheProvider = cacheFactory<RefreshTokenSet, [string]>({
+        this.cacheProvider = cacheFactory<UserinfoResponse, [string]>({
             ...this.cacheConfig,
             title: `UserInfoCache`,
             ttl: 3600,
@@ -24,9 +25,16 @@ export class UserInfoCache extends AbstractCacheAdapter<UserinfoResponse, [strin
         });
     }
 
+    async invalidateFromJwt(validatedJwt: string) {
+        await this.cacheProvider.invalidateFromJwt(validatedJwt, 'sub');
+    }
+
     getUserInfo = async (validatedAccessJwt: string): Promise<UserinfoResponse | undefined> => {
         // Grab the user info from cache (or generate it into cache)
-        return await this.cacheProvider.getFromJwt(validatedAccessJwt);
+        const cacheResult = await this.cacheProvider.getFromJwt(validatedAccessJwt, 'sub', [validatedAccessJwt]);
+
+        // Return just the data
+        return cacheResult?.data;
     }
 
     private fetchUserInfo = async (validatedAccessJwt: string): Promise<UserinfoResponse | undefined> => {

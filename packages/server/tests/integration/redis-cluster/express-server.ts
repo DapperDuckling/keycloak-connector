@@ -4,7 +4,7 @@ import cookieParser from "cookie-parser";
 import type {Express} from "express-serve-static-core";
 import {RedisClusterProvider} from "keycloak-connector-server-cluster-redis";
 import logger from "pino-http";
-import {clusterKeyProvider, clusterTokenCacheProvider} from "keycloak-connector-server";
+import {clusterKeyProvider} from "keycloak-connector-server";
 import {loggerOpts} from "./main.test.js";
 
 export async function makeExpressServer(port: number) {
@@ -33,8 +33,8 @@ export async function makeExpressServer(port: number) {
         refreshConfigMins: -1, // Disable for dev testing
         clusterProvider: clusterProvider,
         keyProvider: clusterKeyProvider,
-        tokenCacheProvider: clusterTokenCacheProvider,
         pinoLogger: loggerHttp.logger,
+        fetchUserInfo: true,
     });
 
     const router = express.Router();

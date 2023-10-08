@@ -6,7 +6,7 @@ import * as path from "path";
 import {keycloakConnectorFastify} from "keycloak-connector-server";
 import {fastifyRoutes} from "./fastify-routes.js";
 import type {Logger} from "pino";
-import {clusterKeyProvider, clusterTokenCacheProvider} from "keycloak-connector-server";
+import {clusterKeyProvider} from "keycloak-connector-server";
 import {RedisClusterProvider} from "keycloak-connector-server-cluster-redis";
 import {loggerOpts} from "./main.test.js";
 
@@ -41,7 +41,7 @@ export async function makeFastifyServer(port: number) {
         refreshConfigMins: -1, // Disable for dev testing
         clusterProvider: clusterProvider,
         keyProvider: clusterKeyProvider,
-        tokenCacheProvider: clusterTokenCacheProvider,
+        fetchUserInfo: true,
     });
 
     // Register our routes

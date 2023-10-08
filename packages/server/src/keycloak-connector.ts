@@ -5,8 +5,7 @@ import {
     generators,
     Issuer,
     type IssuerMetadata,
-    TokenSet,
-    type UserinfoResponse
+    TokenSet
 } from "openid-client";
 import type {
     ConnectorRequest,
@@ -739,7 +738,23 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Handle grabbing user info if required
         if (this._config.fetchUserInfo) {
-            userDataResponse.userData.userInfo = this.fetchUserInfo(validatedAccessJwt);
+
+            // Check if this route wants to verify user info
+            if (connectorRequest.routeConfig.verifyUserInfoWithServer) {
+                // Invalidate user info cache
+                await this.components.userInfoCache.invalidateFromJwt(validatedAccessJwt);
+            }
+
+            // Grab the user info
+            let userInfo = await this.components.userInfoCache.getUserInfo(validatedAccessJwt);
+
+            // Check if there is a custom transformation function to run
+            if (userInfo && typeof this._config.fetchUserInfo !== "boolean") {
+                userInfo = this._config.fetchUserInfo(userInfo);
+            }
+
+            // Save the results
+            userDataResponse.userData.userInfo = userInfo;
         }
 
         // User is authenticated since they have a valid access token
@@ -841,19 +856,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
             return;
         }
     }
-
-    private fetchUserInfo = async (validatedAccessJwt: string): Promise<UserinfoResponse | undefined> => {
-        try {
-            // todo: move to class (for use in standalone and cluster configurations)
-            // todo: Take into account the `sub` of the token and use caching techniques to ensure we don't slam keycloak too often
-            // todo: allow developer-user to configure a route that requires a recheck of group membership
-            return await this.components.oidcClient.userinfo(validatedAccessJwt);
-
-        } catch (e) {
-            this._config.pinoLogger?.warn(e, `Failed to fetch user info with provided access token`);
-            return;
-        }
-    };
 
     /**
      * Returns the access token from the provided Jwt. Will return the new access token for a short-period to account

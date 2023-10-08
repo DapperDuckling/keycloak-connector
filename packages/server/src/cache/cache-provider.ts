@@ -5,6 +5,7 @@ import {LRUCache} from "lru-cache";
 import {promiseWait, WaitTimeoutError} from "../helpers/utils.js";
 import {webcrypto} from "crypto";
 import * as jose from 'jose';
+import type {JWTPayload} from "jose/dist/types/types.js";
 
 export type CacheMissCallback<T, A extends any[] = any[]> = (...args: A) => Promise<T | undefined>;
 
@@ -33,8 +34,8 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
 
     protected readonly config: CacheProviderConfig<T, A>;
     protected readonly updateEmitter = new EventEmitter();
-    protected readonly instanceLevelUpdateLock;
-    protected readonly cachedResult;
+    protected readonly instanceLevelUpdateLock: LRUCache<string, string>;
+    protected readonly cachedResult: LRUCache<string, T>;
 
     constructor(config: CacheProviderConfig<T, A>) {
         // Update pino logger reference
@@ -63,16 +64,37 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         this.config = config;
     }
 
-    readonly getFromJwt = async (validatedJwt: string, callbackArgs: A = [validatedJwt]) => {
+    async invalidateFromJwt(validatedJwt: string, targetKeyParam: keyof JWTPayload) {
+        // Grab the key from the jwt
+        const key = this.jwtToKey(validatedJwt, targetKeyParam);
+
+        // Check for no key found
+        if (key === undefined) return;
+
+        await this.invalidateCache(key);
+    }
+
+    async invalidateCache(key: string) {
+        // Nuke local cache
+        this.cachedResult.delete(key);
+    }
+
+    private jwtToKey = (validatedJwt: string, targetKeyParam: keyof JWTPayload): string | undefined => {
         // Decode JWT
-        const refreshToken = jose.decodeJwt(validatedJwt);
+        const token = jose.decodeJwt(validatedJwt);
 
-        // Make the key the JWT ID
-        const key = refreshToken.jti;
+        // Grab the key from the token
+        const key = token[targetKeyParam];
 
-        // Check for a valid id
+        // Check for a key
         if (key === undefined) {
-            this.config.pinoLogger?.error('No JWT ID found on a validated refresh token.');
+            this.config.pinoLogger?.error(`"${targetKeyParam}" key found on a validated token object`);
+            return undefined;
+        }
+
+        // Ensure key is a string
+        if (typeof key !== "string") {
+            this.config.pinoLogger?.error(`"${targetKeyParam} key found on validated token object is not a string`);
             return undefined;
         }
 
@@ -81,6 +103,17 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
             this.config.pinoLogger?.error(`JWT ID length exceeded ${CacheProvider.MAX_UPDATE_JWT_ID_LENGTH}, received ${key.length} characters`);
             return undefined;
         }
+
+        return key;
+    }
+
+    readonly getFromJwt = async (validatedJwt: string, targetKeyParam: keyof JWTPayload, callbackArgs: A) => {
+
+        // Grab the key from the jwt
+        const key = this.jwtToKey(validatedJwt, targetKeyParam);
+
+        // Check for no key found
+        if (key === undefined) return undefined;
 
         return this.get(key, callbackArgs);
     }

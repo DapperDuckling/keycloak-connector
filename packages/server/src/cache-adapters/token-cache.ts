@@ -1,6 +1,4 @@
 import type {RefreshTokenSet, RefreshTokenSetResult} from "../types.js";
-import type {Logger} from "pino";
-import {AbstractClusterProvider} from "../cluster/index.js";
 import type {BaseClient} from "openid-client";
 import {errors} from "openid-client";
 import OPError = errors.OPError;
@@ -20,7 +18,8 @@ export class TokenCache extends AbstractCacheAdapter<RefreshTokenSet, [string]> 
 
     protected static REFRESH_HOLDOVER_WINDOW_SECS = 60; // Will be up to double this value if cluster cache is used
 
-    private config: TokenCacheConfig;
+    protected override config: TokenCacheConfig;
+    protected cacheProvider: CacheProvider<RefreshTokenSet, [string]>;
 
     constructor(config: TokenCacheConfig) {
         super(config);
@@ -34,10 +33,14 @@ export class TokenCache extends AbstractCacheAdapter<RefreshTokenSet, [string]> 
         });
     }
 
+    async invalidateFromJwt(validatedJwt: string) {
+        await this.cacheProvider.invalidateFromJwt(validatedJwt, 'jti');
+    }
+
     refreshTokenSet = async (validatedRefreshJwt: string): Promise<RefreshTokenSetResult | undefined> => {
 
         // Grab the token set from cache (or generate it into cache)
-        const cacheResult = await this.cacheProvider.getFromJwt(validatedRefreshJwt);
+        const cacheResult = await this.cacheProvider.getFromJwt(validatedRefreshJwt, 'jti', [validatedRefreshJwt]);
 
         return (cacheResult) ? {
             refreshTokenSet: cacheResult.data,

@@ -123,7 +123,7 @@ export interface KeycloakConnectorConfigBase {
     customIsAuthorized?: (connectorRequest: ConnectorRequest, userData: UserData) => boolean;
 
     /** Requires server to fetch user info for each validated access token */
-    fetchUserInfo?: boolean | ((userInfo: UserinfoResponse<any>) => UserinfoResponse<any>);
+    fetchUserInfo?: boolean | ((userInfo: UserinfoResponse) => UserinfoResponse);
 }
 
 export type KeyProvider = (keyProviderConfig: KeyProviderConfig) => Promise<AbstractKeyProvider>;
@@ -469,7 +469,7 @@ export interface UserData {
     isAuthorized: boolean;
     roles: KeycloakRole[];
     accessToken?: KcAccessJWT;
-    userInfo?: UserinfoResponse<any>
+    userInfo?: UserinfoResponse | undefined;
 }
 
 export enum RoleConfigurationStyle {

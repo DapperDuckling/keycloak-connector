@@ -23,6 +23,7 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
     } as const;
     private readonly clusterProvider: AbstractClusterProvider;
     private readonly pendingRefresh;
+    private readonly lockOptions: {key: string, ttl: number};
 
     constructor(config: CacheProviderConfig<T, A>) {
         super(config);
@@ -38,9 +39,31 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
             ttl: (this.config.maxWaitSecs ?? CacheProvider.MAX_WAIT_SECS) * 1000,
         });
 
+        // Build the lock options
+        this.lockOptions = {
+            key: `${this.constants._PREFIX}:${this.constants.UPDATE_DATA}:${this.config.title}`,
+            ttl: 60,
+        }
+
         // Store reference to the cluster provider
         this.clusterProvider = config.clusterProvider;
 
+    }
+
+    override async invalidateCache(key: string) {
+        await super.invalidateCache(key);
+
+        // Grab a lock, force breaking any existing locks
+        await this.clusterProvider.lock(this.lockOptions, true);
+
+        // Grab the storage key
+        const storageKey = this.getStorageKey(key);
+
+        // Invalidate cluster cache
+        await this.clusterProvider.remove(storageKey);
+
+        // Unlock our own lock
+        await this.clusterProvider.unlock(this.lockOptions);
     }
 
     private handleIncomingUpdateData = (message: unknown) => {
@@ -65,6 +88,10 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
         }
     }
 
+    private getStorageKey(key: string) {
+        return `${this.constants._PREFIX}:${this.config.title}:${key}`;
+    }
+
     protected override async handleCacheMiss(key: string, wrappedCacheMissCallback: WrappedCacheMissCallback<T>): Promise<CacheResult<T>> {
 
         // Start listening to cluster messages for this update id
@@ -74,14 +101,8 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
         // Track the lock flag
         let lock = false;
 
-        // Build the lock options
-        const lockOptions = {
-            key: `${this.constants._PREFIX}:${this.constants.UPDATE_DATA}:${this.config.title}`,
-            ttl: 60,
-        }
-
-        // Build the storage key
-        const storageKey = `${this.constants._PREFIX}:${this.config.title}:${key}`;
+        // Grab the storage key
+        const storageKey = this.getStorageKey(key);
 
         try {
             // Grab an already completed update request stored with the cluster provider
@@ -99,7 +120,7 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
                 this.pendingRefresh.set(key, deferredRefresh);
 
                 // Grab a lock
-                lock = await this.clusterProvider.lock(lockOptions);
+                lock = await this.clusterProvider.lock(this.lockOptions);
 
                 // Check for no lock
                 if (!lock) {
@@ -126,7 +147,7 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
                 // Check for a new token set
                 if (data) {
                     // Store the result in the cluster
-                    await this.clusterProvider.storeObject(storageKey, data, this.config.ttl, lockOptions.key);
+                    await this.clusterProvider.storeObject(storageKey, data, this.config.ttl, this.lockOptions.key);
 
                     // Broadcast result to the cluster
                     await this.clusterProvider.publish<UpdateDataMessage<T>>(listeningChannel, {
@@ -154,7 +175,7 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
             await this.clusterProvider.unsubscribe(listeningChannel, this.handleIncomingUpdateData);
 
             // Release the lock
-            if (lock) await this.clusterProvider.unlock(lockOptions);
+            if (lock) await this.clusterProvider.unlock(this.lockOptions);
 
         }
 

@@ -386,7 +386,7 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
         return (await promise !== null);
     }
 
-    async lock(lockOptions: LockOptions): Promise<boolean> {
+    async lock(lockOptions: LockOptions, force?: boolean): Promise<boolean> {
         /**
          * Be warned: This lock implementation does not guarantee safety and liveness in
          * distributed cluster systems. Read more: https://redis.io/docs/manual/patterns/distributed-locks/
@@ -394,14 +394,23 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
         this.clusterConfig.pinoLogger?.debug(`Attempting to obtain a lock with key ${lockOptions.key}`);
 
-        // Set a key with our unique id IFF the key does not exist already
-        const result = await this.client.set(lockOptions.key, this.uniqueClientId, "EX", lockOptions.ttl, "NX");
+        let result;
+
+        // Check for a force lock
+        if (force) {
+            // Set a key with our unique id
+            result = await this.client.set(lockOptions.key, this.uniqueClientId, "EX", lockOptions.ttl);
+        } else {
+            // Set a key with our unique id IFF the key does not exist already
+            result = await this.client.set(lockOptions.key, this.uniqueClientId, "EX", lockOptions.ttl, "NX");
+        }
 
         return (result !== null);
     }
 
-    async unlock(lockOptions: LockOptions): Promise<boolean> {
-        const result = await this.remove(lockOptions.key, lockOptions.key);
+    async unlock(lockOptions: LockOptions, force?: boolean): Promise<boolean> {
+        const lockKey = (force) ? undefined : lockOptions.key;
+        const result = await this.remove(lockOptions.key, lockKey);
 
         return (result !== null);
     }
