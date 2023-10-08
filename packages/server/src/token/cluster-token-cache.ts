@@ -124,6 +124,12 @@ export class ClusterTokenCache extends AbstractTokenCache {
                     // Store the result in the cluster
                     await this.clusterProvider.storeObject(storageKey, tokenSet, AbstractTokenCache.REFRESH_HOLDOVER_WINDOW_SECS, lockOptions.key);
 
+                    // Broadcast result to the cluster
+                    await this.clusterProvider.publish<RefreshTokenSetMessage>(listeningChannel, {
+                        updateId: updateId,
+                        refreshTokenSet: tokenSet,
+                    });
+
                     // Return the new token set and do update the cookies here
                     return {
                         refreshTokenSet: tokenSet,

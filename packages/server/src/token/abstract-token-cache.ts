@@ -47,7 +47,7 @@ export abstract class AbstractTokenCache {
         this.tokenUpdateEmitter.on('error', (e) => {
             // Log the error
             this.config.pinoLogger?.error(e, 'Error in token cache');
-        })
+        });
     }
 
     refreshTokenSet = async (validatedRefreshJwt: string): Promise<RefreshTokenSetResult | undefined> => {
@@ -100,25 +100,20 @@ export abstract class AbstractTokenCache {
         const currentInstanceLock = this.instanceLevelUpdateLock.get(updateId);
         const stillHadLock = (currentInstanceLock === instanceLockId || currentInstanceLock === undefined);
 
-        // Clear the instance level lock
-        if (stillHadLock) this.instanceLevelUpdateLock.delete(updateId);
-
-        // Check for no result
-        if (refreshTokenSetResult === undefined) {
-            this.config.pinoLogger?.debug(`No token refresh acquired, emit undefined response`);
-            this.tokenUpdateEmitter.emit(updateId, undefined);
-            return undefined;
-        }
-
-        this.config.pinoLogger?.debug(`Token refresh acquired, storing and emitting`);
-
-        // Ensure we still had the instance lock
+        // Check if we still have a lock
         if (stillHadLock) {
-            // Store the result in local cache
-            this.cachedRefresh.set(updateId, refreshTokenSetResult.refreshTokenSet);
+            // Clear the instance level lock
+            this.instanceLevelUpdateLock.delete(updateId);
 
-            // Emit the new token set
-            this.tokenUpdateEmitter.emit(updateId, refreshTokenSetResult.refreshTokenSet);
+            // Emit the result
+            this.config.pinoLogger?.debug(`Emitting result locally`);
+            this.tokenUpdateEmitter.emit(updateId, refreshTokenSetResult?.refreshTokenSet);
+
+            // Store valid result in local cache
+            if (refreshTokenSetResult) {
+                this.config.pinoLogger?.debug(`Token refresh acquired, storing locally`);
+                this.cachedRefresh.set(updateId, refreshTokenSetResult.refreshTokenSet);
+            }
         }
 
         // Return the full result
