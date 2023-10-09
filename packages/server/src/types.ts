@@ -119,9 +119,6 @@ export interface KeycloakConnectorConfigBase {
     /** Forces the server to validate all access tokens provided by during a user request, regardless of route */
     alwaysVerifyAccessTokenWithServer?: boolean;
 
-    /** Provide a custom isAuthorized function to extend authorization determination functionality */
-    customIsAuthorized?: (connectorRequest: ConnectorRequest, userData: UserData) => boolean;
-
     /** Requires server to fetch user info for each validated access token */
     fetchUserInfo?: boolean | ((userInfo: UserinfoResponse) => UserinfoResponse);
 }

@@ -47,6 +47,10 @@ export async function makeFastifyServer(port: number) {
     // Register our routes
     await fastify.register(fastifyRoutes);
 
+    //todo: spitballing
+    // groupAuthPlugin: AbstractAuthPlugin = new GroupAuthPlugin()
+    // fastify.kcc.registerAuthPlugin(groupAuthPlugin)
+
     return fastify;
 }
 

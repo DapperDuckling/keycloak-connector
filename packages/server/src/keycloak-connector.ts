@@ -35,6 +35,7 @@ import {webcrypto} from "crypto";
 import RPError = errors.RPError;
 import OPError = errors.OPError;
 import {TokenCache, UserInfoCache} from "./cache-adapters/index.js";
+import {AuthPluginManager} from "./auth-plugins/auth-plugin-manager.js";
 
 export class KeycloakConnector<Server extends SupportedServers> {
 
@@ -45,6 +46,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private oidcConfigTimer: ReturnType<typeof setTimeout> | null = null;
     private updateOidcConfig: Promise<boolean> | null = null;
     private updateOidcConfigPending: Promise<boolean> | null = null;
+    private authPluginManager: AuthPluginManager;
 
     private readonly CookieOptions: CookieOptionsBase<Server> = {
         sameSite: "strict",
@@ -78,6 +80,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
             // Create a timeout
             this.oidcConfigTimer = setTimeout(this.updateOpenIdConfig.bind(this), this._config.refreshConfigMins * 60 * 1000);
         }
+
+        // Setup the auth plugin manager
+        this.authPluginManager = AuthPluginManager.init(this.isUserAuthorized, this._config.pinoLogger);
 
         // Register the routes using the connector adapter
         this.registerRoutes(adapter);
@@ -761,8 +766,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         userData.isAuthenticated = true;
 
         // Handle authorizing user based on request and user data
-        const isAuthorizedFunction = this._config.customIsAuthorized ?? this.isUserAuthorized;
-        userData.isAuthorized = isAuthorizedFunction(connectorRequest, userData);
+        userData.isAuthorized = await this.authPluginManager.isUserAuthorized(connectorRequest, userData);
 
         // Add reference to user data on the connector request as well
         connectorRequest.keycloak = userData;
@@ -770,49 +774,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return userDataResponse;
     }
 
-    /**
-     * Spitball
-     *  public getPublicConnector = () => {
-     *      lock: lock,
-     *      registerAuthPlugin: registerAuthPlugin
-     *  }
-     *  const kcc = await keycloakConnectorExpress({});
-     *
-     *  type PluginOptions = {
-     *      isAuthorizedHandler: ...,
-     *      priority: number (kcc is priority 0, negative is less pri, positive is more)
-     *      override: OVERRIDE_ALL (priority doesn't matter then) | OVERRIDE_BASE_FUNCTION (priority doesn't matter then, but can be added) | OVERRIDE_NONE (priority required)
-     *  }
-     *
-     *  private registerAuthPlugin = (plugin: PluginOptions, priorityOverride?: number) => {
-     *
-     *      // Safety check
-     *      if (priorityOverride && plugin.override = OVERRIDE_ALL) {
-     *          throw new Error(`Cannot set priority for plugin designed to OVERRIDE_ALL other plugins`);
-     *      }
-     *
-     *      return {
-     *          groupAuth:
-     *          groupAuthCheck:
-     *          groupAuthConfig:
-     *      }
-     *  }
-     *
-     *  // Boolean to allow/disallow response NOW (w
-     *  // ****RETHINK THIS IDEA, THESE PLUGINS NEED TO STILL BE ABLE TO ADD THEIR DATA TO THE RESPONSE!!
-     *  type isAuthorizedHandler = (connectorRequest: ConnectorRequest, userData: UserData): boolean | undefined;
-     *
-     *
-     *
-     *  private handleIsAuthorized = () => {
-     *      // Loop through registered auth plugins (to include the baseline)
-     *  }
-     *
-     *
-     */
-
-
-    public isUserAuthorized = (connectorRequest: ConnectorRequest, userData: UserData): boolean => {
+    public isUserAuthorized = async (connectorRequest: ConnectorRequest, userData: UserData): Promise<boolean> => {
         // Check if the page is public anyway OR is the page is protected, but there is no role requirement
         if (connectorRequest.routeConfig.public || (Array.isArray(connectorRequest.routeConfig.roles) && connectorRequest.routeConfig.roles.length === 0)) {
             return true;
