@@ -6,13 +6,16 @@ declare module "http" {
         log?: pino.Logger;
         keycloak: UserData;
         _keycloakReqHandled: boolean;
+        //todo: update
     }
 
     interface ServerResponse {
+        //todo: update
         bigTestBoi?: string;
     }
 
     interface OutgoingMessage {
+        //todo: update
         wowOutgoingTest: string;
     }
 }

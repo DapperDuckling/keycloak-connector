@@ -1,7 +1,7 @@
 import readline from "node:readline/promises";
 import {stdin as input, stdout as output} from "node:process";
 import process from "process";
-import {RedisClusterProvider} from "keycloak-connector-server-cluster-redis";
+import {RedisClusterProvider} from "keycloak-connector-cluster-redis";
 import type {
     CancelPendingJwksUpdateMsg, ClusterMessage,
     NewJwksAvailableMsg,

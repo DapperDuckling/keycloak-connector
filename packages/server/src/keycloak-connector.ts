@@ -1135,7 +1135,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Await the function call
         return await this.updateOidcConfig;
-    };
+    }
 
     static async init<Server extends SupportedServers>(adapter: AbstractAdapter<Server>, customConfig: KeycloakConnectorConfigCustom) {
 

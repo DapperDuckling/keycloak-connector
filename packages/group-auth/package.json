@@ -1,7 +1,7 @@
 {
   "name": "keycloak-connector-group-auth",
   "version": "0.0.1",
-  "description": "A plugin enabling permission management via Keycloak groups",
+  "description": "A plugin enabling Keycloak group permission management via Keycloak groups",
   "keywords": [
     "keycloak group permissions",
     "node keycloak group authorization"
@@ -18,10 +18,7 @@
   "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "npm run build",
-    "test:start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts",
-    "test:start:redis-cluster": "npm run build && cd ./tests/integration/redis-cluster/ && nodemon ./main.test.ts",
-    "postinstall": "patch-package && ts-patch install"
+    "prepublishOnly": "npm run build"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -29,24 +26,8 @@
     "./dist"
   ],
   "devDependencies": {
-    "@jest/globals": "^29.5.0",
-    "@types/cookie-parser": "^1.4.3",
-    "@types/express-serve-static-core": "^4.17.34",
-    "@types/fastify-static": "^2.2.1",
-    "@types/jest": "^29.5.1",
-    "keycloak-connector-server-cluster-redis": "file:../cluster-redis",
-    "nodemon": "^3.0.1",
-    "pino-http": "^8.4.0",
-    "readline-sync": "^1.4.10",
-    "ts-node": "^10.9.1",
-    "ts-patch": "^3.0.2",
-    "typescript": "^5.1.6"
   },
   "dependencies": {
-    "jose": "^4.14.4",
-    "lru-cache": "^10.0.1",
-    "openid-client": "^5.6.0",
-    "patch-package": "^8.0.0",
-    "typia": "^4.2.3"
+    "keycloak-connector-group-auth": "file:../server"
   }
 }

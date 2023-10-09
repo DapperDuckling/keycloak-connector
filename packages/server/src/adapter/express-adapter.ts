@@ -187,7 +187,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
     public static init = async (app: Express, customConfig: KeycloakConnectorConfigCustom) => {
 
         // Create a new adapter here
-        const adapter = await new this(app, customConfig);
+        const adapter = new this(app, customConfig);
 
         // Initialize the keycloak connector
         adapter._keycloakConnector = await KeycloakConnector.init<SupportedServers.express>(adapter, customConfig);

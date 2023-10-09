@@ -7,7 +7,7 @@ import {keycloakConnectorFastify} from "keycloak-connector-server";
 import {fastifyRoutes} from "./fastify-routes.js";
 import type {Logger} from "pino";
 import {clusterKeyProvider} from "keycloak-connector-server";
-import {RedisClusterProvider} from "keycloak-connector-server-cluster-redis";
+import {RedisClusterProvider} from "keycloak-connector-cluster-redis";
 import {loggerOpts} from "./main.test.js";
 
 export async function makeFastifyServer(port: number) {

@@ -2,7 +2,7 @@ import express from 'express';
 import {keycloakConnectorExpress} from "keycloak-connector-server";
 import cookieParser from "cookie-parser";
 import type {Express} from "express-serve-static-core";
-import {RedisClusterProvider} from "keycloak-connector-server-cluster-redis";
+import {RedisClusterProvider} from "keycloak-connector-cluster-redis";
 import logger from "pino-http";
 import {clusterKeyProvider} from "keycloak-connector-server";
 import {loggerOpts} from "./main.test.js";

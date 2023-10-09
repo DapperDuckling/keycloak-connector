@@ -8,7 +8,7 @@ import {keycloakConnectorFastify} from "keycloak-connector-server";
 import {routes} from "./routes.js";
 import type {Logger} from "pino";
 import {clusterKeyProvider} from "keycloak-connector-server";
-import {RedisClusterProvider} from "keycloak-connector-server-cluster-redis";
+import {RedisClusterProvider} from "keycloak-connector-cluster-redis";
 import type {ClusterJobMessage, RequestUpdateSystemJwksMsg, SubscriberListener} from "keycloak-connector-server";
 
 // Configure fastify
