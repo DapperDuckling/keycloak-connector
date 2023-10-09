@@ -1155,6 +1155,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
             ...customConfig,
 
             oidcClientMetadata: {
+                // Hotfix -- Keycloak is improperly handling userinfo endpoint requests
+                // See -- https://github.com/keycloak/keycloak/issues/20185
+                userinfo_signed_response_alg: KeycloakConnector.REQUIRED_ALGO,
+
                 //ref: https://github.com/panva/node-openid-client/blob/main/docs/README.md#new-clientmetadata-jwks-options
                 //ref: https://openid.net/specs/openid-connect-registration-1_0.html
 

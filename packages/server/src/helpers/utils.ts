@@ -19,6 +19,13 @@ export const promiseWait = <T>(promise: Promise<T>, waitUntilMs: number) => {
     return Promise.race<T>([promise, sleepPromise()]);
 }
 
+export const promiseWaitTimeout = <T>(promise: Promise<T>, timeoutMs: number) => {
+    const waitUntilMs = (new Date()).getTime() + timeoutMs;
+    return promiseWait(promise, waitUntilMs);
+}
+
+export const ttlFromExpiration = (expiration: number | undefined) => (expiration) ? Math.max(0, expiration - (new Date()).getTime()/1000) : undefined;
+
 export class WaitTimeoutError extends Error {
     constructor() {
         super(`Ran out of time waiting for promise to finish`);

@@ -2,7 +2,7 @@ import {AbstractClusterProvider} from "../cluster/index.js";
 import type {Logger} from "pino";
 import {EventEmitter} from "node:events";
 import {LRUCache} from "lru-cache";
-import {promiseWait, WaitTimeoutError} from "../helpers/utils.js";
+import {promiseWait, promiseWaitTimeout, ttlFromExpiration, WaitTimeoutError} from "../helpers/utils.js";
 import {webcrypto} from "crypto";
 import * as jose from 'jose';
 import type {JWTPayload} from "jose/dist/types/types.js";
@@ -52,12 +52,12 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         // Build the LRU caches
         this.instanceLevelUpdateLock = new LRUCache<string, string>({
             max: 10000,
-            ttl: config.ttl,
+            ttl: config.ttl * 1000,
         });
         
         this.cachedResult = new LRUCache<string, T>({
             max: 10000,
-            ttl: config.ttl,
+            ttl: config.ttl * 1000,
         });
 
         // Store the config
@@ -65,13 +65,13 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
     }
 
     async invalidateFromJwt(validatedJwt: string, targetKeyParam: keyof JWTPayload) {
-        // Grab the key from the jwt
-        const key = this.jwtToKey(validatedJwt, targetKeyParam);
+        // Grab the key and expiration from the jwt
+        const jwtData = this.jwtToKey(validatedJwt, targetKeyParam);
 
-        // Check for no key found
-        if (key === undefined) return;
+        // Check for no result
+        if (jwtData === undefined) return;
 
-        await this.invalidateCache(key);
+        await this.invalidateCache(jwtData.key);
     }
 
     async invalidateCache(key: string) {
@@ -79,7 +79,7 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         this.cachedResult.delete(key);
     }
 
-    private jwtToKey = (validatedJwt: string, targetKeyParam: keyof JWTPayload): string | undefined => {
+    private jwtToKey = (validatedJwt: string, targetKeyParam: keyof JWTPayload) => {
         // Decode JWT
         const token = jose.decodeJwt(validatedJwt);
 
@@ -104,21 +104,28 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
             return undefined;
         }
 
-        return key;
+        // Check for an expiration timestamp
+        const expiration = token.exp;
+        if (expiration === undefined) {
+            this.config.pinoLogger?.error(`JWT had no 'exp' claim, cannot use for cache`);
+            return undefined;
+        }
+
+        return { key, expiration };
     }
 
     readonly getFromJwt = async (validatedJwt: string, targetKeyParam: keyof JWTPayload, callbackArgs: A) => {
 
-        // Grab the key from the jwt
-        const key = this.jwtToKey(validatedJwt, targetKeyParam);
+        // Grab the key and expiration from the jwt
+        const jwtData = this.jwtToKey(validatedJwt, targetKeyParam);
 
-        // Check for no key found
-        if (key === undefined) return undefined;
+        // Check for no result
+        if (jwtData === undefined) return;
 
-        return this.get(key, callbackArgs);
+        return this.get(jwtData.key, callbackArgs, jwtData.expiration);
     }
 
-    readonly get = async (key: string, callbackArgs: A): Promise<CacheResult<T>> => {
+    readonly get = async (key: string, callbackArgs: A, expiration?: number): Promise<CacheResult<T>> => {
 
         // Check for result in local cache
         const cachedResult = this.cachedResult.get(key);
@@ -144,7 +151,7 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         // Build the cache miss callback
         const wrappedCacheMissCallback = this.wrapCacheMissCallback(callbackArgs);
 
-        const result = await this.handleCacheMiss(key, wrappedCacheMissCallback);
+        const result = await this.handleCacheMiss(key, wrappedCacheMissCallback, expiration);
 
         // Ensure we still have the instance lock
         const currentInstanceLock = this.instanceLevelUpdateLock.get(key);
@@ -161,8 +168,14 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
 
             // Store valid result in local cache
             if (result) {
+                // Calculate ttl
+                const expirationTtl = ttlFromExpiration(expiration);
+                const ttl = (expirationTtl) ? expirationTtl * 1000 : this.cachedResult.ttl;
+
                 this.config.pinoLogger?.debug(`Cache update result acquired, storing locally`);
-                this.cachedResult.set(key, result.data);
+                this.cachedResult.set(key, result.data, {
+                    ttl: ttl
+                });
             }
         } else {
             this.config.pinoLogger?.debug(`Lost instance lock, will not emit or store a valid result`);
@@ -171,7 +184,8 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         return result;
     }
 
-    protected async handleCacheMiss(key: string, wrappedCacheMissCallback: WrappedCacheMissCallback<T>): Promise<CacheResult<T>> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    protected async handleCacheMiss(key: string, wrappedCacheMissCallback: WrappedCacheMissCallback<T>, expiration?: number): Promise<CacheResult<T>> {
         // Execute the wrapped cache miss callback
         const data = await wrappedCacheMissCallback();
 
@@ -191,7 +205,7 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
                 const cacheMissPromise = this.config.cacheMissCallback(...callbackArgs);
 
                 // Wait for the cache miss callback to execute
-                return await promiseWait(cacheMissPromise, maxCacheMissWaitSecs * 1000);
+                return await promiseWaitTimeout(cacheMissPromise, maxCacheMissWaitSecs * 1000);
             } catch (e) {
                 if (e instanceof WaitTimeoutError) {
                     // Log this in order to inform the owner they may need to increase the wait timeout

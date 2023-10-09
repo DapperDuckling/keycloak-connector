@@ -1,7 +1,5 @@
 import type {RefreshTokenSet, RefreshTokenSetResult} from "../types.js";
-import type {BaseClient} from "openid-client";
-import {errors} from "openid-client";
-import OPError = errors.OPError;
+import type {BaseClient, TokenSet} from "openid-client";
 import * as jose from 'jose';
 import type {CacheProvider} from "../cache/cache-provider.js";
 import {cacheFactory} from "../cache/cache-factory.js";
@@ -49,16 +47,28 @@ export class TokenCache extends AbstractCacheAdapter<RefreshTokenSet, [string]> 
     }
 
     protected performTokenRefresh = async (validatedRefreshJwt: string): Promise<RefreshTokenSet | undefined> => {
-        // Perform the refresh
-        const tokenSet = await this.config.oidcClient.refresh(validatedRefreshJwt);
+
+        let tokenSet: TokenSet;
+
+        try {
+            // Perform the refresh
+            tokenSet = await this.config.oidcClient.refresh(validatedRefreshJwt);
+        } catch (e) {
+            this.config.pinoLogger?.debug(e, `Failed to perform token refresh`);
+            return undefined;
+        }
 
         // Check for an access token
-        if (tokenSet.access_token === undefined)
-            throw new OPError({error: `Missing access token in refresh response`});
+        if (tokenSet.access_token === undefined) {
+            this.config.pinoLogger?.error(`Missing access token in refresh response`);
+            return undefined;
+        }
 
         // Check for a refresh token
-        if (tokenSet.refresh_token === undefined)
-            throw new OPError({error: `Missing refresh token in refresh response`});
+        if (tokenSet.refresh_token === undefined) {
+            this.config.pinoLogger?.error(`Missing refresh token in refresh response`);
+            return undefined;
+        }
 
         return {
             ...tokenSet,

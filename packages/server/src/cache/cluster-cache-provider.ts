@@ -6,7 +6,14 @@ import {
 } from "./cache-provider.js";
 import {AbstractClusterProvider} from "../cluster/index.js";
 import {LRUCache} from "lru-cache";
-import {type Deferred, deferredFactory, promiseWait, sleep, WaitTimeoutError} from "../helpers/utils.js";
+import {
+    type Deferred,
+    deferredFactory,
+    promiseWait,
+    sleep,
+    ttlFromExpiration,
+    WaitTimeoutError
+} from "../helpers/utils.js";
 import {is} from "typia";
 import {setImmediate} from "timers";
 
@@ -92,7 +99,7 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
         return `${this.constants._PREFIX}:${this.config.title}:${key}`;
     }
 
-    protected override async handleCacheMiss(key: string, wrappedCacheMissCallback: WrappedCacheMissCallback<T>): Promise<CacheResult<T>> {
+    protected override async handleCacheMiss(key: string, wrappedCacheMissCallback: WrappedCacheMissCallback<T>, expiration?: number): Promise<CacheResult<T>> {
 
         // Start listening to cluster messages for this update id
         const listeningChannel = `${this.constants._PREFIX}:${this.constants.LISTENING_CHANNEL}:${this.config.title}:${key}`;
@@ -104,6 +111,8 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
         // Grab the storage key
         const storageKey = this.getStorageKey(key);
 
+        let data: T | undefined;
+
         try {
             // Grab an already completed update request stored with the cluster provider
             const existingResult = await this.clusterProvider.getObject<T>(storageKey);
@@ -113,6 +122,7 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
 
             // Record the final retry time
             const finalRetryTimeMs = Date.now() + (this.config.maxWaitSecs ?? CacheProvider.MAX_WAIT_SECS) * 1000;
+
 
             do {
                 // Store the pending refresh
@@ -142,18 +152,15 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
                 }
 
                 // Execute the wrapped cache miss callback
-                const data = await wrappedCacheMissCallback();
+                data = await wrappedCacheMissCallback();
 
                 // Check for a new token set
                 if (data) {
-                    // Store the result in the cluster
-                    await this.clusterProvider.storeObject(storageKey, data, this.config.ttl, this.lockOptions.key);
+                    // Calculate ttl
+                    const ttl = ttlFromExpiration(expiration) ?? this.config.ttl;
 
-                    // Broadcast result to the cluster
-                    await this.clusterProvider.publish<UpdateDataMessage<T>>(listeningChannel, {
-                        key: key,
-                        data: data,
-                    });
+                    // Store the result in the cluster
+                    await this.clusterProvider.storeObject(storageKey, data, Math.max(1, ttl), this.lockOptions.key);
 
                     // Return the new data
                     return {
@@ -171,11 +178,21 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
 
         } finally {
 
+
             // Unsubscribe from the listener
             await this.clusterProvider.unsubscribe(listeningChannel, this.handleIncomingUpdateData);
 
-            // Release the lock
-            if (lock) await this.clusterProvider.unlock(this.lockOptions);
+            // Check for lock
+            if (lock) {
+                // Broadcast result to the cluster
+                await this.clusterProvider.publish<UpdateDataMessage<T | undefined>>(listeningChannel, {
+                    key: key,
+                    data: data,
+                });
+
+                // Release the lock
+                await this.clusterProvider.unlock(this.lockOptions);
+            }
 
         }
 

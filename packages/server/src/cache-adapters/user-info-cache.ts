@@ -26,12 +26,12 @@ export class UserInfoCache extends AbstractCacheAdapter<UserinfoResponse, [strin
     }
 
     async invalidateFromJwt(validatedJwt: string) {
-        await this.cacheProvider.invalidateFromJwt(validatedJwt, 'sub');
+        await this.cacheProvider.invalidateFromJwt(validatedJwt, 'jti');
     }
 
     getUserInfo = async (validatedAccessJwt: string): Promise<UserinfoResponse | undefined> => {
         // Grab the user info from cache (or generate it into cache)
-        const cacheResult = await this.cacheProvider.getFromJwt(validatedAccessJwt, 'sub', [validatedAccessJwt]);
+        const cacheResult = await this.cacheProvider.getFromJwt(validatedAccessJwt, 'jti', [validatedAccessJwt]);
 
         // Return just the data
         return cacheResult?.data;

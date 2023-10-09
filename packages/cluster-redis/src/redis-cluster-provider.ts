@@ -357,6 +357,9 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
         this.clusterConfig.pinoLogger?.debug(`Setting value of key ${this.clusterConfig.prefix}${key}`);
 
+        // Ensure ttl is an integer
+        if (ttl) ttl = Math.ceil(ttl);
+
         let promise;
         if (lockKey) {
             // Build the options
@@ -394,6 +397,9 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
         this.clusterConfig.pinoLogger?.debug(`Attempting to obtain a lock with key ${lockOptions.key}`);
 
+        // Ensure ttl is an integer
+        lockOptions.ttl = Math.ceil(lockOptions.ttl);
+
         let result;
 
         // Check for a force lock
@@ -405,7 +411,10 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
             result = await this.client.set(lockOptions.key, this.uniqueClientId, "EX", lockOptions.ttl, "NX");
         }
 
-        return (result !== null);
+        const hasLock = (result !== null);
+        this.clusterConfig.pinoLogger?.debug(`Lock was${hasLock ? '': ' not'} obtained`);
+
+        return hasLock;
     }
 
     async unlock(lockOptions: LockOptions, force?: boolean): Promise<boolean> {
