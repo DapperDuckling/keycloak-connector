@@ -1,12 +1,10 @@
 import type {ConnectorCallback, RouteRegistrationOptions} from "./abstract-adapter.js";
 import {AbstractAdapter} from "./abstract-adapter.js";
 import type {
-    CombinedRoleRules,
     ConnectorRequest,
-    ConnectorResponse,
+    ConnectorResponse, Cookies,
     KeycloakConnectorConfigCustom,
     KeycloakRouteConfig, KeycloakRouteConfigOrRoles,
-    RequiredRoles,
     SupportedServers
 } from "../types.js";
 import type {Express, NextFunction, Request, RequestHandler, Response} from "express-serve-static-core";
@@ -45,7 +43,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         return {
             ...request.headers?.origin && {origin: request.headers?.origin},
             url: request.url,
-            cookies: request.cookies,
+            cookies: request.cookies as Cookies,
             headers: request.headers,
             routeConfig: {
                 ...this.globalRouteConfig,
@@ -149,7 +147,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 
     private lock = (routeConfigOrRoles?: KeycloakRouteConfigOrRoles): RequestHandler => async (req, res, next) => {
 
-        // Check for cookies
+        // Check for cookie-parser plugin
         if (req.cookies === undefined) {
             throw new Error('`cookies` parameter not found on request, is `cookie-parser` package installed and in use?');
         }
@@ -164,8 +162,9 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         // Store the user data
         req.keycloak = userDataResponse.userData;
 
-        // Check for no lock requirement (public route)
-        if (routeConfigOrRoles === false) return next();
+        // Removed to enable keycloak connector plugins
+        // // Check for no lock requirement (public route)
+        // if (routeConfigOrRoles === false) return next();
 
         // Grab the protector response
         const connectorResponse = await this.keycloakConnector.buildRouteProtectionResponse(connectorReq, req.keycloak);

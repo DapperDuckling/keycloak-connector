@@ -13,11 +13,14 @@ import type {
     RawReplyDefaultExpression,
     RouteGenericInterface
 } from "fastify";
+import type {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    fastifyStatic
+} from "@fastify/static";
 import type {RawRequestDefaultExpression, RawServerDefault} from "fastify/types/utils.js";
 import type {FastifyTypeProviderDefault} from "fastify/types/type-provider.js";
 import type {FastifySchema} from "fastify/types/schema.js";
 import type {FastifyBaseLogger} from "fastify/types/logger.js";
-import type {fastifyStatic} from "@fastify/static";
 import {RouteConfigDefault} from "../helpers/defaults.js";
 import {isObject} from "../helpers/utils.js";
 
@@ -56,7 +59,7 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
         connectorResponse.cookies?.forEach(cookieParam => reply.setCookie(cookieParam.name, cookieParam.value, cookieParam.options));
 
         // Set the response code
-        if (connectorResponse.statusCode) reply.code(connectorResponse.statusCode);
+        if (connectorResponse.statusCode) await reply.code(connectorResponse.statusCode);
 
         // Handle exclusive parameters
         if (connectorResponse.redirectUrl) {

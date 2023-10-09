@@ -770,6 +770,48 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return userDataResponse;
     }
 
+    /**
+     * Spitball
+     *  public getPublicConnector = () => {
+     *      lock: lock,
+     *      registerAuthPlugin: registerAuthPlugin
+     *  }
+     *  const kcc = await keycloakConnectorExpress({});
+     *
+     *  type PluginOptions = {
+     *      isAuthorizedHandler: ...,
+     *      priority: number (kcc is priority 0, negative is less pri, positive is more)
+     *      override: OVERRIDE_ALL (priority doesn't matter then) | OVERRIDE_BASE_FUNCTION (priority doesn't matter then, but can be added) | OVERRIDE_NONE (priority required)
+     *  }
+     *
+     *  private registerAuthPlugin = (plugin: PluginOptions, priorityOverride?: number) => {
+     *
+     *      // Safety check
+     *      if (priorityOverride && plugin.override = OVERRIDE_ALL) {
+     *          throw new Error(`Cannot set priority for plugin designed to OVERRIDE_ALL other plugins`);
+     *      }
+     *
+     *      return {
+     *          groupAuth:
+     *          groupAuthCheck:
+     *          groupAuthConfig:
+     *      }
+     *  }
+     *
+     *  // Boolean to allow/disallow response NOW (w
+     *  // ****RETHINK THIS IDEA, THESE PLUGINS NEED TO STILL BE ABLE TO ADD THEIR DATA TO THE RESPONSE!!
+     *  type isAuthorizedHandler = (connectorRequest: ConnectorRequest, userData: UserData): boolean | undefined;
+     *
+     *
+     *
+     *  private handleIsAuthorized = () => {
+     *      // Loop through registered auth plugins (to include the baseline)
+     *  }
+     *
+     *
+     */
+
+
     public isUserAuthorized = (connectorRequest: ConnectorRequest, userData: UserData): boolean => {
         // Check if the page is public anyway OR is the page is protected, but there is no role requirement
         if (connectorRequest.routeConfig.public || (Array.isArray(connectorRequest.routeConfig.roles) && connectorRequest.routeConfig.roles.length === 0)) {
