@@ -6,7 +6,7 @@
     "keycloak node cluster redis"
   ],
   "author": "DapperDuckling Dev LLC",
-  "license": "MIT",
+  "license": "SEE LICENSE IN COPYING",
   "type": "module",
   "engines": {
     "node": ">=18.0.0"

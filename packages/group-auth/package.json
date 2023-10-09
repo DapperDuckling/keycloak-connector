@@ -1,11 +1,10 @@
 {
-  "name": "keycloak-connector-server",
-  "version": "0.0.27",
-  "description": "Opinionated middleware connecting Node.js Express or Fastify servers to Keycloak",
+  "name": "keycloak-connector-group-auth",
+  "version": "0.0.1",
+  "description": "A plugin enabling permission management via Keycloak groups",
   "keywords": [
-    "express keycloak",
-    "fastify keycloak",
-    "node server keycloak"
+    "keycloak group permissions",
+    "node keycloak group authorization"
   ],
   "author": "DapperDuckling Dev LLC",
   "license": "SEE LICENSE IN COPYING",
