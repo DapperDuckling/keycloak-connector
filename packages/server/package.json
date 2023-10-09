@@ -18,7 +18,7 @@
   },
   "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cpy ./src/**/*.d.ts ./dist",
     "prepublishOnly": "npm run build",
     "test:start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts",
     "test:start:redis-cluster": "npm run build && cd ./tests/integration/redis-cluster/ && nodemon ./main.test.ts",
@@ -35,6 +35,7 @@
     "@types/express-serve-static-core": "^4.17.34",
     "@types/fastify-static": "^2.2.1",
     "@types/jest": "^29.5.1",
+    "cpy": "^10.1.0",
     "keycloak-connector-cluster-redis": "file:../cluster-redis",
     "nodemon": "^3.0.1",
     "pino-http": "^8.4.0",

@@ -1,0 +1,26 @@
+<html>
+<head>
+    <title>Start login page</title>
+    <style>
+        body {
+            background: black;
+            color: white;
+        }
+    </style>
+    <script>
+        window.addEventListener('load', () => {
+            const postLoginRedirectUriEncoded = window.encodeURIComponent(document.location.href);
+            document.forms[0].action =  `/auth/login?post_auth_redirect_uri=${postLoginRedirectUriEncoded}`;
+        });
+    </script>
+
+</head>
+<body>
+    <h1>Pretty login page here.</h1>
+    <h4>Maybe a logo here</h4>
+    <!-- Create this from window.encodeURIComponent -- see https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html#output-encoding-for-url-contexts  -->
+    <form action="/auth/login" method="post">
+        <button>Login</button>
+    </form>
+</body>
+</html>

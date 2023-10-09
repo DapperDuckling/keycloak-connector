@@ -11,6 +11,7 @@ import {TokenCache} from "./cache-adapters/index.js";
 import type {TokenSetParameters} from "openid-client";
 import type {UserinfoResponse} from "openid-client";
 import {UserInfoCache} from "./cache-adapters/index.js";
+import {AuthPluginManager} from "./auth-plugins/index.js";
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -31,6 +32,10 @@ export type ConnectorKeys = {
     kid: string,
     publicJwk: JWK;
     privateJwk: JWK;
+}
+
+export type KeycloakConnectorExposedProperties = {
+    registerAuthPlugin: AuthPluginManager['registerAuthPlugin']
 }
 
 export type KeycloakConnectorConfigCustom =

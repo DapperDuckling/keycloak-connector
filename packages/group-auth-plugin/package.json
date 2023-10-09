@@ -1,5 +1,5 @@
 {
-  "name": "keycloak-connector-group-auth",
+  "name": "keycloak-connector-group-auth-plugin",
   "version": "0.0.1",
   "description": "A plugin enabling Keycloak group permission management via Keycloak groups",
   "keywords": [
@@ -17,8 +17,9 @@
   },
   "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
   "scripts": {
-    "build": "tsc",
-    "prepublishOnly": "npm run build"
+    "build": "tsc && cpy ./src/**/*.d.ts ./dist",
+    "prepublishOnly": "npm run build",
+    "test:start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -26,6 +27,8 @@
     "./dist"
   ],
   "devDependencies": {
+    "cpy": "^10.1.0",
+    "keycloak-connect-server": "file:../server"
   },
   "dependencies": {
     "keycloak-connector-group-auth": "file:../server"

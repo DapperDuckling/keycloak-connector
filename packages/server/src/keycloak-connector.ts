@@ -18,7 +18,7 @@ import type {
     RefreshTokenSetResult, RefreshTokenSet,
     SupportedServers,
     UserData,
-    UserDataResponse
+    UserDataResponse, KeycloakConnectorExposedProperties
 } from "./types.js";
 import {VerifiableJwtTokenTypes, RouteEnum, StateOptions} from "./types.js";
 import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapter/abstract-adapter.js";
@@ -35,7 +35,7 @@ import {webcrypto} from "crypto";
 import RPError = errors.RPError;
 import OPError = errors.OPError;
 import {TokenCache, UserInfoCache} from "./cache-adapters/index.js";
-import {AuthPluginManager} from "./auth-plugins/auth-plugin-manager.js";
+import {AuthPluginManager} from "./auth-plugins/index.js";
 
 export class KeycloakConnector<Server extends SupportedServers> {
 
@@ -43,10 +43,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private readonly _config: KeycloakConnectorConfigBase;
     private readonly components: KeycloakConnectorInternalConfiguration;
     private readonly roleHelper: RoleHelper;
+    private readonly authPluginManager: AuthPluginManager;
     private oidcConfigTimer: ReturnType<typeof setTimeout> | null = null;
     private updateOidcConfig: Promise<boolean> | null = null;
     private updateOidcConfigPending: Promise<boolean> | null = null;
-    private authPluginManager: AuthPluginManager;
 
     private readonly CookieOptions: CookieOptionsBase<Server> = {
         sameSite: "strict",
@@ -93,6 +93,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
             this.updateOidcServer
         );
     }
+
+    public getExposed = (): KeycloakConnectorExposedProperties => ({
+        registerAuthPlugin: this.authPluginManager.registerAuthPlugin
+    });
 
     private registerRoutes(adapter: AbstractAdapter<Server>): void {
 
@@ -1313,7 +1317,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             config.pinoLogger?.debug(`Fetching oidc configuration from ${oidcDiscoveryUrl}`);
 
             // Fetch latest openid-config data
-            const result = await fetch(oidcDiscoveryUrl, {signal: AbortSignal.timeout(5000)});
+            const result = await fetch(oidcDiscoveryUrl, {signal: AbortSignal.timeout(60000)});
 
             // Check for an incorrect status code
             if (result.status !== 200) {

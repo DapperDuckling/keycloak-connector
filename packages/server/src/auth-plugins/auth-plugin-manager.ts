@@ -22,33 +22,33 @@ export class AuthPluginManager {
         this.logger = logger;
     }
 
-    private registerAuthPlugin = (plugin: AbstractAuthPlugin) => {
+    public registerAuthPlugin = (plugin: AbstractAuthPlugin) => {
 
         // Check if this plugin is already registered
-        if (this.plugins.has(plugin.config.name)) {
-            throw new Error(`Plugin with name "${plugin.config.name}" already registered. Cannot register again`);
+        if (this.plugins.has(plugin.internalConfig.name)) {
+            throw new Error(`Plugin with name "${plugin.internalConfig.name}" already registered. Cannot register again`);
         }
 
         // Check if there is already an override all plugin registered
         if (this.maxOverrideConfig === AuthPluginOverride.OVERRIDE_ALL) {
-            throw new Error(`Cannot register plugin with name "${plugin.config.name}" when another plugin is already registered to OVERRIDE_ALL`);
+            throw new Error(`Cannot register plugin with name "${plugin.internalConfig.name}" when another plugin is already registered to OVERRIDE_ALL`);
         }
 
         // Check if this plugin is overriding all and other plugins are registered
-        if (plugin.config.override === AuthPluginOverride.OVERRIDE_ALL && this.plugins.size !== 0) {
-            throw new Error(`Cannot register plugin with name "${plugin.config.name}" that will OVERRIDE_ALL when other plugins have already been registered`);
+        if (plugin.internalConfig.override === AuthPluginOverride.OVERRIDE_ALL && this.plugins.size !== 0) {
+            throw new Error(`Cannot register plugin with name "${plugin.internalConfig.name}" that will OVERRIDE_ALL when other plugins have already been registered`);
         }
 
         // Update max override config
-        if (plugin.config.override) {
+        if (plugin.internalConfig.override) {
             switch (this.maxOverrideConfig) {
                 case AuthPluginOverride.DISABLE_BASE_FUNCTION:
-                    if (plugin.config.override === AuthPluginOverride.OVERRIDE_ALL) {
+                    if (plugin.internalConfig.override === AuthPluginOverride.OVERRIDE_ALL) {
                         this.maxOverrideConfig = AuthPluginOverride.OVERRIDE_ALL;
                     }
                     break;
                 case AuthPluginOverride.OVERRIDE_NONE:
-                    this.maxOverrideConfig = plugin.config.override;
+                    this.maxOverrideConfig = plugin.internalConfig.override;
                     break;
             }
         }

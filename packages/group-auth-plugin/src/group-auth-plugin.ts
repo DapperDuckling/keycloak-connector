@@ -1,20 +1,54 @@
-import type {AuthPluginInternalConfig, ConnectorRequest, UserData} from "keycloak-connector-server";
+import type {
+    AuthPluginInternalConfig,
+    AuthPluginOnRegisterConfig,
+    ConnectorRequest,
+    UserData
+} from "keycloak-connector-server";
 import {AbstractAuthPlugin, AuthPluginOverride} from "keycloak-connector-server";
 import type {Logger} from "pino";
+import type {GroupAuthUserData} from "./fastify/fastify.js";
+import type {GroupAuthConfig} from "./types.js";
 
-export class GroupAuth extends AbstractAuthPlugin {
-    protected readonly internalConfig: AuthPluginInternalConfig;
+export class GroupAuthPlugin extends AbstractAuthPlugin {
+    protected readonly _internalConfig: AuthPluginInternalConfig;
+    protected readonly groupAuthConfig: GroupAuthConfig;
 
-    constructor() {
+    constructor(config: GroupAuthConfig) {
         super();
 
-        this.internalConfig = {
-            name: 'GroupAuth',
+        this._internalConfig = {
+            name: 'GroupAuthPlugin',
             override: AuthPluginOverride.DISABLE_BASE_FUNCTION
         }
+
+        // Check for an app name
+        if (config.app === undefined) {
+            throw new Error(`Cannot start group auth plugin, must specify an app name!`);
+        }
+
+        this.groupAuthConfig = config;
+    }
+
+    public override onRegister(onRegisterConfig: AuthPluginOnRegisterConfig) {
+        return undefined;
     }
 
     isAuthorized = async (connectorRequest: ConnectorRequest, userData: UserData, logger: Logger | undefined): Promise<boolean> => {
+
+        // Decorate the user data with group info
+        const typedUserData = userData as GroupAuthUserData;
+        typedUserData.groupAuth = {
+            appId: 'test',
+            orgId: null,
+            groups: null,
+            debugInfo: {
+                "app-search": false,
+                "org-search": false,
+            }
+        }
+
+        logger?.debug(`Group Auth plugin checking for authorization...`);
+
         /**
          * Require Admin logic (user must have at least one of the listed permissions)
          *  - org_id in request:
@@ -42,20 +76,16 @@ export class GroupAuth extends AbstractAuthPlugin {
         return false;
     }
 
-}
+    exposedEndpoints = () => ({
+        groupCheck: this.groupCheck,
+    });
 
-export const groupAuth = () => {
+    groupAuth = () => {
 
-}
+    }
 
-export const groupAuthCheck = () => {
+    groupCheck = () => {
 
-}
-
-export const groupAuthConfig = () => {
-
-}
-
-export const groupAuthPlugin = () => {
+    }
 
 }

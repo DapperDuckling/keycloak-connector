@@ -14,20 +14,20 @@ export type AuthPluginOnRegisterConfig = {
 export type IsUserAuthorized = (connectorRequest: ConnectorRequest, userData: UserData, logger?: Logger) => Promise<boolean>;
 
 export abstract class AbstractAuthPlugin {
-    protected abstract readonly internalConfig: AuthPluginInternalConfig;
+    protected abstract readonly _internalConfig: AuthPluginInternalConfig;
     protected logger: Logger | undefined = undefined;
 
     protected constructor() {}
 
-    //todo: better return handling
-    public onRegister<T = undefined>(onRegisterConfig: AuthPluginOnRegisterConfig): T | undefined {
-        this.logger = onRegisterConfig.logger;
+    public onRegister(onRegisterConfig: AuthPluginOnRegisterConfig) {
+        this.logger = onRegisterConfig.logger?.child({"Source": `${this._internalConfig.name}`});
         return undefined;
     }
 
-    get config(): AuthPluginInternalConfig {
-        return this.internalConfig;
+    get internalConfig(): AuthPluginInternalConfig {
+        return this._internalConfig;
     }
 
     abstract isAuthorized: IsUserAuthorized;
+    abstract exposedEndpoints: () => Record<string, any>;
 }
