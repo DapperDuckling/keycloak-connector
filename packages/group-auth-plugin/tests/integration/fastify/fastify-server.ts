@@ -53,6 +53,7 @@ await fastify.register(keycloakConnectorFastify, {
     authServerUrl: 'http://localhost:8080/',
     realm: 'local-dev',
     refreshConfigMins: -1, // Disable for dev testing
+    fetchUserInfo: true,
 });
 
 // Register the group auth plugin

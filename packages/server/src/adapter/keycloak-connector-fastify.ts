@@ -28,7 +28,7 @@ const keycloakConnectorFastifyPlugin: FastifyPluginAsync<KeycloakConnectorConfig
 
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore - `FastifyContentTypeParser` defines the type below, but typescript isn't seeing it.
-        fastify.addContentTypeParser('application/x-www-form-urlencoded', async () => undefined);
+        fastify.addContentTypeParser('application/x-www-form-urlencoded', async (request, payload) => undefined);
     }
 
     // Decorate the fastify instance with keycloak

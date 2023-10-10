@@ -12,6 +12,7 @@ import type {TokenSetParameters} from "openid-client";
 import type {UserinfoResponse} from "openid-client";
 import {UserInfoCache} from "./cache-adapters/index.js";
 import {AuthPluginManager} from "./auth-plugins/index.js";
+import type {KeycloakConnector} from "./keycloak-connector.js";
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -34,9 +35,7 @@ export type ConnectorKeys = {
     privateJwk: JWK;
 }
 
-export type KeycloakConnectorExposedProperties = {
-    registerAuthPlugin: AuthPluginManager['registerAuthPlugin']
-}
+export type KeycloakConnectorExposedProperties = ReturnType<KeycloakConnector<any>['getExposed']>;
 
 export type KeycloakConnectorConfigCustom =
     Omit<Partial<KeycloakConnectorConfigBase>, 'oidcClientMetadata'> &

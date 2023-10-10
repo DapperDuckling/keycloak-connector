@@ -33,18 +33,33 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         return undefined;
     }
 
+    decorateResponse = async (connectorRequest: ConnectorRequest, userData: UserData, logger: Logger | undefined): Promise<void> => {
+        // Decorate the user data with group info
+        const typedUserData = userData as GroupAuthUserData;
+        typedUserData.groupAuth = {
+            appId: null,
+            orgId: null,
+            groups: null,
+            debugInfo: {},
+            ...this.exposedEndpoints(),
+        }
+
+        logger?.debug(`Group Auth plugin decorating response`);
+    }
+
     isAuthorized = async (connectorRequest: ConnectorRequest, userData: UserData, logger: Logger | undefined): Promise<boolean> => {
 
         // Decorate the user data with group info
         const typedUserData = userData as GroupAuthUserData;
         typedUserData.groupAuth = {
+            ...typedUserData.groupAuth,
             appId: 'test',
             orgId: null,
             groups: null,
             debugInfo: {
                 "app-search": false,
                 "org-search": false,
-            }
+            },
         }
 
         logger?.debug(`Group Auth plugin checking for authorization...`);
@@ -77,7 +92,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
     }
 
     exposedEndpoints = () => ({
-        groupCheck: this.groupCheck,
+        check: this.groupCheck,
     });
 
     groupAuth = () => {

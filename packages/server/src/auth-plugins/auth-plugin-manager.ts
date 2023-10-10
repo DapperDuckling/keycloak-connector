@@ -1,4 +1,4 @@
-import type {IsUserAuthorized} from "./abstract-auth-plugin.js";
+import type {DecorateResponse, IsUserAuthorized} from "./abstract-auth-plugin.js";
 import {AbstractAuthPlugin} from "./abstract-auth-plugin.js";
 import type {ConnectorRequest, UserData} from "../types.js";
 import type {Logger} from "pino";
@@ -53,6 +53,9 @@ export class AuthPluginManager {
             }
         }
 
+        // Add to the plugin list
+        this.plugins.set(plugin.internalConfig.name, plugin);
+
         return plugin.onRegister({
             ...this.logger && {logger: this.logger}
         });
@@ -62,6 +65,17 @@ export class AuthPluginManager {
         //     groupAuthCheck:
         // groupAuthConfig:
         //     }
+    }
+
+    public decorateResponse: DecorateResponse = async (connectorRequest: ConnectorRequest, userData: UserData): Promise<void> => {
+        // Loop through plugins
+        for (const [name, plugin] of this.plugins.entries()) {
+            try {
+                await plugin.decorateResponse(connectorRequest, userData);
+            } catch (e) {
+                throw new Error(`Issue invoking decorateResponse from auth plugin ${name}`);
+            }
+        }
     }
 
     public isUserAuthorized: IsUserAuthorized = async (connectorRequest: ConnectorRequest, userData: UserData): Promise<boolean> => {

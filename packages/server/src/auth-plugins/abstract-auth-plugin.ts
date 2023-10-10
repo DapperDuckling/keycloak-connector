@@ -11,6 +11,7 @@ export type AuthPluginOnRegisterConfig = {
     logger?: Logger,
 }
 
+export type DecorateResponse = (connectorRequest: ConnectorRequest, userData: UserData, logger?: Logger) => Promise<void>;
 export type IsUserAuthorized = (connectorRequest: ConnectorRequest, userData: UserData, logger?: Logger) => Promise<boolean>;
 
 export abstract class AbstractAuthPlugin {
@@ -28,6 +29,7 @@ export abstract class AbstractAuthPlugin {
         return this._internalConfig;
     }
 
+    abstract decorateResponse: DecorateResponse;
     abstract isAuthorized: IsUserAuthorized;
     abstract exposedEndpoints: () => Record<string, any>;
 }

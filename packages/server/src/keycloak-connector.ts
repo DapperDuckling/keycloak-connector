@@ -18,7 +18,7 @@ import type {
     RefreshTokenSetResult, RefreshTokenSet,
     SupportedServers,
     UserData,
-    UserDataResponse, KeycloakConnectorExposedProperties
+    UserDataResponse
 } from "./types.js";
 import {VerifiableJwtTokenTypes, RouteEnum, StateOptions} from "./types.js";
 import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapter/abstract-adapter.js";
@@ -94,8 +94,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
         );
     }
 
-    public getExposed = (): KeycloakConnectorExposedProperties => ({
-        registerAuthPlugin: this.authPluginManager.registerAuthPlugin
+    public getExposed = () => ({
+        registerAuthPlugin: this.authPluginManager.registerAuthPlugin,
+        config: this.config,
     });
 
     private registerRoutes(adapter: AbstractAdapter<Server>): void {
@@ -741,6 +742,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Grab the access token from the request
         const validatedAccessJwt = await this.populateTokensFromRequest(connectorRequest, userDataResponse);
+
+        // Allow auth plugins to decorate the response
+        await this.authPluginManager.decorateResponse(connectorRequest, userData, this._config.pinoLogger);
 
         // Check for no access token
         if (userData.accessToken === undefined || validatedAccessJwt === undefined) return userDataResponse;
