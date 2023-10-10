@@ -27,10 +27,9 @@
     "./dist"
   ],
   "devDependencies": {
-    "cpy": "^10.1.0",
-    "keycloak-connect-server": "file:../server"
+    "cpy": "^10.1.0"
   },
   "dependencies": {
-    "keycloak-connector-group-auth": "file:../server"
+    "keycloak-connect-server": "file:../server"
   }
 }

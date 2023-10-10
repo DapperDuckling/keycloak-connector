@@ -196,6 +196,9 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         // // Forcing all pages to require at least a valid login
         // app.use(adapter.lock([]));
 
-        return adapter.lock;
+        return {
+            lock: adapter.lock,
+            ...adapter._keycloakConnector.getExposed()
+        };
     };
 }

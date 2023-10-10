@@ -1,4 +1,4 @@
-import type {ConnectorRequest, UserData} from "../types.js";
+import type {ConnectorRequest, KeycloakConnectorConfigBase, UserData} from "../types.js";
 import type {Logger} from "pino";
 import {AuthPluginOverride} from "./auth-plugin-manager.js";
 
@@ -8,6 +8,7 @@ export type AuthPluginInternalConfig = {
 }
 
 export type AuthPluginOnRegisterConfig = {
+    keycloakConfig: KeycloakConnectorConfigBase,
     logger?: Logger,
 }
 
@@ -20,7 +21,7 @@ export abstract class AbstractAuthPlugin {
 
     protected constructor() {}
 
-    public onRegister(onRegisterConfig: AuthPluginOnRegisterConfig) {
+    public async onRegister(onRegisterConfig: AuthPluginOnRegisterConfig) {
         this.logger = onRegisterConfig.logger?.child({"Source": `${this._internalConfig.name}`});
         return undefined;
     }

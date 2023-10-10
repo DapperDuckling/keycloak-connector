@@ -4,6 +4,7 @@ import type {FastifyKeycloakInstance} from "keycloak-connector-server";
 export const routes: FastifyPluginAsync = async (fastify: FastifyKeycloakInstance, options) =>  {
 
     // Define the basic route
+    fastify.get('s', groupAuth('oij'))
     fastify.get('/', {config: {public: true}}, async (request, reply) => {
         return { hello: 'world1' };
     });

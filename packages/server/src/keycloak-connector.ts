@@ -82,7 +82,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         // Setup the auth plugin manager
-        this.authPluginManager = AuthPluginManager.init(this.isUserAuthorized, this._config.pinoLogger);
+        this.authPluginManager = AuthPluginManager.init({
+            baseHandler: this.isUserAuthorized,
+            keycloakConfig: this._config,
+            ...this._config.pinoLogger && {logger: this._config.pinoLogger},
+        });
 
         // Register the routes using the connector adapter
         this.registerRoutes(adapter);

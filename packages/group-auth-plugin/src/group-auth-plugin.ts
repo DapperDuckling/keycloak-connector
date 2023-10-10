@@ -1,7 +1,7 @@
 import type {
     AuthPluginInternalConfig,
     AuthPluginOnRegisterConfig,
-    ConnectorRequest,
+    ConnectorRequest, KeycloakConnectorConfigBase,
     UserData
 } from "keycloak-connector-server";
 import {AbstractAuthPlugin, AuthPluginOverride} from "keycloak-connector-server";
@@ -29,7 +29,12 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         this.groupAuthConfig = config;
     }
 
-    public override onRegister(onRegisterConfig: AuthPluginOnRegisterConfig) {
+    public override async onRegister(onRegisterConfig: AuthPluginOnRegisterConfig) {
+        // Ensure the fetch user info setting is configured
+        if (onRegisterConfig.keycloakConfig.fetchUserInfo === undefined || onRegisterConfig.keycloakConfig.fetchUserInfo === false) {
+            throw new Error("Must set `fetchUserInfo` in order to use Group Auth Plugin");
+        }
+
         return undefined;
     }
 

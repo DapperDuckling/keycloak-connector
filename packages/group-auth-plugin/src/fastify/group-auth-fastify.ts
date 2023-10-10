@@ -3,16 +3,49 @@ import {fastifyPlugin} from "fastify-plugin";
 import {GroupAuthPlugin} from "../group-auth-plugin.js";
 import type {GroupAuthConfig} from "../types.js";
 
-const groupAuthFastifyPlugin: FastifyPluginAsync<GroupAuthConfig> = async (fastify, groupAuthConfig): Promise<void> => {
-    // Ensure the fetch user info setting is configured
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if (fastify.kcc.config?.fetchUserInfo === undefined || fastify.kcc.config?.fetchUserInfo === false) {
-        throw new Error("Must set `fetchUserInfo` in order to use Group Auth Plugin");
+type groupAuthFastifyConfig = {
+    groupAuth: {
+        group?: string,
+        config: GroupAuthConfig,
+    }
+}
+
+// *** Can we use these functions for the group auth express too?? Maybe the express plugin should extend the base one??
+export function groupAuth(groupAuthConfig: GroupAuthConfig): groupAuthFastifyConfig;
+export function groupAuth(group: string, groupAuthConfig?: GroupAuthConfig): groupAuthFastifyConfig;
+export function groupAuth(groupOrConfig: GroupAuthConfig | string, groupAuthConfigOrNothing?: GroupAuthConfig): groupAuthFastifyConfig {
+
+    let group;
+    let groupAuthConfig;
+
+    // Handle the different functional overloads
+    if (typeof groupOrConfig === "string") {
+        group = groupOrConfig;
+        groupAuthConfig = groupAuthConfigOrNothing;
+    } else {
+        group = undefined;
+        groupAuthConfig = groupOrConfig;
     }
 
+    // Setup group auth config if not passed already
+    //todo: replace with previous config from initial plugin registration
+    groupAuthConfig ??= {
+        app: 'test'
+    }
+
+    // todo: return the object we will append to the fastify config param
+    return {
+        groupAuth: {
+            ...group && {group: group},
+            config: groupAuthConfig
+        }
+    }
+}
+
+const groupAuthFastifyPlugin: FastifyPluginAsync<GroupAuthConfig> = async (fastify, groupAuthConfig): Promise<void> => {
     // Register the plugin
     const groupAuthPlugin = new GroupAuthPlugin(groupAuthConfig);
-    fastify.kcc.registerAuthPlugin(groupAuthPlugin);
+    await fastify.kcc.registerAuthPlugin(groupAuthPlugin);
 
     // Decorate the fastify instance with keycloak
     fastify.decorate('kccGroupAuth', groupAuthPlugin.exposedEndpoints());

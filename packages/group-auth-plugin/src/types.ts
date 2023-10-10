@@ -1,6 +1,11 @@
 import type {GroupAuthPlugin} from "./group-auth-plugin.js";
 
 export type InheritanceTree = Record<string, string[]>;
+
+export type GroupAuth = GroupAuthConfig & {
+
+}
+
 export type GroupAuthConfig = {
     app: string,
     orgParam?: string,
@@ -11,6 +16,7 @@ export type GroupAuthConfig = {
     listAllMatchingGroups?: boolean,
     inheritanceTree?: InheritanceTree
 }
+
 export type GroupAuthData = ReturnType<GroupAuthPlugin['exposedEndpoints']> & {
     appId: string | null,
     orgId: string | null,

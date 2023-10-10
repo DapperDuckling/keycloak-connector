@@ -1,6 +1,6 @@
 import type {DecorateResponse, IsUserAuthorized} from "./abstract-auth-plugin.js";
 import {AbstractAuthPlugin} from "./abstract-auth-plugin.js";
-import type {ConnectorRequest, UserData} from "../types.js";
+import type {ConnectorRequest, KeycloakConnectorConfigBase, UserData} from "../types.js";
 import type {Logger} from "pino";
 
 export enum AuthPluginOverride {
@@ -9,20 +9,28 @@ export enum AuthPluginOverride {
     OVERRIDE_ALL,           // Used to force this plugin to be the only available plugin
 }
 
+interface AuthPluginManagerConfig {
+    baseHandler: IsUserAuthorized;
+    keycloakConfig: KeycloakConnectorConfigBase;
+    logger?: Logger;
+}
+
 export class AuthPluginManager {
 
     private readonly plugins = new Map<string, AbstractAuthPlugin>();
     private readonly baseHandler: IsUserAuthorized;
     private readonly logger: Logger | undefined;
+    private readonly keycloakConfig: KeycloakConnectorConfigBase;
     private maxOverrideConfig = AuthPluginOverride.OVERRIDE_NONE;
 
     // Make this un-extendable
-    private constructor(baseHandler: IsUserAuthorized, logger?: Logger) {
-        this.baseHandler = baseHandler;
-        this.logger = logger;
+    private constructor(config: AuthPluginManagerConfig) {
+        this.baseHandler = config.baseHandler;
+        this.keycloakConfig = config.keycloakConfig;
+        this.logger = config.logger;
     }
 
-    public registerAuthPlugin = (plugin: AbstractAuthPlugin) => {
+    public registerAuthPlugin = async (plugin: AbstractAuthPlugin) => {
 
         // Check if this plugin is already registered
         if (this.plugins.has(plugin.internalConfig.name)) {
@@ -56,7 +64,8 @@ export class AuthPluginManager {
         // Add to the plugin list
         this.plugins.set(plugin.internalConfig.name, plugin);
 
-        return plugin.onRegister({
+        return await plugin.onRegister({
+            keycloakConfig: this.keycloakConfig,
             ...this.logger && {logger: this.logger}
         });
 
@@ -105,5 +114,5 @@ export class AuthPluginManager {
         return isAuthorizedResponses.every(response => response === true);
     }
 
-    static init = (baseHandler: IsUserAuthorized, logger: Logger | undefined) => new AuthPluginManager(baseHandler, logger);
+    static init = (config: AuthPluginManagerConfig) => new AuthPluginManager(config);
 }
