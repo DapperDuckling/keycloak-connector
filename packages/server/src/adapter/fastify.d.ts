@@ -5,7 +5,7 @@ import {KeycloakConnectorExposedProperties} from "../types.js";
 declare module 'fastify' {
     interface FastifyRequest {
         kccUserData: UserData;
-        kccRouteConfig: KeycloakRouteConfigOrRoles;
+        // routeConfig: KeycloakRouteConfigOrRoles;
     }
 
     interface FastifyInstance {
@@ -13,7 +13,7 @@ declare module 'fastify' {
     }
 
     interface RouteShorthandOptions {
-        kccRouteConfig?: KeycloakRouteConfigOrRoles;
+        // routeConfig?: KeycloakRouteConfigOrRoles;
     }
 }
 

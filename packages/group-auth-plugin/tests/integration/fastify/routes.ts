@@ -3,12 +3,6 @@ import {groupAuth} from "keycloak-connector-group-auth-plugin";
 
 export const routes: FastifyPluginAsync = async (fastify, options) =>  {
 
-    const test: RouteShorthandOptions = {
-        kccRouteConfig
-    }
-
-    // fastify.kcc
-
     // Define the basic route
     fastify.get('/s', {config: { groupAuth: {group: 'd'}}}, async (request, reply) => {
 

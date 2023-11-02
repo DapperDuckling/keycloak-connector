@@ -1015,10 +1015,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return cookies;
     }
 
-    public buildRouteProtectionResponse = async (req: ConnectorRequest, userData: UserData): Promise<ConnectorResponse<Server> | undefined> => {
+    public buildRouteProtectionResponse = async (connectorRequest: ConnectorRequest, userData: UserData): Promise<ConnectorResponse<Server> | undefined> => {
 
         // Return immediately if the route is public or the user is authorized
-        if (req.routeConfig.public || userData.isAuthorized) return;
+        if (connectorRequest.routeConfig.public || userData.isAuthorized) return;
 
         // Check if unauthenticated
         if (!userData.isAuthenticated) {
@@ -1030,7 +1030,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             //     return new ConnectorErrorRedirect(this.getRoutePath(RouteEnum.LOGIN_PAGE), ErrorHints.UNAUTHENTICATED);
             // }
             // Auto-show login page
-            if (req.routeConfig.autoRedirect !== false && req.headers['sec-fetch-mode'] === 'navigate') {
+            if (connectorRequest.routeConfig.autoRedirect !== false && connectorRequest.headers['sec-fetch-mode'] === 'navigate') {
                 return await this.handleLoginGet();
             }
 

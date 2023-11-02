@@ -18,13 +18,8 @@ import type {
 import {RouteConfigDefault} from "../helpers/defaults.js";
 import {isObject} from "../helpers/utils.js";
 
-// export type FastifyKeycloakInstance = FastifyInstance<RawServerDefault, RawRequestDefaultExpression, RawReplyDefaultExpression, FastifyBaseLogger, FastifyTypeProviderDefault>;
-// export type KeycloakRequest = FastifyRequest<RouteGenericInterface, RawServerDefault, RawRequestDefaultExpression, FastifySchema, FastifyTypeProviderDefault, KeycloakRouteConfig, FastifyBaseLogger>
-// export type FastifyPluginAsync =
-// export type FastifyKeycloakRoute = FastifyPluginAsync<FastifyPluginOptions, RawServerDefault, FastifyTypeProvider, FastifyBaseLogger, ContextConfigDefault>
 export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
 
-    // private readonly fastify: FastifyKeycloakInstance;
     private readonly fastify: FastifyInstance;
     private readonly globalRouteConfig: KeycloakRouteConfig | undefined;
     constructor(fastify: FastifyInstance, customConfig: KeycloakConnectorConfigCustom) {
@@ -44,7 +39,7 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
         headers: request.raw.headers,
         routeConfig: {
             ...this.globalRouteConfig,
-            ...request.kccRouteConfig,
+            ...request.routeOptions.config,
         },
         ...request.kccUserData && {kccUserData: request.kccUserData},
         ...isObject(request.body) && {body: request.body},
@@ -81,16 +76,19 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
             return reply;
         }
 
+        // Build the route configuration
+        const routeConfig: KeycloakRouteConfig = (options.isPublic) ? {
+            public: true
+        } : {
+            public: false,
+            roles: [],
+        }
+
         // Register the route
         this.fastify.route({
             method: options.method,
             url: options.url,
-            kccRouteConfig: (options.isPublic) ? {
-                public: true
-            } : {
-                public: false,
-                roles: [],
-            }, // sorry for the inline code, typescript was tripping otherwise...
+            config: routeConfig,
             handler: routeHandler.bind(this),
         });
 

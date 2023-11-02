@@ -28,14 +28,14 @@ const keycloakConnectorFastifyPlugin: FastifyPluginAsync<KeycloakConnectorConfig
 
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore - `FastifyContentTypeParser` defines the type below, but typescript isn't seeing it.
-        fastify.addContentTypeParser('application/x-www-form-urlencoded', async (request, payload) => undefined);
+        fastify.addContentTypeParser('application/x-www-form-urlencoded', async () => undefined);
     }
 
     // Decorate the fastify instance with keycloak
     fastify.decorate('kcc', kcc.getExposed());
 
     // Add keycloak data to the request params
-    fastify.decorateRequest<UserData | null>('keycloak', null);
+    fastify.decorateRequest<UserData | null>('kccUserData', null);
     fastify.addHook<RouteGenericInterface, KeycloakRouteConfig>('onRequest', async function(request, reply) {
 
         // Ignore 404 routes

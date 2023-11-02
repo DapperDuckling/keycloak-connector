@@ -1,7 +1,6 @@
 import type {FastifyPluginAsync} from "fastify";
-import type {FastifyKeycloakInstance} from "keycloak-connector-server";
 
-export const fastifyRoutes: FastifyPluginAsync = async (fastify: FastifyKeycloakInstance, options) =>  {
+export const fastifyRoutes: FastifyPluginAsync = async (fastify, options) =>  {
 
     // Define the basic route
     fastify.get('/', {config: {public: true}}, async (request, reply) => {
