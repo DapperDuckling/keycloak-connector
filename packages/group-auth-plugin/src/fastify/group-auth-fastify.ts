@@ -3,17 +3,18 @@ import {fastifyPlugin} from "fastify-plugin";
 import {GroupAuthPlugin} from "../group-auth-plugin.js";
 import type {GroupAuth, GroupAuthConfig} from "../types.js";
 
-// type groupAuthFastifyConfig = {
-//     groupAuth: {
-//         group?: string,
-//         config?: GroupAuthConfig,
-//     }
-// }
+export type GroupAuthFastifyRouteOpt = {
+    config: {
+        groupAuth?: GroupAuth
+    }
+}
+
+export type GroupAuthFastifyRouteConfig = GroupAuthFastifyRouteOpt['config'];
 
 // *** Can we use these functions for the group auth express too?? Maybe the express plugin should extend the base one??
-export function groupAuth(groupAuthConfig: GroupAuthConfig): GroupAuth;
-export function groupAuth(group: string, groupAuthConfig?: GroupAuthConfig): GroupAuth;
-export function groupAuth(groupOrConfig: GroupAuthConfig | string, groupAuthConfigOrNothing?: GroupAuthConfig): GroupAuth {
+export function groupAuth(groupAuthConfig: GroupAuthConfig): GroupAuthFastifyRouteOpt;
+export function groupAuth(group: string, groupAuthConfig?: GroupAuthConfig): GroupAuthFastifyRouteOpt;
+export function groupAuth(groupOrConfig: GroupAuthConfig | string, groupAuthConfigOrNothing?: GroupAuthConfig): GroupAuthFastifyRouteOpt {
 
     let group;
     let groupAuthConfig;
@@ -36,8 +37,12 @@ export function groupAuth(groupOrConfig: GroupAuthConfig | string, groupAuthConf
 
     // todo: return the object we will append to the fastify config param
     return {
-        ...group && {group: group},
-        ...groupAuthConfig && {config: groupAuthConfig}
+        config: {
+            groupAuth: {
+                ...group && {group: group},
+                ...groupAuthConfig && {config: groupAuthConfig}
+            }
+        }
     }
 }
 
@@ -55,7 +60,7 @@ export const groupAuthFastify = fastifyPlugin(groupAuthFastifyPlugin, {
     name: 'keycloak-connector-group-auth-plugin',
     decorators: {
         fastify: ['kcc'],
-        request: ['kccGroupAuthData'],
+        // request: ['kccGroupAuthData'],
     },
     dependencies: ['keycloak-connector-server'],
 });
