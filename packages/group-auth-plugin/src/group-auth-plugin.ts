@@ -38,22 +38,14 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
     }
 
     decorateResponse = async (connectorRequest: ConnectorRequest, userData: UserData, logger: Logger | undefined): Promise<void> => {
-        // Decorate the user data with group info
-        connectorRequest.kccGroupAuthData = {
+        // Decorate the user data with default group info
+        connectorRequest.kccUserGroupAuthData = {
             appId: null,
             orgId: null,
             groups: null,
             debugInfo: {},
             ...this.exposedEndpoints(),
         }
-        // const typedUserData = userData as GroupAuthData;
-        // typedUserData.groupAuth = {
-        //     appId: null,
-        //     orgId: null,
-        //     groups: null,
-        //     debugInfo: {},
-        //     ...this.exposedEndpoints(),
-        // }
 
         logger?.debug(`Group Auth plugin decorating response`);
     }
@@ -61,7 +53,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
     isAuthorized = async (connectorRequest: ConnectorRequest, userData: UserData, logger: Logger | undefined): Promise<boolean> => {
 
         // Decorate the user data with group info
-        connectorRequest.kccGroupAuthData = {
+        connectorRequest.kccUserGroupAuthData = {
             appId: 'test',
             orgId: null,
             groups: null,
@@ -72,6 +64,13 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         }
 
         logger?.debug(`Group Auth plugin checking for authorization...`);
+
+        // const userGroups = userData.userInfo.groups;
+        //
+        // // Check if the user is in the super admin group
+        // if (userData.groups.includes('super-admin')) {
+        //     return true;
+        // }
 
         /**
          * Require Admin logic (user must have at least one of the listed permissions)

@@ -10,11 +10,16 @@ export type GroupAuthFastifyRouteOpt = {
 }
 
 export type GroupAuthFastifyRouteConfig = GroupAuthFastifyRouteOpt['config'];
+type GroupAuthConfigPartial = Partial<GroupAuthConfig>;
+
+//todo: example usage thought
+// groupAuth({requireAdmin: true});
+
 
 // *** Can we use these functions for the group auth express too?? Maybe the express plugin should extend the base one??
-export function groupAuth(groupAuthConfig: GroupAuthConfig): GroupAuthFastifyRouteOpt;
-export function groupAuth(group: string, groupAuthConfig?: GroupAuthConfig): GroupAuthFastifyRouteOpt;
-export function groupAuth(groupOrConfig: GroupAuthConfig | string, groupAuthConfigOrNothing?: GroupAuthConfig): GroupAuthFastifyRouteOpt {
+export function groupAuth(groupAuthConfig: GroupAuthConfigPartial): GroupAuthFastifyRouteOpt;
+export function groupAuth(group: string, groupAuthConfig?: GroupAuthConfigPartial): GroupAuthFastifyRouteOpt;
+export function groupAuth(groupOrConfig: GroupAuthConfigPartial | string, groupAuthConfigOrNothing?: GroupAuthConfigPartial): GroupAuthFastifyRouteOpt {
 
     let group;
     let groupAuthConfig;
@@ -28,14 +33,6 @@ export function groupAuth(groupOrConfig: GroupAuthConfig | string, groupAuthConf
         groupAuthConfig = groupOrConfig;
     }
 
-    // Setup group auth config if not passed already
-    //todo: replace with previous config from initial plugin registration
-    //todo: do we need to do this?
-    // groupAuthConfig ??= {
-    //     app: 'test'
-    // }
-
-    // todo: return the object we will append to the fastify config param
     return {
         config: {
             groupAuth: {

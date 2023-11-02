@@ -4,7 +4,7 @@ export type InheritanceTree = Record<string, string[]>;
 
 export type GroupAuth = {
     group?: string,
-    config?: GroupAuthConfig
+    config?: Partial<GroupAuthConfig>,
 }
 
 export type GroupAuthConfig = {
