@@ -1,19 +1,19 @@
 import type {FastifyPluginAsync} from "fastify";
 import {fastifyPlugin} from "fastify-plugin";
 import {GroupAuthPlugin} from "../group-auth-plugin.js";
-import type {GroupAuthConfig} from "../types.js";
+import type {GroupAuth, GroupAuthConfig} from "../types.js";
 
-type groupAuthFastifyConfig = {
-    groupAuth: {
-        group?: string,
-        config: GroupAuthConfig,
-    }
-}
+// type groupAuthFastifyConfig = {
+//     groupAuth: {
+//         group?: string,
+//         config?: GroupAuthConfig,
+//     }
+// }
 
 // *** Can we use these functions for the group auth express too?? Maybe the express plugin should extend the base one??
-export function groupAuth(groupAuthConfig: GroupAuthConfig): groupAuthFastifyConfig;
-export function groupAuth(group: string, groupAuthConfig?: GroupAuthConfig): groupAuthFastifyConfig;
-export function groupAuth(groupOrConfig: GroupAuthConfig | string, groupAuthConfigOrNothing?: GroupAuthConfig): groupAuthFastifyConfig {
+export function groupAuth(groupAuthConfig: GroupAuthConfig): GroupAuth;
+export function groupAuth(group: string, groupAuthConfig?: GroupAuthConfig): GroupAuth;
+export function groupAuth(groupOrConfig: GroupAuthConfig | string, groupAuthConfigOrNothing?: GroupAuthConfig): GroupAuth {
 
     let group;
     let groupAuthConfig;
@@ -29,16 +29,15 @@ export function groupAuth(groupOrConfig: GroupAuthConfig | string, groupAuthConf
 
     // Setup group auth config if not passed already
     //todo: replace with previous config from initial plugin registration
-    groupAuthConfig ??= {
-        app: 'test'
-    }
+    //todo: do we need to do this?
+    // groupAuthConfig ??= {
+    //     app: 'test'
+    // }
 
     // todo: return the object we will append to the fastify config param
     return {
-        groupAuth: {
-            ...group && {group: group},
-            config: groupAuthConfig
-        }
+        ...group && {group: group},
+        ...groupAuthConfig && {config: groupAuthConfig}
     }
 }
 
@@ -56,7 +55,7 @@ export const groupAuthFastify = fastifyPlugin(groupAuthFastifyPlugin, {
     name: 'keycloak-connector-group-auth-plugin',
     decorators: {
         fastify: ['kcc'],
-        request: ['keycloak'],
+        request: ['kccGroupAuthData'],
     },
     dependencies: ['keycloak-connector-server'],
 });

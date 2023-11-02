@@ -1,7 +1,7 @@
 import type {GroupAuthConfig} from "../types.js";
-import {AuthPluginManager, KeycloakRouteConfigOrRoles} from "keycloak-connector-server";
+import {AuthPluginManager, type KeycloakRouteConfigOrRoles} from "keycloak-connector-server";
 import {GroupAuthPlugin} from "../group-auth-plugin.js";
-import {RequestHandler} from "express-serve-static-core";
+import type {RequestHandler} from "express-serve-static-core";
 
 export class GroupAuthExpress {
 
@@ -19,7 +19,7 @@ export class GroupAuthExpress {
         await registerAuthPlugin(groupAuthPlugin);
 
         return {
-            groupAuth:
+            // groupAuth: // this should be a function folks can use
             ...groupAuthPlugin.exposedEndpoints()
         }
     }

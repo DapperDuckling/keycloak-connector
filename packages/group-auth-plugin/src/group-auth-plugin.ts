@@ -1,12 +1,11 @@
 import type {
     AuthPluginInternalConfig,
     AuthPluginOnRegisterConfig,
-    ConnectorRequest, KeycloakConnectorConfigBase,
+    ConnectorRequest,
     UserData
 } from "keycloak-connector-server";
 import {AbstractAuthPlugin, AuthPluginOverride} from "keycloak-connector-server";
 import type {Logger} from "pino";
-import type {GroupAuthUserData} from "./fastify/fastify.js";
 import type {GroupAuthConfig} from "./types.js";
 
 export class GroupAuthPlugin extends AbstractAuthPlugin {
@@ -40,14 +39,21 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
     decorateResponse = async (connectorRequest: ConnectorRequest, userData: UserData, logger: Logger | undefined): Promise<void> => {
         // Decorate the user data with group info
-        const typedUserData = userData as GroupAuthUserData;
-        typedUserData.groupAuth = {
+        connectorRequest.kccGroupAuthData = {
             appId: null,
             orgId: null,
             groups: null,
             debugInfo: {},
             ...this.exposedEndpoints(),
         }
+        // const typedUserData = userData as GroupAuthData;
+        // typedUserData.groupAuth = {
+        //     appId: null,
+        //     orgId: null,
+        //     groups: null,
+        //     debugInfo: {},
+        //     ...this.exposedEndpoints(),
+        // }
 
         logger?.debug(`Group Auth plugin decorating response`);
     }
@@ -55,9 +61,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
     isAuthorized = async (connectorRequest: ConnectorRequest, userData: UserData, logger: Logger | undefined): Promise<boolean> => {
 
         // Decorate the user data with group info
-        const typedUserData = userData as GroupAuthUserData;
-        typedUserData.groupAuth = {
-            ...typedUserData.groupAuth,
+        connectorRequest.kccGroupAuthData = {
             appId: 'test',
             orgId: null,
             groups: null,

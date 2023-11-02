@@ -49,7 +49,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
                 ...this.globalRouteConfig,
                 ...(routeConfig !== false) && routeConfig,
             },
-            ...request.keycloak && {keycloak: request.keycloak},
+            ...request.kccUserData && {keycloak: request.kccUserData},
             ...isObject(request.body) && {body: request.body},
         };
     };
@@ -160,14 +160,14 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         userDataResponse.cookies?.forEach(cookieParam => res.cookie(cookieParam.name, cookieParam.value, cookieParam.options));
 
         // Store the user data
-        req.keycloak = userDataResponse.userData;
+        req.kccUserData = userDataResponse.userData;
 
         // Removed to enable keycloak connector plugins
         // // Check for no lock requirement (public route)
         // if (routeConfigOrRoles === false) return next();
 
         // Grab the protector response
-        const connectorResponse = await this.keycloakConnector.buildRouteProtectionResponse(connectorReq, req.keycloak);
+        const connectorResponse = await this.keycloakConnector.buildRouteProtectionResponse(connectorReq, req.kccUserData);
 
         // Handle the response
         if (connectorResponse) {

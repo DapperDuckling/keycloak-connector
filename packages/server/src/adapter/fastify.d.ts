@@ -1,17 +1,19 @@
 import {FastifyRegister} from 'fastify';
-import type {UserData} from "../types.js";
-import type {KeycloakRequest} from "./fastify-adapter.js";
+import type {KeycloakRouteConfigOrRoles, UserData} from "../types.js";
 import {KeycloakConnectorExposedProperties} from "../types.js";
 
-// Most importantly, use declaration merging to add the custom property to the Fastify type system
 declare module 'fastify' {
-
-    interface FastifyRequest extends KeycloakRequest {
-        keycloak: UserData
+    interface FastifyRequest {
+        kccUserData: UserData;
+        kccRouteConfig: KeycloakRouteConfigOrRoles;
     }
 
     interface FastifyInstance {
         kcc: KeycloakConnectorExposedProperties
+    }
+
+    interface RouteShorthandOptions {
+        kccRouteConfig?: KeycloakRouteConfigOrRoles;
     }
 }
 

@@ -2,8 +2,12 @@ import type {GroupAuthPlugin} from "./group-auth-plugin.js";
 
 export type InheritanceTree = Record<string, string[]>;
 
-export type GroupAuth = GroupAuthConfig & {
-
+// export type GroupAuth = GroupAuthConfig & {
+//
+// }
+export type GroupAuth = {
+    group?: string,
+    config?: GroupAuthConfig
 }
 
 export type GroupAuthConfig = {

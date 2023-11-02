@@ -13,6 +13,7 @@ import type {UserinfoResponse} from "openid-client";
 import {UserInfoCache} from "./cache-adapters/index.js";
 import {AuthPluginManager} from "./auth-plugins/index.js";
 import type {KeycloakConnector} from "./keycloak-connector.js";
+import type {FastifyPluginAsync} from "fastify";
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -172,9 +173,11 @@ export interface ConnectorRequest {
 
     /** Headers must be lowercase **/
     headers: IncomingHttpHeaders;
-    routeConfig: KeycloakRouteConfig;
+    routeConfig: KeycloakRouteConfig & {
+        [element: string]: unknown
+    };
 
-    keycloak?: UserData;
+    kccUserData?: UserData;
     body?: Record<string, string>;
 }
 

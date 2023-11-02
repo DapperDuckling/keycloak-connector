@@ -4,7 +4,7 @@ import type {UserData} from "../types.js";
 declare module "http" {
     interface IncomingMessage {
         log?: pino.Logger;
-        keycloak: UserData;
+        kccUserData: UserData;
         _keycloakReqHandled: boolean;
         //todo: update
     }

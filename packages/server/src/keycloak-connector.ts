@@ -396,7 +396,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         try {
             const redirectUri64 = req.cookies?.[`${Cookies.REDIRECT_URI_B64}-${authFlowNonce}`];
-            
+
             // Grab the input cookies
             inputCookies = {
                 codeVerifier: req.cookies[`${Cookies.CODE_VERIFIER}-${authFlowNonce}`],
@@ -603,7 +603,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return {
             statusCode: 200,
             responseText: JSON.stringify({
-                "user-is-logged-in": req.keycloak?.isAuthenticated ?? false,
+                "user-is-logged-in": req.kccUserData?.isAuthenticated ?? false,
             }),
         };
     }
@@ -781,7 +781,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         userData.isAuthorized = await this.authPluginManager.isUserAuthorized(connectorRequest, userData);
 
         // Add reference to user data on the connector request as well
-        connectorRequest.keycloak = userData;
+        connectorRequest.kccUserData = userData;
 
         return userDataResponse;
     }

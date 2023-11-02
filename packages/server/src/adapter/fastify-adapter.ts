@@ -9,28 +9,25 @@ import type {
 import type {
     FastifyInstance,
     FastifyReply,
-    FastifyRequest,
-    RawReplyDefaultExpression,
-    RouteGenericInterface
+    FastifyRequest
 } from "fastify";
 import type {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     fastifyStatic
 } from "@fastify/static";
-import type {RawRequestDefaultExpression, RawServerDefault} from "fastify/types/utils.js";
-import type {FastifyTypeProviderDefault} from "fastify/types/type-provider.js";
-import type {FastifySchema} from "fastify/types/schema.js";
-import type {FastifyBaseLogger} from "fastify/types/logger.js";
 import {RouteConfigDefault} from "../helpers/defaults.js";
 import {isObject} from "../helpers/utils.js";
 
-export type FastifyKeycloakInstance = FastifyInstance<RawServerDefault, RawRequestDefaultExpression, RawReplyDefaultExpression, FastifyBaseLogger, FastifyTypeProviderDefault>;
-export type KeycloakRequest = FastifyRequest<RouteGenericInterface, RawServerDefault, RawRequestDefaultExpression, FastifySchema, FastifyTypeProviderDefault, KeycloakRouteConfig, FastifyBaseLogger>
+// export type FastifyKeycloakInstance = FastifyInstance<RawServerDefault, RawRequestDefaultExpression, RawReplyDefaultExpression, FastifyBaseLogger, FastifyTypeProviderDefault>;
+// export type KeycloakRequest = FastifyRequest<RouteGenericInterface, RawServerDefault, RawRequestDefaultExpression, FastifySchema, FastifyTypeProviderDefault, KeycloakRouteConfig, FastifyBaseLogger>
+// export type FastifyPluginAsync =
+// export type FastifyKeycloakRoute = FastifyPluginAsync<FastifyPluginOptions, RawServerDefault, FastifyTypeProvider, FastifyBaseLogger, ContextConfigDefault>
 export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
 
-    private readonly fastify: FastifyKeycloakInstance;
+    // private readonly fastify: FastifyKeycloakInstance;
+    private readonly fastify: FastifyInstance;
     private readonly globalRouteConfig: KeycloakRouteConfig | undefined;
-    constructor(fastify: FastifyKeycloakInstance, customConfig: KeycloakConnectorConfigCustom) {
+    constructor(fastify: FastifyInstance, customConfig: KeycloakConnectorConfigCustom) {
         super();
 
         this.fastify = fastify;
@@ -40,16 +37,16 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
         };
     }
 
-    public buildConnectorRequest = async (request: KeycloakRequest): Promise<ConnectorRequest> => ({
+    public buildConnectorRequest = async (request: FastifyRequest): Promise<ConnectorRequest> => ({
         ...request.headers?.origin && {origin: request.headers?.origin},
         url: request.url,
         cookies: request.cookies,
         headers: request.raw.headers,
         routeConfig: {
             ...this.globalRouteConfig,
-            ...request.routeConfig,
+            ...request.kccRouteConfig,
         },
-        ...request.keycloak && {keycloak: request.keycloak},
+        ...request.kccUserData && {kccUserData: request.kccUserData},
         ...isObject(request.body) && {body: request.body},
     });
 
@@ -77,7 +74,7 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
     registerRoute(options: RouteRegistrationOptions, connectorCallback: ConnectorCallback<SupportedServers.fastify>): void {
 
         // Build the route handler
-        async function routeHandler(this: FastifyAdapter, request: KeycloakRequest, reply: FastifyReply): Promise<FastifyReply> {
+        async function routeHandler(this: FastifyAdapter, request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
             const connectorReq = await this.buildConnectorRequest(request);
             const response = await connectorCallback(connectorReq);
             await this.handleResponse(response, reply);
@@ -88,7 +85,7 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
         this.fastify.route({
             method: options.method,
             url: options.url,
-            config: (options.isPublic) ? {
+            kccRouteConfig: (options.isPublic) ? {
                 public: true
             } : {
                 public: false,

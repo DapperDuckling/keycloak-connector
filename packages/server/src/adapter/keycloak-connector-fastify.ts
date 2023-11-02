@@ -49,10 +49,10 @@ const keycloakConnectorFastifyPlugin: FastifyPluginAsync<KeycloakConnectorConfig
         userDataResponse.cookies?.forEach(cookieParam => reply.setCookie(cookieParam.name, cookieParam.value, cookieParam.options));
 
         // Store the user data
-        request.keycloak = userDataResponse.userData;
+        request.kccUserData = userDataResponse.userData;
 
         // Grab the protector response
-        const connectorResponse = await kcc.buildRouteProtectionResponse(connectorReq, request.keycloak);
+        const connectorResponse = await kcc.buildRouteProtectionResponse(connectorReq, request.kccUserData);
 
         // Handle the response
         if (connectorResponse) {
