@@ -6,9 +6,9 @@ import type {
 } from "keycloak-connector-server";
 import {AbstractAuthPlugin, AuthPluginOverride} from "keycloak-connector-server";
 import type {Logger} from "pino";
-import type {GroupAuthConfig, GroupAuthRouteConfig, GroupRegexHandlers, KcGroupClaims, UserGroups} from "./types.js";
-import {UserGroupPermissionKey} from "./types.js";
+import type {GroupAuthConfig, GroupAuthData, GroupAuthRouteConfig, InheritanceTree, KcGroupClaims} from "./types.js";
 import {getUserGroups} from "./group-regex-helpers.js";
+import {UserGroupPermissionKey} from "./types.js";
 
 export class GroupAuthPlugin extends AbstractAuthPlugin {
     protected readonly _internalConfig: AuthPluginInternalConfig = {
@@ -56,16 +56,21 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         logger: Logger | undefined
     ): Promise<boolean> => {
 
-        // Decorate the user data with group info
-        connectorRequest.kccUserGroupAuthData = {
+        // Create default group info object
+        const kccUserGroupAuthData: GroupAuthData = {
+            superAdmin: null,
             appId: null,
             orgId: null,
             groups: null,
             debugInfo: {
-                "app-search": false,
-                "org-search": false,
+                "app-lookup": false,
+                "org-lookup": false,
+                "route-required-super-admin-only": false,
             },
         }
+
+        // Decorate the user data with the group info object (typescript being wonky)
+        connectorRequest.kccUserGroupAuthData = kccUserGroupAuthData;
 
         //todo: check if we are using the defaults (or setting the defaults per the use case gist)
 
@@ -119,8 +124,12 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
         // Check if the user has a group membership that matches the super-user group exactly
         if (this.groupAuthConfig.adminGroups?.superAdmin && allUserGroups.includes(this.groupAuthConfig.adminGroups.superAdmin)) {
+            connectorRequest.kccUserGroupAuthData.superAdmin = true;
             return true;
         }
+
+        // Not a super admin
+        kccUserGroupAuthData.superAdmin = false;
 
         // Break apart the user groups into a more manageable object
         const userGroups = getUserGroups(allUserGroups);
@@ -145,9 +154,11 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             switch (paramKey) {
                 case groupAuthConfig.orgParam:
                     constraints.org = paramValue;
+                    kccUserGroupAuthData.debugInfo["org-lookup"] = paramValue;
                     break;
                 case groupAuthConfig.appParam:
                     constraints.app = paramValue;
+                    kccUserGroupAuthData.debugInfo["app-lookup"] = paramValue;
                     break;
             }
         }
@@ -160,8 +171,33 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         //     }
         // }
 
+        // Check if no valid constraints
+        if (Object.values(constraints).every((constraint: unknown) => typeof constraint !== "string" || constraint.length === 0)) {
+            // No valid constraints assumes we must require a super admin only
+            kccUserGroupAuthData.debugInfo["routeRequiredSuperAdminOnly"] = true;
+
+            // Super admin was checked near the beginning, so if this point is reached, they are not a super admin
+            return false;
+        }
+
         /** Planning just to check the situation where this is no org id specified */
         //todo: start here
+
+        // Start a set of permissions where a user could match any of them
+        const anyMatchingPermissions = new Set<string>(connectorRequest.routeConfig.groupAuth.group);
+
+        // Determine all the permissions the user could match to with the inheritance tree
+        groupAuthConfig.inheritanceTree
+
+        // Check for an app constraint
+        if (constraints.app) {
+            const appPermissions = userGroups.applications[constraints.app]?.[UserGroupPermissionKey];
+
+            // Check if user has
+
+
+        }
+
 
         /**
          * Require Admin logic (user must have at least one of the listed permissions)
@@ -188,6 +224,29 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
         //todo: finish building
         return false;
+    }
+
+    private doesPermissionMatchGroup = (permission: string, group: string, inheritanceTree: InheritanceTree | undefined) => {
+
+        // Quick check if the permission matches the group
+        if (permission === group) {
+            return true;
+        }
+
+        // Check if no inheritance tree matching this permission
+        const inheritedPermissions = inheritanceTree?.[permission];
+        if (inheritedPermissions === undefined) {
+            return false;
+        }
+
+        // Recurse the inheritance tree to find a match
+        for (const inheritedPermission of inheritedPermissions) {
+
+        }
+
+        // No match found
+        return false;
+
     }
 
     exposedEndpoints = () => ({

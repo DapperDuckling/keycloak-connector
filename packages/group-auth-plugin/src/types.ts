@@ -31,7 +31,9 @@ export type GroupAuthConfig = {
     noImplicitApp?: boolean, // default: false
 }
 
-export type GroupAuthData = ReturnType<GroupAuthPlugin['exposedEndpoints']> & {
+// export type GroupAuthData = ReturnType<GroupAuthPlugin['exposedEndpoints']> & {
+export type GroupAuthData = {
+    superAdmin: boolean | null,
     appId: string | null,
     orgId: string | null,
     groups: string[] | null,

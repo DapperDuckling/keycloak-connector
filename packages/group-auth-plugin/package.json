@@ -30,6 +30,6 @@
     "cpy": "^10.1.0"
   },
   "dependencies": {
-    "keycloak-connect-server": "file:../server"
+    "keycloak-connector-server": "file:../server"
   }
 }

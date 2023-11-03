@@ -1,3 +1,3 @@
-
-export type * from "./fastify.js";
 export * from "./group-auth-fastify.js";
+
+export type * from "./fastify.d.ts";
