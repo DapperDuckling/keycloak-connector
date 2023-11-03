@@ -11,6 +11,7 @@ type GroupAuthConfigPartial = Partial<GroupAuthConfig>;
 
 //todo: example usage thought
 // groupAuth({requireAdmin: true});
+// groupAuth({noImplicitApp: true});
 
 
 // *** Can we use these functions for the group auth express too?? Maybe the express plugin should extend the base one??
@@ -19,7 +20,7 @@ export function groupAuth(group: string, groupAuthConfig?: GroupAuthConfigPartia
 export function groupAuth(groupOrConfig: GroupAuthConfigPartial | string, groupAuthConfigOrNothing?: GroupAuthConfigPartial): GroupAuthFastifyRouteOpt {
 
     let group;
-    let groupAuthConfig;
+    let groupAuthConfig: Partial<GroupAuthConfig> | undefined;
 
     // Handle the different functional overloads
     if (typeof groupOrConfig === "string") {
@@ -54,6 +55,7 @@ export const groupAuthFastify = fastifyPlugin(groupAuthFastifyPlugin, {
     name: 'keycloak-connector-group-auth-plugin',
     decorators: {
         fastify: ['kcc'],
+        //todo: update this requirement
         // request: ['kccGroupAuthData'],
     },
     dependencies: ['keycloak-connector-server'],

@@ -6,19 +6,19 @@ import type {
 } from "keycloak-connector-server";
 import {AbstractAuthPlugin, AuthPluginOverride} from "keycloak-connector-server";
 import type {Logger} from "pino";
-import type {GroupAuthConfig, GroupAuthRouteConfig, KcGroupClaims} from "./types.js";
+import type {GroupAuthConfig, GroupAuthRouteConfig, GroupRegexHandlers, KcGroupClaims, UserGroups} from "./types.js";
+import {UserGroupPermissionKey} from "./types.js";
+import {getUserGroups} from "./group-regex-helpers.js";
 
 export class GroupAuthPlugin extends AbstractAuthPlugin {
-    protected readonly _internalConfig: AuthPluginInternalConfig;
+    protected readonly _internalConfig: AuthPluginInternalConfig = {
+        name: 'GroupAuthPlugin',
+        override: AuthPluginOverride.DISABLE_BASE_FUNCTION
+    }
     protected readonly groupAuthConfig: GroupAuthConfig;
 
     constructor(config: GroupAuthConfig) {
         super();
-
-        this._internalConfig = {
-            name: 'GroupAuthPlugin',
-            override: AuthPluginOverride.DISABLE_BASE_FUNCTION
-        }
 
         // Check for an app name
         if (config.app === undefined) {
@@ -67,6 +67,8 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             },
         }
 
+        //todo: check if we are using the defaults (or setting the defaults per the use case gist)
+
         logger?.debug(`Group Auth plugin checking for authorization...`);
 
         // Check for a groupAuth in the routeConfig
@@ -82,12 +84,46 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         }
 
         // Extract the groups from the user info
-        const groups = userData.userInfo?.groups ?? [];
+        //todo: uncomment
+        // const allUserGroups = userData.userInfo?.groups ?? [];
+
+        //dev only
+        const allUserGroups = [
+            "/organizations/unit-f4990bd4-7b94-4953-8942-14a7da742a6a/admin",
+            "/organizations/unit-02610669-ce6f-4004-a9bb-304243eaf8f4/admin",
+            "/organizations/unit-c1be7965-c654-4537-b9b6-b403f4067e87/admin",
+            "/organizations/unit-16c4f8fd-0dd9-409c-a95a-23f22aabffc1/admin",
+            "/organizations/unit-46be75b1-e27b-4991-bd8b-522e1fbc6c4f/admin",
+            "/organizations/unit-323541a7-5fc8-49e5-a33c-4b50bed69d56/admin",
+            "/equilibrium-admin",
+            "/lost-horizon-admin",
+            "/organizations/unit-anyuunt-thanks/member",
+            "/organizations/unit-anyuunt-thanks/admin",
+            "/organizations/unit-02610669-ce6f-4004-a9bb-304243eaf8f4/member",
+            "/organizations/unit-16c4f8fd-0dd9-409c-a95a-23f22aabffc1/member",
+            "/organizations/unit-46be75b1-e27b-4991-bd8b-522e1fbc6c4f/member",
+            "/organizations/unit-323541a7-5fc8-49e5-a33c-4b50bed69d56/member",
+            "/organizations/unit-c1be7965-c654-4537-b9b6-b403f4067e87/member",
+            "/spawner-site-admin",
+            "/spawner-unit-553-033734cf-697d-48dd-abdc-341ebcbcc5c1",
+            "/applications/pegasus/unit-46be75b1-e27b-4991-bd8b-522e1fbc6c4f/user",
+            "/applications/pegasus/unit-02610669-ce6f-4004-a9bb-304243eaf8f4/user",
+            "/applications/pegasus/unit-323541a7-5fc8-49e5-a33c-4b50bed69d56/user",
+            "/applications/pegasus/unit-f4990bd4-7b94-4953-8942-14a7da742a6a/user",
+            "/applications/pegasus/unit-16c4f8fd-0dd9-409c-a95a-23f22aabffc1/user",
+            "/applications/testing/unit-c1be7965-c654-4537-b9b6-b403f4067e87/user",
+            "/applications/pegasus/app-admin",
+            "/applications/yarp/app-admin",
+            "/applications/testing/app-admin",
+        ];
 
         // Check if the user has a group membership that matches the super-user group exactly
-        if (this.groupAuthConfig.superAdminGroup && groups.includes(this.groupAuthConfig.superAdminGroup)) {
+        if (this.groupAuthConfig.adminGroups?.superAdmin && allUserGroups.includes(this.groupAuthConfig.adminGroups.superAdmin)) {
             return true;
         }
+
+        // Break apart the user groups into a more manageable object
+        const userGroups = getUserGroups(allUserGroups);
 
         // Grab the route's group auth config
         const groupAuthConfig: GroupAuthConfig = {
@@ -95,10 +131,37 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             ...connectorRequest.routeConfig.groupAuth.config,
         }
 
-        // Regex find the specified groupAuthConfig orgParam in the routeConfig url
-        const test = connectorRequest.routeConfig;
-        // const orgParam = connectorRequest.routeConfig.url.match(groupAuthConfig.orgParam);
+        const constraints: { org?: string, app?: string } = {
+            app: groupAuthConfig.app,
+        }
 
+        // Check if we are not ignoring the app constraint, but we do not have a value
+        if (groupAuthConfig.noImplicitApp !== true && typeof constraints.app !== "string") {
+            throw new Error(`Cannot use group auth without valid app name set! Either set a valid app name or set the ignore app flag. Received "${constraints.app}"`);
+        }
+
+        // Loop over the connectorRequest.urlParams and set up a switch statement based on the key
+        for (const [paramKey, paramValue] of Object.entries(connectorRequest.urlParams)) {
+            switch (paramKey) {
+                case groupAuthConfig.orgParam:
+                    constraints.org = paramValue;
+                    break;
+                case groupAuthConfig.appParam:
+                    constraints.app = paramValue;
+                    break;
+            }
+        }
+
+        // Removed: Just check in the actual check if the length is 0, then deny that check immediately (since we don't know how each HTTP server will handle this)
+        // // Ensure the constraints are all strings of length >0
+        // for (const [constraintKey, constraintValue] of Object.entries<unknown>(constraints)) {
+        //     if (typeof constraintValue !== "string" || constraintValue.length === 0) {
+        //         throw new Error(`Cannot use group auth without valid ${constraintKey} set! Non-string or empty string value received`);
+        //     }
+        // }
+
+        /** Planning just to check the situation where this is no org id specified */
+        //todo: start here
 
         /**
          * Require Admin logic (user must have at least one of the listed permissions)
