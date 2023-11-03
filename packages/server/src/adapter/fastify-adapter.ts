@@ -32,18 +32,21 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
         };
     }
 
-    public buildConnectorRequest = async (request: FastifyRequest): Promise<ConnectorRequest> => ({
-        ...request.headers?.origin && {origin: request.headers?.origin},
-        url: request.url,
-        cookies: request.cookies,
-        headers: request.raw.headers,
-        routeConfig: {
-            ...this.globalRouteConfig,
-            ...request.routeOptions.config,
-        },
-        ...request.kccUserData && {kccUserData: request.kccUserData},
-        ...isObject(request.body) && {body: request.body},
-    });
+    public buildConnectorRequest = async (request: FastifyRequest): Promise<ConnectorRequest> => {
+        return ({
+            ...request.headers?.origin && {origin: request.headers?.origin},
+            url: request.url,
+            urlParams: request.params as Record<string, string>,
+            cookies: request.cookies,
+            headers: request.raw.headers,
+            routeConfig: {
+                ...this.globalRouteConfig,
+                ...request.routeOptions.config,
+            },
+            ...request.kccUserData && {kccUserData: request.kccUserData},
+            ...isObject(request.body) && {body: request.body},
+        });
+    };
 
     public async handleResponse(connectorResponse: ConnectorResponse<SupportedServers.fastify>, reply: FastifyReply): Promise<void> {
 

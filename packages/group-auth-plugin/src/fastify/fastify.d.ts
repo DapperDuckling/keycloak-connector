@@ -1,5 +1,5 @@
 import type {GroupAuthPlugin} from "../group-auth-plugin.js";
-import type { GroupAuthData} from "../types.js";
+import type {GroupAuthData} from "../types.js";
 import type {FastifyRegister} from "fastify";
 
 declare module 'fastify' {

@@ -1,15 +1,12 @@
 import type {FastifyPluginAsync} from "fastify";
 import {fastifyPlugin} from "fastify-plugin";
 import {GroupAuthPlugin} from "../group-auth-plugin.js";
-import type {GroupAuth, GroupAuthConfig} from "../types.js";
+import type {GroupAuthConfig, GroupAuthRouteConfig} from "../types.js";
 
 export type GroupAuthFastifyRouteOpt = {
-    config: {
-        groupAuth?: GroupAuth
-    }
+    config: GroupAuthRouteConfig
 }
 
-export type GroupAuthFastifyRouteConfig = GroupAuthFastifyRouteOpt['config'];
 type GroupAuthConfigPartial = Partial<GroupAuthConfig>;
 
 //todo: example usage thought

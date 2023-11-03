@@ -1,8 +1,9 @@
 import {FastifyRegister} from 'fastify';
-import type {KeycloakRouteConfigOrRoles, UserData} from "../types.js";
+import type {UserData} from "../types.js";
 import {KeycloakConnectorExposedProperties} from "../types.js";
 
 declare module 'fastify' {
+
     interface FastifyRequest {
         kccUserData: UserData;
         // routeConfig: KeycloakRouteConfigOrRoles;

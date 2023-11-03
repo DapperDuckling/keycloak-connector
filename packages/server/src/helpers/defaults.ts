@@ -1,5 +1,4 @@
 import type {CustomRouteUrl, KeycloakRouteConfig, UserData} from "../types.js";
-import {RoleLocations} from "../types.js";
 
 export const RouteUrlDefaults: CustomRouteUrl = {
     _prefix: '/auth',
@@ -23,5 +22,5 @@ export const RouteConfigDefault: KeycloakRouteConfig = {
 export const UserDataDefault: UserData = {
     isAuthenticated: false,
     isAuthorized: false,
-    roles: [],
+    // roles: [],
 }

@@ -37,12 +37,13 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 
         // Determine the input route config type and build the requisite route config object
         const routeConfig: KeycloakRouteConfig | false = (Array.isArray(routeConfigOrRoles) || routeConfigOrRoles === undefined) ? {
-            roles: routeConfigOrRoles ?? []
+            roles: routeConfigOrRoles ?? [],
         } : routeConfigOrRoles;
 
         return {
             ...request.headers?.origin && {origin: request.headers?.origin},
             url: request.url,
+            urlParams: request.params,
             cookies: request.cookies as Cookies,
             headers: request.headers,
             routeConfig: {

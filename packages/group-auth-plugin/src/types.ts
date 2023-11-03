@@ -2,6 +2,14 @@ import type {GroupAuthPlugin} from "./group-auth-plugin.js";
 
 export type InheritanceTree = Record<string, string[]>;
 
+export interface KcGroupClaims {
+    groups?: string[];
+}
+
+export type GroupAuthRouteConfig = {
+    groupAuth?: GroupAuth;
+}
+
 export type GroupAuth = {
     group?: string,
     config?: Partial<GroupAuthConfig>,

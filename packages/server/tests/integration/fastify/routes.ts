@@ -17,6 +17,11 @@ export const routes: FastifyPluginAsync = async (fastify, options) =>  {
         return { hello: 'PROTECTED BOI -- but no role requirement' };
     });
 
+    // Define protected routes
+    fastify.get('/protected/:oid', async (request, reply) => {
+        return { hello: 'protected with an org id' };
+    });
+
     // Define the basic route
     fastify.get('/coolguy', {config: {roles: ['COOL_GUY']}}, async (request, reply) => {
         return { hello: 'PROTECTED BOI -- must have COOL_GUY role' };

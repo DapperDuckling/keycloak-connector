@@ -11,9 +11,7 @@ import {TokenCache} from "./cache-adapters/index.js";
 import type {TokenSetParameters} from "openid-client";
 import type {UserinfoResponse} from "openid-client";
 import {UserInfoCache} from "./cache-adapters/index.js";
-import {AuthPluginManager} from "./auth-plugins/index.js";
 import type {KeycloakConnector} from "./keycloak-connector.js";
-import type {FastifyPluginAsync} from "fastify";
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -166,18 +164,17 @@ export enum RouteEnum {
 
 export type Cookies = { [cookieName: string]: string | undefined };
 
-export interface ConnectorRequest {
+export interface ConnectorRequest<KcRouteConfig extends object = Record<string, unknown>, KcClaims extends object = Record<string, unknown>> {
     origin?: string;
     url: string;
+    urlParams: Record<string, string>;
     cookies: Cookies;
 
     /** Headers must be lowercase **/
     headers: IncomingHttpHeaders;
-    routeConfig: KeycloakRouteConfig & {
-        [element: string]: unknown
-    };
+    routeConfig: KeycloakRouteConfig & KcRouteConfig;
 
-    kccUserData?: UserData;
+    kccUserData?: UserData<KcClaims>;
     body?: Record<string, string>;
 }
 
@@ -468,12 +465,12 @@ interface OidcStandardClaims {
     updated_at?: number;
 }
 
-export interface UserData {
+export interface UserData<KcClaims extends object = Record<string, unknown>> {
     isAuthenticated: boolean;
     isAuthorized: boolean;
-    roles: KeycloakRole[];
+    // roles: KeycloakRole[];
     accessToken?: KcAccessJWT;
-    userInfo?: UserinfoResponse | undefined;
+    userInfo?: UserinfoResponse<KcAccessClaims & KcClaims> | undefined;
 }
 
 export enum RoleConfigurationStyle {

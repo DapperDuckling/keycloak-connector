@@ -6,7 +6,7 @@ import type {
 } from "keycloak-connector-server";
 import {AbstractAuthPlugin, AuthPluginOverride} from "keycloak-connector-server";
 import type {Logger} from "pino";
-import type {GroupAuthConfig} from "./types.js";
+import type {GroupAuthConfig, GroupAuthRouteConfig, KcGroupClaims} from "./types.js";
 
 export class GroupAuthPlugin extends AbstractAuthPlugin {
     protected readonly _internalConfig: AuthPluginInternalConfig;
@@ -50,11 +50,15 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         logger?.debug(`Group Auth plugin decorating response`);
     }
 
-    isAuthorized = async (connectorRequest: ConnectorRequest, userData: UserData, logger: Logger | undefined): Promise<boolean> => {
+    isAuthorized = async (
+        connectorRequest: ConnectorRequest<GroupAuthRouteConfig>,
+        userData: UserData<KcGroupClaims>,
+        logger: Logger | undefined
+    ): Promise<boolean> => {
 
         // Decorate the user data with group info
         connectorRequest.kccUserGroupAuthData = {
-            appId: 'test',
+            appId: null,
             orgId: null,
             groups: null,
             debugInfo: {
@@ -65,12 +69,36 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
         logger?.debug(`Group Auth plugin checking for authorization...`);
 
-        // const userGroups = userData.userInfo.groups;
-        //
-        // // Check if the user is in the super admin group
-        // if (userData.groups.includes('super-admin')) {
-        //     return true;
-        // }
+        // Check for a groupAuth in the routeConfig
+        if (connectorRequest.routeConfig.groupAuth === undefined) {
+            // No group auth defined, so no restrictions
+            //todo: test this theory
+            return true;
+        }
+
+        // Check for a "groups" scope in the user info
+        if (userData.userInfo?.groups === undefined) {
+            logger?.warn(`User info does not contain groups scope. Check settings in Keycloak and ensure "Add to userinfo" is selected for the mapped "groups" scope.`);
+        }
+
+        // Extract the groups from the user info
+        const groups = userData.userInfo?.groups ?? [];
+
+        // Check if the user has a group membership that matches the super-user group exactly
+        if (this.groupAuthConfig.superAdminGroup && groups.includes(this.groupAuthConfig.superAdminGroup)) {
+            return true;
+        }
+
+        // Grab the route's group auth config
+        const groupAuthConfig: GroupAuthConfig = {
+            ...this.groupAuthConfig,
+            ...connectorRequest.routeConfig.groupAuth.config,
+        }
+
+        // Regex find the specified groupAuthConfig orgParam in the routeConfig url
+        const test = connectorRequest.routeConfig;
+        // const orgParam = connectorRequest.routeConfig.url.match(groupAuthConfig.orgParam);
+
 
         /**
          * Require Admin logic (user must have at least one of the listed permissions)

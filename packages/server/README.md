@@ -29,6 +29,14 @@ Final step: Disable mTLS via `OAuth 2.0 Mutual TLS Certificate Bound Access Toke
 
 ### Recommended Keycloak settings
 [//]: # (todo)
+#### Disable or remove default scopes
+- Manage -> Client Scopes -> (any scope)
+- Either
+  - A) Change assigned type to "Optional"
+  - B) Remove from access token
+    - Click scope name -> Mappers -> Select Mapper
+    - Disable add to ID token (if able)
+    - Disable add to access token
 
 ### Install (for Fastify)
 ```shell
