@@ -1,5 +1,3 @@
-import type {GroupAuthPlugin} from "./group-auth-plugin.js";
-
 export type InheritanceTree = Record<string, string[] | "*">;
 
 export interface KcGroupClaims {

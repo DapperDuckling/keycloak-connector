@@ -17,6 +17,9 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
     }
     protected readonly groupAuthConfig: GroupAuthConfig;
 
+    // The tree permissions matching config.inheritanceTree
+    protected treePermissions: Record<string, Set<string>> | undefined = undefined;
+
     constructor(config: GroupAuthConfig) {
         super();
 
@@ -26,6 +29,12 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         }
 
         this.groupAuthConfig = config;
+
+        // Validate the inheritance tree
+        this.validateInheritanceTree(config.inheritanceTree);
+
+        // Pre-calculate the inheritance tree permissions
+        this.treePermissions = this.inheritanceTreePermissions(config.inheritanceTree);
     }
 
     public override async onRegister(onRegisterConfig: AuthPluginOnRegisterConfig) {
@@ -35,6 +44,28 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         }
 
         return undefined;
+    }
+
+    private validateInheritanceTree = (tree: InheritanceTree | undefined) => {
+
+        if (tree === undefined) return;
+
+        // Store the keys of any elements that are just wildcards
+        const wildcardKeys = new Set<string>();
+        for (const [key, value] of Object.entries(tree)) {
+            if (value === "*") wildcardKeys.add(key);
+        }
+
+        // Loop through the tree elements that are not wildcards
+        for (const [key, value] of Object.entries(tree)) {
+            // Skip the wildcard entries
+            if (value === "*") continue;
+
+            // Ensure each of the entries are not a wildcard or in the wildcard keys
+            if (value.every(permission => permission !== "*" && !wildcardKeys.has(permission))) continue;
+
+            throw new Error(`Invalid inheritance tree with key "${key}". Wildcards must be standalone strings ("*" not ["*"]). Additionally, cannot inherit a permission group that subsequently inherits a wildcard entry.`);
+        }
     }
 
     decorateResponse = async (connectorRequest: ConnectorRequest, userData: UserData, logger: Logger | undefined): Promise<void> => {
@@ -140,6 +171,12 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             ...connectorRequest.routeConfig.groupAuth.config,
         }
 
+        // Validate the inheritance tree
+        this.validateInheritanceTree(groupAuthConfig.inheritanceTree);
+
+        // Build the inheritance tree
+        const inheritanceTreePermissions = this.inheritanceTreePermissions(groupAuthConfig.inheritanceTree);
+
         const constraints: { org?: string, app?: string } = {
             app: groupAuthConfig.app,
         }
@@ -183,18 +220,14 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         /** Planning just to check the situation where this is no org id specified */
         //todo: start here
 
-        // Start a set of permissions where a user could match any of them
-        const anyMatchingPermissions = new Set<string>(connectorRequest.routeConfig.groupAuth.group);
-
-        // Determine all the permissions the user could match to with the inheritance tree
-        groupAuthConfig.inheritanceTree
-
         // Check for an app constraint
         if (constraints.app) {
             const appPermissions = userGroups.applications[constraints.app]?.[UserGroupPermissionKey];
 
-            // Check if user has
-
+            // // Check if user has
+            // for (const appPermission of appPermissions) {
+            //
+            // }
 
         }
 
@@ -226,28 +259,89 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         return false;
     }
 
-    private doesPermissionMatchGroup = (permission: string, group: string, inheritanceTree: InheritanceTree | undefined) => {
+    private inheritanceTreePermissions(inheritanceTree: InheritanceTree | undefined): Record<string, Set<string>> {
+        // Check for no inheritance tree
+        if (inheritanceTree === undefined) return {};
 
-        // Quick check if the permission matches the group
-        if (permission === group) {
-            return true;
+        // Check if the inheritance tree is the same as the one tied to this class
+        if (this.treePermissions && this.groupAuthConfig.inheritanceTree === inheritanceTree) return this.treePermissions;
+
+        const treePermissions: Record<string, Set<string>> = {};
+
+        function dfs(permission: string, visitedNodes: Set<string>) {
+            // // Check if this permission was visited already
+            // if (treePermissions[permission]) return;
+
+            // Add this permission to the tree
+            treePermissions[permission] ??= new Set<string>([permission]);
+
+            // Add this node to the tracker
+            visitedNodes.add(permission);
+
+            // Loop over the children of this permission
+            for (const child of inheritanceTree?.[permission] ?? []) {
+                // // Check if the child permission was visited already
+                // if (treePermissions[child]) continue;
+
+                // Check if the child permission was visited already
+                if (!visitedNodes.has(child)) dfs(child, visitedNodes);
+
+                // Add each of the children permissions to this node's permission list
+                treePermissions[child]!.forEach(childPermission => treePermissions[permission]!.add(childPermission));
+            }
         }
 
-        // Check if no inheritance tree matching this permission
-        const inheritedPermissions = inheritanceTree?.[permission];
-        if (inheritedPermissions === undefined) {
-            return false;
+        for (const permission in inheritanceTree) {
+            //todo: make this more efficient so we're not vising the same nodes over and over again
+            dfs(permission, new Set());
         }
 
-        // Recurse the inheritance tree to find a match
-        for (const inheritedPermission of inheritedPermissions) {
 
-        }
-
-        // No match found
-        return false;
-
+        return treePermissions;
     }
+
+    // private checkPermission = (
+    //     userPermission: string,
+    //     requiredPermission: string,
+    //     inheritanceTree: InheritanceTree | undefined
+    // ) => this.checkPermissionRecursive(userPermission, requiredPermission, inheritanceTree, new Set());
+    //
+    // private checkPermissionRecursive = (
+    //     userPermission: string,
+    //     requiredPermission: string,
+    //     inheritanceTree: InheritanceTree | undefined,
+    //     checkedPermissions: Set<string>
+    // ) => {
+    //
+    //     // Quick check if the permission matches the group
+    //     if (userPermission === requiredPermission) return true;
+    //
+    //     // Add this checked permission
+    //     checkedPermissions.add(userPermission);
+    //
+    //     // Check if no inheritance tree matching this permission
+    //     const inheritedPermissions = inheritanceTree?.[userPermission];
+    //     if (inheritedPermissions === undefined) return false;
+    //
+    //     // Check for a permission that grants all
+    //     if (inheritedPermissions === "*") return true;
+    //
+    //     // Recurse the inheritance tree to find a match
+    //     for (const inheritedPermission of inheritedPermissions) {
+    //
+    //         // Check if this permission was already checked
+    //         if (checkedPermissions.has(userPermission)) continue;
+    //
+    //         // Recursively check this permission
+    //         if (this.checkPermission(inheritedPermission, requiredPermission, inheritanceTree, checkedPermissions)) {
+    //             return true;
+    //         }
+    //     }
+    //
+    //     // No match found
+    //     return false;
+    //
+    // }
 
     exposedEndpoints = () => ({
         check: this.groupCheck,
