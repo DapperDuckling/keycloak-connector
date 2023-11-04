@@ -19,7 +19,8 @@
   "scripts": {
     "build": "tsc && cpy ./src/**/*.d.ts ./dist",
     "prepublishOnly": "npm run build",
-    "test:start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts"
+    "test:start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts",
+    "test:start:generateGraphs": "npm run build && cd ./tests/integration/fastify/ && nodemon ./generate-graphs.ts"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
