@@ -1,28 +1,26 @@
 import type {GroupAuthConfig} from "../types.js";
-import {AuthPluginManager, type KeycloakRouteConfigOrRoles} from "keycloak-connector-server";
+import {AuthPluginManager} from "keycloak-connector-server";
 import {GroupAuthPlugin} from "../group-auth-plugin.js";
 import type {RequestHandler} from "express-serve-static-core";
+import {groupAuth as groupAuthOriginal} from "../group-auth-builder.js";
 
-export class GroupAuthExpress {
+export const groupAuth = (...args: Parameters<typeof groupAuthOriginal>): RequestHandler => {
+    const {group, groupAuthConfig} = groupAuthOriginal(...args);
 
-    private constructor() {}
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    return async (req, res, next) => {
+        //todo: handle request
+    };
+}
 
+const groupAuthExpressPlugin = async (registerAuthPlugin: AuthPluginManager['registerAuthPlugin'], groupAuthConfig: GroupAuthConfig) => {
+    // Register the plugin
+    const groupAuthPlugin = new GroupAuthPlugin(groupAuthConfig);
+    await registerAuthPlugin(groupAuthPlugin);
 
-    private lock = (routeConfigOrRoles?: KeycloakRouteConfigOrRoles): RequestHandler => async (req, res, next) => {
-
-    }
-
-    public static init = async (registerAuthPlugin: AuthPluginManager['registerAuthPlugin'], groupAuthConfig: GroupAuthConfig)=> {
-        const adapter = new this();
-
-        const groupAuthPlugin = new GroupAuthPlugin(groupAuthConfig);
-        await registerAuthPlugin(groupAuthPlugin);
-
-        return {
-            // groupAuth: // this should be a function folks can use
-            ...groupAuthPlugin.exposedEndpoints()
-        }
+    return {
+        ...groupAuthPlugin.exposedEndpoints()
     }
 }
 
-export const groupAuthExpress = async (registerAuthPlugin: AuthPluginManager['registerAuthPlugin'], groupAuthConfig: GroupAuthConfig) => await GroupAuthExpress.init(registerAuthPlugin, groupAuthConfig);
+export const groupAuthExpress = async (registerAuthPlugin: AuthPluginManager['registerAuthPlugin'], groupAuthConfig: GroupAuthConfig) => await groupAuthExpressPlugin(registerAuthPlugin, groupAuthConfig);

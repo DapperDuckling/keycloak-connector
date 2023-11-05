@@ -2,29 +2,15 @@ import type {FastifyPluginAsync} from "fastify";
 import {fastifyPlugin} from "fastify-plugin";
 import {GroupAuthPlugin} from "../group-auth-plugin.js";
 import type {GroupAuthConfig, GroupAuthRouteConfig} from "../types.js";
+import {groupAuth as groupAuthOriginal} from "../group-auth-builder.js";
+
 
 export type GroupAuthFastifyRouteOpt = {
     config: GroupAuthRouteConfig
 }
 
-type GroupAuthConfigPartial = Partial<GroupAuthConfig>;
-
-// *** Can we use these functions for the group auth express too?? Maybe the express plugin should extend the base one??
-export function groupAuth(groupAuthConfig: GroupAuthConfigPartial): GroupAuthFastifyRouteOpt;
-export function groupAuth(group: string, groupAuthConfig?: GroupAuthConfigPartial): GroupAuthFastifyRouteOpt;
-export function groupAuth(groupOrConfig: GroupAuthConfigPartial | string, groupAuthConfigOrNothing?: GroupAuthConfigPartial): GroupAuthFastifyRouteOpt {
-
-    let group;
-    let groupAuthConfig: Partial<GroupAuthConfig> | undefined;
-
-    // Handle the different functional overloads
-    if (typeof groupOrConfig === "string") {
-        group = groupOrConfig;
-        groupAuthConfig = groupAuthConfigOrNothing;
-    } else {
-        group = undefined;
-        groupAuthConfig = groupOrConfig;
-    }
+export const groupAuth = (...args: Parameters<typeof groupAuthOriginal>): GroupAuthFastifyRouteOpt => {
+    const {group, groupAuthConfig} = groupAuthOriginal(...args);
 
     return {
         config: {
