@@ -36,7 +36,6 @@ export type GroupAuthData = {
     appId: string | null,
     standalone: boolean | null,
     orgId: string | null,
-    groups: string[] | null,
     debugInfo: Record<string, any>
 }
 

@@ -48,7 +48,7 @@ export class AuthPluginManager {
         }
 
         // Update max override config
-        if (plugin.internalConfig.override) {
+        if (plugin.internalConfig.override !== undefined) {
             switch (this.maxOverrideConfig) {
                 case AuthPluginOverride.DISABLE_BASE_FUNCTION:
                     if (plugin.internalConfig.override === AuthPluginOverride.OVERRIDE_ALL) {
@@ -89,13 +89,13 @@ export class AuthPluginManager {
 
     public isUserAuthorized: IsUserAuthorized = async (connectorRequest: ConnectorRequest, userData: UserData): Promise<boolean> => {
 
-        const isAuthorizedResponses: unknown[] = [];
+        const isAuthorizedResponses: boolean[] = [];
 
         // Loop through plugins
         for (const [name, plugin] of this.plugins.entries()) {
             try {
                 // Grab the result from the plugin, but do not trust they are returning a boolean
-                const pluginResult = await plugin.isAuthorized(connectorRequest, userData) as unknown;
+                const pluginResult = await plugin.isAuthorized(connectorRequest, userData);
 
                 // Store the result
                 isAuthorizedResponses.push(pluginResult);
@@ -106,12 +106,12 @@ export class AuthPluginManager {
 
         // Run the base handler
         if (this.maxOverrideConfig === AuthPluginOverride.OVERRIDE_NONE) {
-            const baseResult = this.baseHandler(connectorRequest, userData);
+            const baseResult = await this.baseHandler(connectorRequest, userData);
             isAuthorizedResponses.push(baseResult);
         }
 
         // Check if all responses are authorizing
-        return isAuthorizedResponses.every(response => response === true);
+        return isAuthorizedResponses.every(response => response);
     }
 
     static init = (config: AuthPluginManagerConfig) => new AuthPluginManager(config);

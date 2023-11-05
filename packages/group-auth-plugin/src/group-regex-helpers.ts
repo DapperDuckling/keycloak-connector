@@ -37,7 +37,7 @@ groupRegexHandlers.set(
         }
 
         // Check for an org id
-        if (orgId !== undefined && appType !== "applications") {
+        if (orgId !== undefined && appType === "applications") {
             // Force typescript to narrow the scope
             Narrow<UserGroups['applications'][string]>(targetApp);
 

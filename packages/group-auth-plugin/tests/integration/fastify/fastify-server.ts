@@ -59,12 +59,12 @@ await fastify.register(keycloakConnectorFastify, {
 // Register the group auth plugin
 await fastify.register(groupAuthFastify, {
     app: 'group-auth-test-app',
-    inheritanceTree: {
+    appInheritanceTree: {
         "forum_admin": ["supervisor"],
-        "admin": ["supervisor"],
+        "admin": "*",
         "supervisor": ["forum_admin", "site_test"],
-        "site_test": ["forum_admin"],
-        "random": ["admin"],
+        "site_test": ["forum_admin", "random"],
+        "random": ["something_else"],
     }
 });
 

@@ -2,7 +2,6 @@ import type {FastifyPluginAsync} from "fastify";
 import {fastifyPlugin} from "fastify-plugin";
 import {GroupAuthPlugin} from "../group-auth-plugin.js";
 import type {GroupAuthConfig, GroupAuthRouteConfig} from "../types.js";
-import type {Logger} from "pino";
 
 export type GroupAuthFastifyRouteOpt = {
     config: GroupAuthRouteConfig
@@ -35,7 +34,7 @@ export function groupAuth(groupOrConfig: GroupAuthConfigPartial | string, groupA
     return {
         config: {
             groupAuth: {
-                ...group && {group: group},
+                ...group !== undefined && {group: group},
                 ...groupAuthConfig && {config: groupAuthConfig}
             }
         }

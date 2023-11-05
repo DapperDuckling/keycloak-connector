@@ -8,12 +8,12 @@ export const routes: FastifyPluginAsync = async (fastify, options) =>  {
     // const test = groupAuth("thisgroup");
 
     // Define the basic route
-    fastify.get<RouteGenericInterface, GroupAuthRouteConfig>('/s/:oid', groupAuth("testgroup"), async (request, reply) => {
+    fastify.get<RouteGenericInterface, GroupAuthRouteConfig>('/s/:app_id/:org_id', groupAuth("testgroup"), async (request, reply) => {
         debugger;
     });
 
-    fastify.get<RouteGenericInterface, GroupAuthRouteConfig>('/t/:oid', groupAuth("testgroup", {
-        orgParam: "my-org-param"
+    fastify.get<RouteGenericInterface, GroupAuthRouteConfig>('/t/:my_org_param', groupAuth("testgroup", {
+        orgParam: "my_org_param"
     }), async (request, reply) => {
         debugger;
     });
