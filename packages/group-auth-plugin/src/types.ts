@@ -1,4 +1,5 @@
 export type InheritanceTree = Record<string, string[] | "*">;
+export type MappedInheritanceTree = Record<string, Set<string> | "*">;
 
 export interface KcGroupClaims {
     groups?: string[];
@@ -9,7 +10,7 @@ export type GroupAuthRouteConfig = {
 }
 
 export type GroupAuth = {
-    group?: string,
+    permission?: string,
     config?: Partial<GroupAuthConfig>,
 }
 
@@ -23,9 +24,10 @@ export type GroupAuthConfig = {
         orgAdmin?: string,  // default: "admin", //todo: change this to org-admin
         appAdmin?: string,  // default: "app-admin"
     }
-    defaultRequiredGroup?: string, // default: "user"
+    defaultRequiredPermission?: string, // default: "user"
     listAllMatchingGroups?: boolean,
-    inheritanceTree?: InheritanceTree, //default: { "admin": "*" }
+    appInheritanceTree?: InheritanceTree, //default: { "admin": "*" }
+    orgInheritanceTree?: InheritanceTree, //default: { "admin": "*" }
     noImplicitApp?: boolean, // default: false
 }
 
@@ -33,22 +35,30 @@ export type GroupAuthConfig = {
 export type GroupAuthData = {
     superAdmin: boolean | null,
     appId: string | null,
+    standalone: boolean | null,
     orgId: string | null,
     groups: string[] | null,
     debugInfo: Record<string, any>
 }
 
-type UserGroupPermissions = Set<string>;
+export type UserGroupPermissions = Set<string>;
 
 export const UserGroupPermissionKey = Symbol('app-wide permissions');
 
 export type UserGroups = {
     organizations: {
+        [UserGroupPermissionKey]?: UserGroupPermissions,
         [orgId: string]: UserGroupPermissions
     },
     applications: {
-        [appId: string]: UserGroups['organizations'] & {
-            [UserGroupPermissionKey]: UserGroupPermissions
+        [appId: string]: {
+            [UserGroupPermissionKey]: UserGroupPermissions,
+            [orgId: string]: UserGroupPermissions
+        },
+    }
+    standalone: {
+        [appId: string]: {
+            [UserGroupPermissionKey]: UserGroupPermissions,
         }
     }
 }

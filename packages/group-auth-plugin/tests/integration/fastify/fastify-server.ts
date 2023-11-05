@@ -6,52 +6,6 @@ import * as path from "path";
 import {keycloakConnectorFastify} from "keycloak-connector-server";
 import {routes} from "./routes.js";
 import {groupAuthFastify} from "keycloak-connector-group-auth-plugin";
-import {generateGraph, depth, depth2} from "keycloak-connector-group-auth-plugin";
-
-// Perform test of different algo
-for (let i=0; i<100; i++) {
-    console.log(`Starting ${i}`);
-    const graph = generateGraph(200);
-    console.log(`\t${i} - graph generated`);
-    const result1 = depth(graph);
-    console.log(`\t${i} - depth1`);
-    const result2 = await depth2(graph);
-    console.log(`\t${i} - depth2`);
-    const isMatch = compareResults(result1, result2);
-    if (!isMatch) throw new Error(`NOt a match!!`);
-    console.log(`\t${i} ** matched!`);
-}
-
-// Compare results
-function compareResults(result1: Record<string, Set<string>>, result2: Record<string, Set<string>>) {
-    // Check for different lengths
-    if (Object.keys(result1).length !== Object.keys(result2).length) {
-        console.log('bad length');
-        return false;
-    }
-
-    // Loop through keys
-    for (const [key, matches1] of Object.entries(result1)) {
-        // Grab the matching set
-        const matches2 = result2[key];
-
-        if (matches2 === undefined) {
-            console.log(`missing match for ${key}`);
-            return false;
-        }
-
-        const allMatched1 = [...matches1.values()].every(match1 => matches2.has(match1));
-        const allMatched2 = [...matches2.values()].every(match2 => matches1.has(match2));
-
-        if (!allMatched1 || !allMatched2) {
-            console.log(`bad match for ${key}`);
-            return false;
-        }
-    }
-
-    return true;
-}
-
 
 // Configure fastify
 const fastify = Fastify({

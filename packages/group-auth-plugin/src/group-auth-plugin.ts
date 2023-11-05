@@ -6,11 +6,18 @@ import type {
 } from "keycloak-connector-server";
 import {AbstractAuthPlugin, AuthPluginOverride} from "keycloak-connector-server";
 import type {Logger} from "pino";
-import type {GroupAuthConfig, GroupAuthData, GroupAuthRouteConfig, InheritanceTree, KcGroupClaims} from "./types.js";
+import type {
+    GroupAuthConfig,
+    GroupAuthData,
+    GroupAuthRouteConfig,
+    InheritanceTree,
+    KcGroupClaims,
+    MappedInheritanceTree, UserGroupPermissions, UserGroups
+} from "./types.js";
 import {getUserGroups} from "./group-regex-helpers.js";
 import {UserGroupPermissionKey} from "./types.js";
-import {type Deferred, deferredFactory} from "keycloak-connector-server/dist/helpers/utils.js";
-import {ne} from "@faker-js/faker";
+import {depthFirstSearch} from "./helpers/search-algos.js";
+import {Narrow} from "./helpers/utils.js";
 
 export class GroupAuthPlugin extends AbstractAuthPlugin {
     protected readonly _internalConfig: AuthPluginInternalConfig = {
@@ -20,7 +27,8 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
     protected readonly groupAuthConfig: GroupAuthConfig;
 
     // The tree permissions matching config.inheritanceTree
-    protected treePermissions: Record<string, Set<string>> | undefined = undefined;
+    private readonly appTreePermissions: MappedInheritanceTree | undefined = undefined;
+    private readonly orgTreePermissions: MappedInheritanceTree | undefined = undefined;
 
     constructor(config: GroupAuthConfig) {
         super();
@@ -33,14 +41,12 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         this.groupAuthConfig = config;
 
         // Validate the inheritance tree
-        this.validateInheritanceTree(config.inheritanceTree);
+        this.validateInheritanceTree(config.appInheritanceTree);
+        this.validateInheritanceTree(config.orgInheritanceTree);
 
-    }
-
-    // Move this to static initiator
-    tempCleanup = async () => {
         // Pre-calculate the inheritance tree permissions
-        this.treePermissions = await this.inheritanceTreePermissions(this.groupAuthConfig.inheritanceTree);
+        this.appTreePermissions = this.inheritanceTreePermissions(this.groupAuthConfig.appInheritanceTree);
+        this.orgTreePermissions = this.inheritanceTreePermissions(this.groupAuthConfig.orgInheritanceTree);
     }
 
     public override async onRegister(onRegisterConfig: AuthPluginOnRegisterConfig) {
@@ -67,7 +73,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             // Skip the wildcard entries
             if (value === "*") continue;
 
-            // Ensure each of the entries are not a wildcard or in the wildcard keys
+            // Ensure each of the entries are not a wildcard or a key to a wildcard entry
             if (value.every(permission => permission !== "*" && !wildcardKeys.has(permission))) continue;
 
             throw new Error(`Invalid inheritance tree with key "${key}". Wildcards must be standalone strings ("*" not ["*"]). Additionally, cannot inherit a permission group that subsequently inherits a wildcard entry.`);
@@ -93,10 +99,14 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         logger: Logger | undefined
     ): Promise<boolean> => {
 
+        // Update the logger with a prefix
+        logger = logger?.child({"Source": `GroupAuthPlugin`});
+
         // Create default group info object
         const kccUserGroupAuthData: GroupAuthData = {
             superAdmin: null,
             appId: null,
+            standalone: null,
             orgId: null,
             groups: null,
             debugInfo: {
@@ -177,14 +187,25 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             ...connectorRequest.routeConfig.groupAuth.config,
         }
 
+        // Grab the route's group auth required permission
+        const requiredPermission = connectorRequest.routeConfig.groupAuth.permission ?? groupAuthConfig.defaultRequiredPermission;
+
+        // Check for a required permission
+        if (requiredPermission === undefined) {
+            throw new Error(`Required permission not set`);
+        }
+
         // Validate the inheritance tree
-        this.validateInheritanceTree(groupAuthConfig.inheritanceTree);
+        this.validateInheritanceTree(groupAuthConfig.appInheritanceTree);
+        this.validateInheritanceTree(groupAuthConfig.orgInheritanceTree);
 
-        // Build the inheritance tree
-        const inheritanceTreePermissions = this.inheritanceTreePermissions(groupAuthConfig.inheritanceTree);
+        // Build the inheritance trees
+        const mappedAppInheritanceTree = this.inheritanceTreePermissions(groupAuthConfig.appInheritanceTree);
+        const mappedOrgInheritanceTree = this.inheritanceTreePermissions(groupAuthConfig.orgInheritanceTree);
 
+        // Setup the initial constraints using the `app` specified in the initial config unless `noImplicitApp` is specified
         const constraints: { org?: string, app?: string } = {
-            app: groupAuthConfig.app,
+            ...groupAuthConfig.noImplicitApp !== true && {app: groupAuthConfig.app},
         }
 
         // Check if we are not ignoring the app constraint, but we do not have a value
@@ -206,240 +227,154 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             }
         }
 
-        // Removed: Just check in the actual check if the length is 0, then deny that check immediately (since we don't know how each HTTP server will handle this)
-        // // Ensure the constraints are all strings of length >0
-        // for (const [constraintKey, constraintValue] of Object.entries<unknown>(constraints)) {
-        //     if (typeof constraintValue !== "string" || constraintValue.length === 0) {
-        //         throw new Error(`Cannot use group auth without valid ${constraintKey} set! Non-string or empty string value received`);
-        //     }
-        // }
-
         // Check if no valid constraints
         if (Object.values(constraints).every((constraint: unknown) => typeof constraint !== "string" || constraint.length === 0)) {
             // No valid constraints assumes we must require a super admin only
             kccUserGroupAuthData.debugInfo["routeRequiredSuperAdminOnly"] = true;
 
             // Super admin was checked near the beginning, so if this point is reached, they are not a super admin
+            logger?.debug(`No valid constraints found, so a super admin was required for this route, but user is not super admin`);
             return false;
         }
 
-        /** Planning just to check the situation where this is no org id specified */
-        //todo: start here
+        const hasOrgAccess = (org: string) => {
+            // Check if the user has org-wide admin access
+            if (this.groupAuthConfig.adminGroups?.orgAdmin &&
+                userGroups.organizations[UserGroupPermissionKey]?.has(this.groupAuthConfig.adminGroups.orgAdmin)) {
+                return true;
+            }
 
-        // Check for an app constraint
-        if (constraints.app) {
-            const appPermissions = userGroups.applications[constraints.app]?.[UserGroupPermissionKey];
-
-            // // Check if user has
-            // for (const appPermission of appPermissions) {
-            //
-            // }
-
+            // Check if the user has access to the specified organization
+            // (i.e. check if a member has ANY permission in a specific organization)
+            return (userGroups.organizations[org]?.size ?? 0) > 0;
         }
 
+        const hasAppPermission = (permission: string, appConstraint: string, orgConstraint: string | undefined) => {
 
-        /**
-         * Require Admin logic (user must have at least one of the listed permissions)
-         *  - org_id in request:
-         *      - darksaber-admin
-         *      - organizations/<oid>/admin
-         *  - app_id in request:
-         *      - darksaber-admin
-         *      - applications/<aid>/app-admin
-         *  - org_id and app_id in request:
-         *      - darksaber-admin
-         *      - applications/<aid>/app-admin
-         *      - applications/<aid>/<oid>/admin   AND organizations/<oid>/*
-         */
+            // Grab permissions from both the regular apps and standalone apps
+            const regAppGroups = userGroups.applications[appConstraint];
+            const standAloneAppGroups = userGroups.standalone[appConstraint];
 
-        /**
-         * Now you have access to the following variables:
-         *      body.keycloak.ga.appId    (string or null)   // The validated application id
-         *      body.keycloak.ga.orgId    (string or null)   // The validated organization id
-         *      body.keycloak.ga.groups   (string[] or null) // The group (or all groups) that matched this rule
-         *      body.keycloak.ga.debugInfo                   // An object to help describe the logic behind the request (for code dev)
-         *      body.keycloak.userInfo    (object from KC) **already a part of base library
-         */
+            // Ensure the user does not have permissions for both
+            // Dev note: This is the best runtime checking we can do here. We have to trust keycloak is not misconfigured.
+            if (regAppGroups && standAloneAppGroups) {
+                throw new Error(`Cannot have application "${appConstraint}" in both the regular application group and standalone group at the same time.`);
+            }
 
-        //todo: finish building
+            // Grab the app group to use for this permission check
+            const appGroups = regAppGroups ?? standAloneAppGroups;
+
+            // Determine if the user has any application permissions period
+            if (appGroups === undefined) return false;
+
+            // Record if this is a standalone app
+            const isStandAloneApp = (regAppGroups === undefined);
+
+            // Grab all the user's app-wide permissions
+            const appWidePermissions = appGroups[UserGroupPermissionKey];
+
+            // Check if the user has the required app-wide permission
+            const hasAppWidePermission = this.hasPermission(appWidePermissions, permission, mappedAppInheritanceTree);
+            if (hasAppWidePermission) return true;
+
+            // If this is a standalone app, there is no org subgroup to check
+            if (isStandAloneApp) return false;
+
+            // Update app group type because typescript is not smart enough to do it on its own
+            Narrow<UserGroups["applications"][string]>(appGroups);
+
+            // // Check if a specific organization to check for
+            // if (orgConstraint) {
+            //     // Grab all the user's app permissions for the specific org
+            //     const appOrgPermissions = appGroups[orgConstraint];
+            //
+            //     // Check if the user has access to the constrained org
+            //     if (!hasOrgAccess(orgConstraint)) return false;
+            //
+            //     // Check if the user has the required app permission for the specific org
+            //     if (!this.hasPermission(appOrgPermissions, permission, mappedAppInheritanceTree)) return false;
+            //
+            //     // Has both org access and app permission
+            //     return true;
+            // }
+
+            // Scan through the user's app permission organizations
+            // Dev note: Object.entries() will automatically exclude the `Symbol()` key (e.g. UserGroupPermissionKey)
+            for (const [org, appOrgPermissions] of Object.entries(appGroups)) {
+
+                // Check if there is an org constraint and this org does not match
+                if (orgConstraint && orgConstraint !== org) continue;
+
+                // Check if the user has access to the constrained org
+                if (!hasOrgAccess(org)) continue;
+
+                // Check if the user has the required app permission for the specific org
+                if (!this.hasPermission(appOrgPermissions, permission, mappedAppInheritanceTree)) continue;
+
+                // Has org access and app permission for this organization
+                return true;
+            }
+
+            // No match
+            return false;
+        }
+
+        if (constraints.app) {
+            // Regular check of app permission and (possibly) org permission
+            return hasAppPermission(requiredPermission, constraints.app, constraints.org);
+        } else if (constraints.org) {
+            // Just check organizational permission
+            return this.hasPermission(userGroups.organizations[constraints.org], requiredPermission, mappedOrgInheritanceTree);
+        }
+
         return false;
     }
 
-    // private async inheritanceTreePermissions(inheritanceTree: InheritanceTree | undefined): Record<string, Set<string>> {
-    private async inheritanceTreePermissions(inheritanceTree: InheritanceTree | undefined): Promise<Record<string, Set<string>>> {
+    private hasPermission(userPermissions: UserGroupPermissions | undefined, requiredPermission: string, mappedInheritanceTree: MappedInheritanceTree) {
+        // Check for no user permissions
+        if (userPermissions === undefined || userPermissions.size === 0) return false;
+
+        // Loop through the user permissions and find the first to match
+        for (const userPermission of userPermissions) {
+
+            // Grab the mapped positions from the inheritance tree. If no entry in the inheritance tree, just make a
+            //  set with this permission in it.
+            const mappedPermissions = mappedInheritanceTree[userPermission] ?? new Set([userPermission]);
+
+            // Check for a wildcard permission
+            if (mappedPermissions === "*") return true;
+
+            // Check if the required permission is within the mapped permissions
+            if (mappedPermissions.has(requiredPermission)) return true;
+        }
+
+        // No match
+        return false;
+    }
+
+
+    private inheritanceTreePermissions(inheritanceTree: InheritanceTree | undefined): MappedInheritanceTree {
         // Check for no inheritance tree
         if (inheritanceTree === undefined) return {};
 
         // Check if the inheritance tree is the same as the one tied to this class
-        if (this.treePermissions && this.groupAuthConfig.inheritanceTree === inheritanceTree) return this.treePermissions;
+        if (this.appTreePermissions && this.groupAuthConfig.appInheritanceTree === inheritanceTree) return this.appTreePermissions;
+        if (this.orgTreePermissions && this.groupAuthConfig.orgInheritanceTree === inheritanceTree) return this.orgTreePermissions;
 
-        const treePermissions: Record<string, Set<string>> = {};
+        // Extract the wildcards
+        const treeWildcardsArray = Object.entries(inheritanceTree).filter(([,value]) => value === "*") as [string, "*"][];
+        const treeWildcards = Object.fromEntries(treeWildcardsArray);
 
-        // function dfs(permission: string, visitedNodes: Set<string>) {
-        //     // // Check if this permission was visited already
-        //     // if (treePermissions[permission]) return;
-        //
-        //     // Add this permission to the tree
-        //     treePermissions[permission] ??= new Set<string>([permission]);
-        //
-        //     // Add this node to the tracker
-        //     visitedNodes.add(permission);
-        //
-        //     // Loop over the children of this permission
-        //     for (const child of inheritanceTree?.[permission] ?? []) {
-        //         // // Check if the child permission was visited already
-        //         // if (treePermissions[child]) continue;
-        //
-        //         // Check if the child permission was visited already
-        //         if (!visitedNodes.has(child)) dfs(child, visitedNodes);
-        //
-        //         // Add each of the children permissions to this node's permission list
-        //         treePermissions[child]!.forEach(childPermission => treePermissions[permission]!.add(childPermission));
-        //     }
-        // }
-        //
-        // for (const permission in inheritanceTree) {
-        //     //todo: make this more efficient so we're not vising the same nodes over and over again
-        //     dfs(permission, new Set());
-        // }
+        // Extract the non-wildcards
+        const treeWithoutWildcardsArray = Object.entries(inheritanceTree).filter(([,value]) => value !== "*") as [string, string[]][];
+        const treeWithoutWildcards = Object.fromEntries(treeWithoutWildcardsArray);
+        const inheritanceResults = depthFirstSearch(treeWithoutWildcards);
 
-        // const nodes: Record<string, string[]> = {
-        //     a: ["b"],
-        //     b: ["c"],
-        //     c: ["d","e"],
-        //     d: ["e"],
-        //     e: ["c","f"],
-        //     f: [],
-        // }
-
-        const nodes: Record<string, string[]> = {
-            a: ["b"],
-            b: ["c"],
-            c: ["d","e"],
-            d: ["e"],
-            e: ["c","f","g"],
-            f: [],
-            g: ["d", "h"],
-            h: ["i", "e"],
-            i: ["g"],
+        return {
+            ...treeWildcards,
+            ...inheritanceResults
         }
-
-        const nodeConnections: Record<string, Set<string>> = {}
-        function dagWalk(node: string, visitingNodes: Map<string, Deferred<string[]>>): Promise<string[]> | string[] {
-
-            // Check if this node has no neighbors
-            const neighbors = nodes[node];
-            if (neighbors === undefined) return [node];
-
-            // Check if we are already walking this node
-            if (visitingNodes.has(node)) return visitingNodes.get(node)!.promise;
-
-            // Generate a deferred promise
-            const deferredWalk = deferredFactory<string[]>();
-
-            // Store the visiting nodes
-            visitingNodes.set(node, deferredWalk);
-
-            // Store a list of reachable nodes
-            nodeConnections[node] ??= new Set<string>([node]);
-
-            // Grab reference to set
-            const reachableNodes = nodeConnections[node]!;
-
-            // Store a list of promises
-            const promises = new Set<Promise<string []>>();
-
-            // Loop over the children of this permission
-            for (const neighbor of neighbors) {
-                // Save this reachable node
-                reachableNodes.add(neighbor);
-
-                // Walk the other node
-                const neighborNodes = dagWalk(neighbor, visitingNodes);
-
-                // Check if the neighbor node is a promise
-                if (!Array.isArray(neighborNodes)) {
-                    promises.add(neighborNodes);
-                    continue;
-                }
-
-                // Store the neighbor nodes
-                neighborNodes.forEach(neighborNode => reachableNodes.add(neighborNode));
-            }
-
-            // Resolve the deferred promise
-            deferredWalk.resolve(Array.from(reachableNodes));
-
-            // Combine promises
-            const finalPromises: Promise<Set<string>>[] = [];
-            for (const promise of promises) {
-                const neighborPromise = promise.then(neighbors => {
-                    for (const neighborNode of neighbors) {
-                        // nodeConnections[node]!.push(neighborNode);
-                        nodeConnections[node]!.add(neighborNode);
-                    }
-
-                    return nodeConnections[node]!;
-                });
-
-                finalPromises.push(neighborPromise);
-            }
-
-            return Promise.all(finalPromises).then(finalResults => {
-                finalResults.forEach(neighbors => neighbors.forEach(neighbor => nodeConnections[node]!.add(neighbor)));
-                return [...nodeConnections[node]!];
-            });
-        }
-
-        for (const node of Object.keys(nodes)) {
-            void await dagWalk(node, new Map());
-        }
-
-        return nodeConnections;
     }
-
-    // private checkPermission = (
-    //     userPermission: string,
-    //     requiredPermission: string,
-    //     inheritanceTree: InheritanceTree | undefined
-    // ) => this.checkPermissionRecursive(userPermission, requiredPermission, inheritanceTree, new Set());
-    //
-    // private checkPermissionRecursive = (
-    //     userPermission: string,
-    //     requiredPermission: string,
-    //     inheritanceTree: InheritanceTree | undefined,
-    //     checkedPermissions: Set<string>
-    // ) => {
-    //
-    //     // Quick check if the permission matches the group
-    //     if (userPermission === requiredPermission) return true;
-    //
-    //     // Add this checked permission
-    //     checkedPermissions.add(userPermission);
-    //
-    //     // Check if no inheritance tree matching this permission
-    //     const inheritedPermissions = inheritanceTree?.[userPermission];
-    //     if (inheritedPermissions === undefined) return false;
-    //
-    //     // Check for a permission that grants all
-    //     if (inheritedPermissions === "*") return true;
-    //
-    //     // Recurse the inheritance tree to find a match
-    //     for (const inheritedPermission of inheritedPermissions) {
-    //
-    //         // Check if this permission was already checked
-    //         if (checkedPermissions.has(userPermission)) continue;
-    //
-    //         // Recursively check this permission
-    //         if (this.checkPermission(inheritedPermission, requiredPermission, inheritanceTree, checkedPermissions)) {
-    //             return true;
-    //         }
-    //     }
-    //
-    //     // No match found
-    //     return false;
-    //
-    // }
 
     exposedEndpoints = () => ({
         check: this.groupCheck,
