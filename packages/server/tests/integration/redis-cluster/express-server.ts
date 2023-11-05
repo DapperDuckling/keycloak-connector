@@ -26,7 +26,7 @@ export async function makeExpressServer(port: number) {
     });
 
     // Initialize the keycloak connector
-    const lock = await keycloakConnectorExpress(app, {
+    const {lock} = await keycloakConnectorExpress(app, {
         serverOrigin: `http://localhost:${port}`,
         authServerUrl: 'http://localhost:8080/',
         realm: 'local-dev',

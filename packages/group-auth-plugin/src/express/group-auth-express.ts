@@ -10,6 +10,9 @@ export const groupAuth = (...args: Parameters<typeof groupAuthOriginal>): Reques
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     return async (req, res, next) => {
         //todo: handle request
+
+        // @ts-ignore
+        req.idc = "sup dawg";
     };
 }
 

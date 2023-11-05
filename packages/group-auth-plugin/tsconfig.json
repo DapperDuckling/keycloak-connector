@@ -18,7 +18,7 @@
     "strict": true,
     "noImplicitAny": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
+    "baseUrl": "./src/",
     "sourceMap": true,
     "strictNullChecks": true,
     "removeComments": false,
@@ -29,13 +29,11 @@
       "es2020",
       "DOM"
     ],
-    "module": "es2022",
+    "module": "nodenext",
     "preserveConstEnums": true,
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
     "target": "es2022",
-    "types": [
-      "node"
-    ]
+    "rootDir": "./src/"
   },
   "include": [
     "./src/**/*"
@@ -43,6 +41,5 @@
   "exclude": [
     "./tests/**/*",
     "./dist/**/*"
-  ],
-  "baseUrl": "./src"
+  ]
 }
