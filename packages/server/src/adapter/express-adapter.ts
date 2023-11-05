@@ -41,7 +41,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         } : routeConfigOrRoles;
 
         return {
-            ...request.headers?.origin && {origin: request.headers?.origin},
+            ...request.headers?.origin !== undefined && {origin: request.headers?.origin},
             url: request.url,
             urlParams: request.params,
             cookies: request.cookies as Cookies,
@@ -50,7 +50,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
                 ...this.globalRouteConfig,
                 ...(routeConfig !== false) && routeConfig,
             },
-            ...request.kccUserData && {keycloak: request.kccUserData},
+            ...request.kccUserData !== undefined && {keycloak: request.kccUserData},
             ...isObject(request.body) && {body: request.body},
         };
     };
@@ -70,14 +70,14 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         connectorResponse.cookies?.forEach(cookieParam => res.cookie(cookieParam.name, cookieParam.value, cookieParam.options));
 
         // Set the response code
-        if (connectorResponse.statusCode) res.status(connectorResponse.statusCode);
+        if (connectorResponse.statusCode !== undefined) res.status(connectorResponse.statusCode);
 
         // Handle exclusive parameters
-        if (connectorResponse.redirectUrl) {
+        if (connectorResponse.redirectUrl !== undefined) {
             // Redirect if needed
             res.redirect(connectorResponse.redirectUrl);
 
-        } else if (connectorResponse.serveFile) {
+        } else if (connectorResponse.serveFile !== undefined) {
 
             // Grab the file path
             const fileToServe = connectorResponse.serveFile;
@@ -87,15 +87,12 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             // Send file (async style)
             await new Promise<void>((resolve, reject) => {
                 res.sendFile(fileToServe, {
-                    root: './public/'
+                    root: './public/',
                 }, (err) => {
-                    if (err) {
-                        this.pinoLogger?.error('Could not find file to serve', connectorResponse.serveFile);
-                        reject(err);
-                    } else {
-                        resolve();
-                    }
+                    this.pinoLogger?.error('Could not find file to serve', connectorResponse.serveFile);
+                    reject(err);
                 });
+                resolve();
             });
 
 

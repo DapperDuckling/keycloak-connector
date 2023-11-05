@@ -9,11 +9,6 @@ export type GroupAuthFastifyRouteOpt = {
 
 type GroupAuthConfigPartial = Partial<GroupAuthConfig>;
 
-//todo: example usage thought
-// groupAuth({requireAdmin: true});
-// groupAuth({noImplicitApp: true});
-
-
 // *** Can we use these functions for the group auth express too?? Maybe the express plugin should extend the base one??
 export function groupAuth(groupAuthConfig: GroupAuthConfigPartial): GroupAuthFastifyRouteOpt;
 export function groupAuth(group: string, groupAuthConfig?: GroupAuthConfigPartial): GroupAuthFastifyRouteOpt;
