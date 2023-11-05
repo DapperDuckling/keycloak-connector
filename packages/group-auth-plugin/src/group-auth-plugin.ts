@@ -18,6 +18,7 @@ import {getUserGroups} from "./group-regex-helpers.js";
 import {UserGroupPermissionKey} from "./types.js";
 import {depthFirstSearch} from "./helpers/search-algos.js";
 import {Narrow} from "./helpers/utils.js";
+import {GroupAuthConfigDefaults} from "./helpers/defaults.js";
 
 export class GroupAuthPlugin extends AbstractAuthPlugin {
     protected readonly _internalConfig: AuthPluginInternalConfig = {
@@ -38,7 +39,10 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             throw new Error(`Cannot start group auth plugin, must specify an app name!`);
         }
 
-        this.groupAuthConfig = config;
+        this.groupAuthConfig = {
+            ...GroupAuthConfigDefaults,
+            ...config
+        };
 
         // Validate the inheritance tree
         this.validateInheritanceTree(config.appInheritanceTree);
@@ -119,8 +123,6 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         // Decorate the user data with the group info object (typescript being wonky)
         connectorRequest.kccUserGroupAuthData = kccUserGroupAuthData;
 
-        //todo: check if we are using the defaults (or setting the defaults per the use case gist)
-
         logger?.debug(`Group Auth plugin checking for authorization...`);
 
         // Check for a groupAuth in the routeConfig
@@ -164,13 +166,23 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             "/applications/pegasus/unit-f4990bd4-7b94-4953-8942-14a7da742a6a/user",
             "/applications/pegasus/unit-16c4f8fd-0dd9-409c-a95a-23f22aabffc1/user",
             "/applications/testing/unit-c1be7965-c654-4537-b9b6-b403f4067e87/user",
+            "/standalone/nope1/user",
+            "/standalone/nope2/user",
+            "/standalone/nope51/admin",
+            "/standalone/nope51/user",
             "/applications/pegasus/app-admin",
             "/applications/yarp/app-admin",
             "/applications/testing/app-admin",
         ];
 
+        // Grab the route's group auth config
+        const groupAuthConfig: GroupAuthConfig = {
+            ...this.groupAuthConfig,
+            ...connectorRequest.routeConfig.groupAuth.config,
+        }
+
         // Check if the user has a group membership that matches the super-user group exactly
-        if (this.groupAuthConfig.adminGroups?.superAdmin && allUserGroups.includes(this.groupAuthConfig.adminGroups.superAdmin)) {
+        if (groupAuthConfig.adminGroups?.superAdmin && allUserGroups.includes(groupAuthConfig.adminGroups.superAdmin)) {
             connectorRequest.kccUserGroupAuthData.superAdmin = true;
             return true;
         }
@@ -180,12 +192,6 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
         // Break apart the user groups into a more manageable object
         const userGroups = getUserGroups(allUserGroups);
-
-        // Grab the route's group auth config
-        const groupAuthConfig: GroupAuthConfig = {
-            ...this.groupAuthConfig,
-            ...connectorRequest.routeConfig.groupAuth.config,
-        }
 
         // Grab the route's group auth required permission
         const requiredPermission = connectorRequest.routeConfig.groupAuth.permission ?? groupAuthConfig.defaultRequiredPermission;
@@ -239,8 +245,8 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
         const hasOrgAccess = (org: string) => {
             // Check if the user has org-wide admin access
-            if (this.groupAuthConfig.adminGroups?.orgAdmin &&
-                userGroups.organizations[UserGroupPermissionKey]?.has(this.groupAuthConfig.adminGroups.orgAdmin)) {
+            if (groupAuthConfig.adminGroups?.orgAdmin &&
+                userGroups.organizations[UserGroupPermissionKey]?.has(groupAuthConfig.adminGroups.orgAdmin)) {
                 return true;
             }
 
@@ -273,6 +279,12 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             // Grab all the user's app-wide permissions
             const appWidePermissions = appGroups[UserGroupPermissionKey];
 
+            // Check for an app admin permission
+            if (groupAuthConfig.adminGroups?.appAdmin !== undefined
+                && appWidePermissions.has(groupAuthConfig.adminGroups.appAdmin)) {
+                return true;
+            }
+
             // Check if the user has the required app-wide permission
             const hasAppWidePermission = this.hasPermission(appWidePermissions, permission, mappedAppInheritanceTree);
             if (hasAppWidePermission) return true;
@@ -282,21 +294,6 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
             // Update app group type because typescript is not smart enough to do it on its own
             Narrow<UserGroups["applications"][string]>(appGroups);
-
-            // // Check if a specific organization to check for
-            // if (orgConstraint) {
-            //     // Grab all the user's app permissions for the specific org
-            //     const appOrgPermissions = appGroups[orgConstraint];
-            //
-            //     // Check if the user has access to the constrained org
-            //     if (!hasOrgAccess(orgConstraint)) return false;
-            //
-            //     // Check if the user has the required app permission for the specific org
-            //     if (!this.hasPermission(appOrgPermissions, permission, mappedAppInheritanceTree)) return false;
-            //
-            //     // Has both org access and app permission
-            //     return true;
-            // }
 
             // Scan through the user's app permission organizations
             // Dev note: Object.entries() will automatically exclude the `Symbol()` key (e.g. UserGroupPermissionKey)
@@ -322,8 +319,15 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         if (constraints.app) {
             // Regular check of app permission and (possibly) org permission
             return hasAppPermission(requiredPermission, constraints.app, constraints.org);
+
         } else if (constraints.org) {
-            // Just check organizational permission
+            // Check for an org admin permission
+            if (groupAuthConfig.adminGroups?.orgAdmin !== undefined
+                && userGroups.organizations[UserGroupPermissionKey]?.has(groupAuthConfig.adminGroups.orgAdmin)) {
+                return true;
+            }
+
+            // Check for an organization permission
             return this.hasPermission(userGroups.organizations[constraints.org], requiredPermission, mappedOrgInheritanceTree);
         }
 

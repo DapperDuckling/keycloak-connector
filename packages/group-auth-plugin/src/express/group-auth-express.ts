@@ -16,8 +16,6 @@ export class GroupAuthExpress {
         const adapter = new this();
 
         const groupAuthPlugin = new GroupAuthPlugin(groupAuthConfig);
-        //todo: fix, use a static call
-        await groupAuthPlugin.tempCleanup();
         await registerAuthPlugin(groupAuthPlugin);
 
         return {

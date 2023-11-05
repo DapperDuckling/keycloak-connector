@@ -11,24 +11,23 @@ export type GroupAuthRouteConfig = {
 
 export type GroupAuth = {
     permission?: string,
-    config?: Partial<GroupAuthConfig>,
+    config?: Omit<Partial<GroupAuthConfig>, 'adminGroups'>,
 }
 
 export type GroupAuthConfig = {
     app: string,
-    orgParam?: string, // default: ":org_id"
-    appParam?: string, // default: ":app_name"
-    requireAdmin?: boolean, // default: false
+    orgParam?: string,
+    appParam?: string,
+    requireAdmin?: boolean,
     adminGroups?: {
-        superAdmin?: string, // default: "/darksaber-admin"
-        orgAdmin?: string,  // default: "admin", //todo: change this to org-admin
-        appAdmin?: string,  // default: "app-admin"
+        superAdmin?: string,
+        orgAdmin?: string,
+        appAdmin?: string,
     }
-    defaultRequiredPermission?: string, // default: "user"
-    listAllMatchingGroups?: boolean,
-    appInheritanceTree?: InheritanceTree, //default: { "admin": "*" }
-    orgInheritanceTree?: InheritanceTree, //default: { "admin": "*" }
-    noImplicitApp?: boolean, // default: false
+    defaultRequiredPermission?: string,
+    appInheritanceTree?: InheritanceTree,
+    orgInheritanceTree?: InheritanceTree,
+    noImplicitApp?: boolean,
 }
 
 // export type GroupAuthData = ReturnType<GroupAuthPlugin['exposedEndpoints']> & {
