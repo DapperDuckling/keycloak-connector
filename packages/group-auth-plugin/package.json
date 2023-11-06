@@ -7,7 +7,7 @@
     "node keycloak group authorization"
   ],
   "author": "DapperDuckling Dev LLC",
-  "license": "SEE LICENSE IN COPYING",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "engines": {
     "node": ">=18.0.0"
@@ -38,5 +38,6 @@
   },
   "dependencies": {
     "keycloak-connector-server": "file:../server"
-  }
+  },
+  "gitHead": "3b31034743d7638dee315c444af4db73c86d315c"
 }

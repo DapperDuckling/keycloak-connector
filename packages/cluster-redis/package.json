@@ -6,7 +6,7 @@
     "keycloak node cluster redis"
   ],
   "author": "DapperDuckling Dev LLC",
-  "license": "SEE LICENSE IN COPYING",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "engines": {
     "node": ">=18.0.0"
@@ -26,10 +26,12 @@
     "./dist"
   ],
   "dependencies": {
+    "keycloak-connector-server": "file:../server",
     "ioredis": "^5.3.2",
     "typia": "^4.3.2"
   },
   "devDependencies": {
     "cpy-cli": "^5.0.0"
-  }
+  },
+  "gitHead": "3b31034743d7638dee315c444af4db73c86d315c"
 }

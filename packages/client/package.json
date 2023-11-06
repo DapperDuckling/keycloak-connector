@@ -5,7 +5,7 @@
   "description": "A utility library to integrate keycloak into frontend applications",
   "main": "dist/index.js",
   "author": "DapperDuckling Dev LLC",
-  "license": "SEE LICENSE IN COPYING",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "types": "dist/index.d.ts",
   "bugs": {
