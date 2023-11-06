@@ -1,7 +1,7 @@
 // /// <reference path="../../../src/global.d.ts" />
 import './dot-env.js'; // Must be the first import
 import express, {type Request} from 'express';
-import {keycloakConnectorExpress} from "keycloak-connector-server";
+import {keycloakConnectorExpress, lock} from "keycloak-connector-server";
 import cookieParser from "cookie-parser";
 import {RedisClusterProvider} from "keycloak-connector-cluster-redis";
 import {default as logger} from "pino-http";
@@ -35,7 +35,7 @@ const clusterProvider = new RedisClusterProvider({
 });
 
 // Initialize the keycloak connector
-const {lock, registerAuthPlugin} = await keycloakConnectorExpress(app, {
+const {registerAuthPlugin} = await keycloakConnectorExpress(app, {
     serverOrigin: `http://localhost:3005`,
     authServerUrl: 'http://localhost:8080/',
     realm: 'local-dev',

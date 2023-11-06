@@ -107,7 +107,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         const routerMethod = this.getRouterMethod(options);
 
         // Build any required lock
-        const lockHandler = this.lock(options.isPublic ? false : []);
+        const lockHandler = lock(options.isPublic ? false : []);
 
         // Parse application/x-www-form-urlencoded
         const urlencodedParser = bodyParser.urlencoded({ extended: false })
@@ -138,9 +138,6 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
                 return this.app.head.bind(this.app);
         }
     };
-
-    // Kept for backwards compatibility
-    private lock = (...args: Parameters<typeof lock>) => lock(...args);
 
     public onRequest = async <RouteConfig = KeycloakRouteConfig>(routeConfig: RouteConfig | undefined, ...args: Parameters<RequestHandler>) => {
 
@@ -205,10 +202,11 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         // // Forcing all pages to require at least a valid login
         // app.use(adapter.lock([]));
 
-        return {
-            lock: adapter.lock,
-            ...adapter._keycloakConnector.getExposed()
-        };
+        // return {
+        //     lock: adapter.lock,
+        //     ...adapter._keycloakConnector.getExposed()
+        // };
+        return adapter._keycloakConnector.getExposed()
     };
 }
 

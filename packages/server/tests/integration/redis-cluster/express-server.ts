@@ -6,6 +6,7 @@ import {RedisClusterProvider} from "keycloak-connector-cluster-redis";
 import logger from "pino-http";
 import {clusterKeyProvider} from "keycloak-connector-server";
 import {loggerOpts} from "./main.test.js";
+import {lock} from "keycloak-connector-server";
 
 export async function makeExpressServer(port: number) {
     const loggerOptsCloned = structuredClone(loggerOpts);
@@ -26,7 +27,7 @@ export async function makeExpressServer(port: number) {
     });
 
     // Initialize the keycloak connector
-    const {lock} = await keycloakConnectorExpress(app, {
+    await keycloakConnectorExpress(app, {
         serverOrigin: `http://localhost:${port}`,
         authServerUrl: 'http://localhost:8080/',
         realm: 'local-dev',
