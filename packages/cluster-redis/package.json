@@ -33,5 +33,8 @@
   "devDependencies": {
     "cpy-cli": "^5.0.0"
   },
-  "gitHead": "3b31034743d7638dee315c444af4db73c86d315c"
+  "publishConfig": {
+    "access": "public"
+  },
+  "gitHead": "f6b318f60df9457a1d72780eb36c145a58441d19"
 }
