@@ -7,7 +7,7 @@ declare module "http" {
     interface IncomingMessage {
         log?: pino.Logger;
         kccUserData: UserData;
-        kccAdapter: ExpressAdapter;
+        kccAdapter?: ExpressAdapter;
         _keycloakReqHandled: boolean;
         //todo: update
     }

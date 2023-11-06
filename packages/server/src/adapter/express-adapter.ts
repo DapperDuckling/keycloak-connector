@@ -150,8 +150,8 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         }
 
         // Grab user data
-        const connectorReq = await req.kccAdapter.buildConnectorRequest<RouteConfig>(req, routeConfig);
-        const userDataResponse = await req.kccAdapter.keycloakConnector.getUserData(connectorReq);
+        const connectorReq = await this.buildConnectorRequest<RouteConfig>(req, routeConfig);
+        const userDataResponse = await this.keycloakConnector.getUserData(connectorReq);
 
         // Set any cookies from user data response
         userDataResponse.cookies?.forEach(cookieParam => res.cookie(cookieParam.name, cookieParam.value, cookieParam.options));
@@ -164,11 +164,11 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         // if (routeConfigOrRoles === false) return next();
 
         // Grab the protector response
-        const connectorResponse = await req.kccAdapter.keycloakConnector.buildRouteProtectionResponse(connectorReq, req.kccUserData);
+        const connectorResponse = await this.keycloakConnector.buildRouteProtectionResponse(connectorReq, req.kccUserData);
 
         // Handle the response
         if (connectorResponse) {
-            await req.kccAdapter.handleResponse(connectorResponse, req, res, next);
+            await this.handleResponse(connectorResponse, req, res, next);
         } else {
             next();
         }
@@ -183,9 +183,6 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         // Create a new adapter here
         const adapter = new this(app, customConfig);
 
-        // Initialize the keycloak connector
-        adapter._keycloakConnector = await KeycloakConnector.init<SupportedServers.express>(adapter, customConfig);
-
         // Decorate all requests with the adapter
         app.use((req, res, next) => {
             // Ensure multiple adapters are not registered
@@ -195,7 +192,10 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 
             req.kccAdapter = adapter;
             next();
-        })
+        });
+
+        // Initialize the keycloak connector
+        adapter._keycloakConnector = await KeycloakConnector.init<SupportedServers.express>(adapter, customConfig);
 
         //todo: update readme to reflect no automatic locking
         // // Add handler to every request
@@ -225,6 +225,11 @@ export const lock = (routeConfigOrRoles?: KeycloakRouteConfigOrRoles): RequestHa
 
     // Extract the request handler param
     const [req] = args;
+
+    // Check that the adapter is even registered.
+    if (req.kccAdapter === undefined) {
+        throw new Error(`Keycloak connector adapter not register!`);
+    }
 
     await req.kccAdapter.onRequest(routeConfig, ...args);
 }

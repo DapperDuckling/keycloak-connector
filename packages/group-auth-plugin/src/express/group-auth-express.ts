@@ -14,9 +14,14 @@ export const groupAuth = (...args: Parameters<typeof groupAuthOriginal>): Reques
         // Extract the req object
         const [req] = args;
 
-        // must check that the group auth plugin is even registered.
+        // Check that the group auth plugin is even registered.
         if (req.kccGroupAuthPlugin === undefined) {
             throw new Error(`Group auth plugin is not registered!`);
+        }
+
+        // Check for the keycloak connector adapter
+        if (req.kccAdapter === undefined) {
+            throw new Error(`Keycloak connector adapter not register!`);
         }
 
         // Pass request to the adapter handler
