@@ -5,11 +5,11 @@
 
 - Authenticate to the registry
     ```
-    `npm login --scope dapperduckling`
-    ```
-- Bump the version numbers as required
-    ```
-    lerna version --no-private
+    `npm login --scope dapperduckling
     ```
 
+- Update version and publish the package
+  ```
+  lerna publish --no-private
+  ```
 
