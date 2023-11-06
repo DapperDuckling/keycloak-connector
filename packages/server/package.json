@@ -19,7 +19,8 @@
   "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
   "scripts": {
     "prepare": "npm ls ts-patch || exit 0 && ts-patch install",
-    "build": "tsc && cpy ./src/**/*.d.ts ./dist",
+    "clean": "rimraf ./dist/",
+    "build": "npm run clean && tsc && cpy ./src/**/*.d.ts ./dist",
     "prepublishOnly": "npm run build",
     "test:start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts"
   },

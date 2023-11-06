@@ -2,8 +2,8 @@ import express from 'express';
 import {keycloakConnectorExpress} from "@dapperduckling/keycloak-connector-server";
 import cookieParser from "cookie-parser";
 import type {Express} from "express-serve-static-core";
-import {RedisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-redis";
 import logger from "pino-http";
+import {RedisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-redis";
 import {clusterKeyProvider} from "@dapperduckling/keycloak-connector-server";
 import {loggerOpts} from "./main.test.js";
 import {lock} from "@dapperduckling/keycloak-connector-server";
@@ -35,7 +35,6 @@ export async function makeExpressServer(port: number) {
         clusterProvider: clusterProvider,
         keyProvider: clusterKeyProvider,
         pinoLogger: loggerHttp.logger,
-        fetchUserInfo: true,
     });
 
     const router = express.Router();

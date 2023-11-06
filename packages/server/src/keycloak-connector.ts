@@ -1165,6 +1165,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             refreshConfigMins: 30,
             authCookieTimeout: 35 * 60 * 1000, // Default: 35 minutes
             stateType: StateOptions.STATELESS,
+            fetchUserInfo: true,
 
             // Consumer provided configuration
             ...customConfig,
