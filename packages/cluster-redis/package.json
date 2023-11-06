@@ -1,6 +1,6 @@
 {
   "name": "@dapperduckling/keycloak-connector-cluster-redis",
-  "version": "0.0.8-alpha.0",
+  "version": "0.0.9-alpha.0",
   "description": "Provides cluster communications through Redis, enabling synchronized scaling without interruption to security nor user experience.",
   "keywords": [
     "keycloak node cluster redis"
@@ -27,7 +27,7 @@
     "./dist"
   ],
   "dependencies": {
-    "@dapperduckling/keycloak-connector-server": "^0.0.8-alpha.0",
+    "@dapperduckling/keycloak-connector-server": "^0.0.6-alpha.0",
     "ioredis": "^5.3.2",
     "typia": "^4.3.2"
   },
