@@ -29,9 +29,9 @@
     "./dist"
   ],
   "exports": {
-    ".": "./src/*",
-    "./express": "./src/express/index.js",
-    "./fastify": "./src/fastify/index.js"
+    ".": "./dist/*",
+    "./express": "./dist/express/index.js",
+    "./fastify": "./dist/fastify/index.js"
   },
   "devDependencies": {
     "cpy": "^10.1.0"
