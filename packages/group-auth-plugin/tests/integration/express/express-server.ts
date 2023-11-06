@@ -1,4 +1,3 @@
-// /// <reference path="../../../src/global.d.ts" />
 import './dot-env.js'; // Must be the first import
 import express, {type Request} from 'express';
 import {keycloakConnectorExpress, lock} from "keycloak-connector-server";
@@ -7,10 +6,6 @@ import {RedisClusterProvider} from "keycloak-connector-cluster-redis";
 import {default as logger} from "pino-http";
 import {clusterKeyProvider} from "keycloak-connector-server";
 import {groupAuth, groupAuthExpress} from "keycloak-connector-group-auth-plugin/express";
-// import {groupAuth, groupAuthExpress} from "keycloak-connector-group-auth-plugin/src/express";
-
-// const test: Request = {}
-// test.
 
 const loggerHttp = logger.default({
     level: "debug",

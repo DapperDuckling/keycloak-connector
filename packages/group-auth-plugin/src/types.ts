@@ -4,10 +4,7 @@ export type InheritanceTree = Record<string, string[] | "*">;
 export type MappedInheritanceTree = Record<string, Set<string> | "*">;
 
 
-export interface ConnectorRequest<
-    KcRouteConfig extends object = Record<string, unknown>,
-    KcClaims extends object = Record<string, unknown>
-> extends ConnectorRequestOriginal<KcRouteConfig, KcClaims> {
+export interface ConnectorRequest extends ConnectorRequestOriginal<GroupAuthRouteConfig> {
     kccUserGroupAuthData?: GroupAuthData
 }
 

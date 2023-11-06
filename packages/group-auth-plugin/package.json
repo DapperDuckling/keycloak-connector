@@ -37,7 +37,6 @@
     "cpy": "^10.1.0"
   },
   "dependencies": {
-    "keycloak-connector-server": "file:../server",
-    "ts-node-example": "file:../ts-node-example-master"
+    "keycloak-connector-server": "file:../server"
   }
 }

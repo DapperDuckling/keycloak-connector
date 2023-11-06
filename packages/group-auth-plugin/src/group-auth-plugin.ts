@@ -100,7 +100,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
     }
 
     isAuthorized = async (
-        connectorRequest: ConnectorRequest<GroupAuthRouteConfig>,
+        connectorRequest: ConnectorRequest,
         userData: UserData<KcGroupClaims>,
         logger: Logger | undefined
     ): Promise<boolean> => {
@@ -149,7 +149,6 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
         // Check if the user has a group membership that matches the super-user group exactly
         if (groupAuthConfig.adminGroups?.superAdmin !== undefined && allUserGroups.includes(groupAuthConfig.adminGroups.superAdmin)) {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             connectorRequest.kccUserGroupAuthData.superAdmin = true;
             return true;
         }
