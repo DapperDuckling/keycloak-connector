@@ -1,6 +1,6 @@
 {
   "name": "@dapperduckling/keycloak-connector-server",
-  "version": "0.0.4-alpha.0",
+  "version": "0.0.5-alpha.0",
   "description": "Opinionated middleware connecting Node.js Express or Fastify servers to Keycloak",
   "keywords": [
     "express keycloak",
@@ -30,13 +30,13 @@
     "./dist"
   ],
   "devDependencies": {
+    "@dapperduckling/keycloak-connector-cluster-redis": "file:../cluster-redis",
     "@jest/globals": "^29.5.0",
     "@types/cookie-parser": "^1.4.3",
     "@types/express-serve-static-core": "^4.17.34",
     "@types/fastify-static": "^2.2.1",
     "@types/jest": "^29.5.1",
     "cpy": "^10.1.0",
-    "@dapperduckling/keycloak-connector-cluster-redis": "file:../cluster-redis",
     "nodemon": "^3.0.1",
     "pino-http": "^8.4.0",
     "readline-sync": "^1.4.10",
