@@ -148,7 +148,7 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
             ...defaultHostOption,
             ...process.env["CLUSTER_REDIS_USERNAME"] && {username: process.env["CLUSTER_REDIS_USERNAME"]},
             ...process.env["CLUSTER_REDIS_PASSWORD"] && {password: process.env["CLUSTER_REDIS_PASSWORD"]},
-            connectionName: process.env["CLUSTER_REDIS_CLIENT_NAME"] ?? `keycloak-connector-${this.uniqueClientId}-client`,
+            connectionName: process.env["CLUSTER_REDIS_CLIENT_NAME"] ?? `keycloak-connector-client-${config.prefix}${this.uniqueClientId}`,
             reconnectOnError: (err) => {
                 // Reconnect on READONLY state to handle AWS ElastiCache primary replica changes
                 const targetError = "READONLY";

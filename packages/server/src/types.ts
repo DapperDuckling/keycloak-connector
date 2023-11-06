@@ -62,6 +62,12 @@ export interface KeycloakConnectorConfigBase {
     /** The OP server url */
     authServerUrl: string;
 
+    /** The keycloak client id **/
+    clientId?: string;
+
+    /** The keycloak client secret **/
+    clientSecret?: string;
+
     /** The OP realm to use */
     realm: string;
 
