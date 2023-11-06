@@ -21,8 +21,7 @@
     "prepare": "npm ls ts-patch || exit 0 && ts-patch install",
     "build": "tsc && cpy ./src/**/*.d.ts ./dist",
     "prepublishOnly": "npm run build",
-    "test:start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts",
-    "test:start:redis-cluster": "npm run build && cd ./tests/integration/redis-cluster/ && nodemon ./main.test.ts"
+    "test:start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -30,7 +29,6 @@
     "./dist"
   ],
   "devDependencies": {
-    "@dapperduckling/keycloak-connector-cluster-redis": "file:../cluster-redis",
     "@jest/globals": "^29.5.0",
     "@types/cookie-parser": "^1.4.3",
     "@types/express-serve-static-core": "^4.17.34",

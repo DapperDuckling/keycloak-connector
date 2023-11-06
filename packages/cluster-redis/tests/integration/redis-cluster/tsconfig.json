@@ -11,7 +11,7 @@
   "compilerOptions": {
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "baseUrl": ".",
+    "baseUrl": "./",
     "sourceMap": true,
     "noImplicitAny": true,
     "strictNullChecks": true,

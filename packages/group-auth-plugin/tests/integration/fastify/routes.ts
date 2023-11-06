@@ -1,7 +1,7 @@
 import type {FastifyPluginAsync, RouteShorthandOptions} from "fastify";
 import type {RouteGenericInterface} from "fastify/types/route.js";
-import type {GroupAuth, GroupAuthRouteConfig} from "keycloak-connector-group-auth-plugin";
-import {groupAuth} from "keycloak-connector-group-auth-plugin";
+import type {GroupAuth, GroupAuthRouteConfig} from "@dapperduckling/keycloak-connector-group-auth-plugin";
+import {groupAuth} from "@dapperduckling/keycloak-connector-group-auth-plugin";
 
 export const routes: FastifyPluginAsync = async (fastify, options) =>  {
 

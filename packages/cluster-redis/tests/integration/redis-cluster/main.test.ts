@@ -4,7 +4,7 @@ import {makeFastifyServer, startFastifyServer} from "./fastify-server.js";
 import {makeExpressServer, startExpressServer} from "./express-server.js";
 import {numberOfServers, promptPromise} from "./orchestrator.js";
 // @ts-ignore
-import {sleep} from "../../../src/helpers/utils.js";
+import {sleep} from "@dapperduckling/keycloak-connector-server/dist/helpers/utils.js";
 import type {Express} from "express-serve-static-core";
 import type {FastifyInstance} from "fastify";
 

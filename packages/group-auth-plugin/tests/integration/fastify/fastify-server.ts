@@ -5,7 +5,7 @@ import {default as fastifyStatic} from "@fastify/static";
 import * as path from "path";
 import {keycloakConnectorFastify} from "@dapperduckling/keycloak-connector-server";
 import {routes} from "./routes.js";
-import {groupAuth, groupAuthFastify} from "keycloak-connector-group-auth-plugin/fastify";
+import {groupAuth, groupAuthFastify} from "@dapperduckling/keycloak-connector-group-auth-plugin/fastify";
 
 // Configure fastify
 const fastify = Fastify({
