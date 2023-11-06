@@ -27,7 +27,7 @@
     "./dist"
   ],
   "dependencies": {
-    "@dapperduckling/keycloak-connector-server": "file:../server",
+    "@dapperduckling/keycloak-connector-server": "^0.0.7-alpha.0",
     "ioredis": "^5.3.2",
     "typia": "^4.3.2"
   },
@@ -37,5 +37,5 @@
   "publishConfig": {
     "access": "public"
   },
-  "gitHead": "f6b318f60df9457a1d72780eb36c145a58441d19"
+  "gitHead": "e68cb11d18dc1cd1b48bc0e3be25f674f9295cb3"
 }
