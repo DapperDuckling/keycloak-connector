@@ -7,6 +7,7 @@ export const RouteUrlDefaults: CustomRouteUrl = {
     logoutPage: '/logout',
     logoutPost: '/logout',
     callback: '/callback',
+    logoutCallback: '/logout_callback', // Todo: Is this used?
     publicKeys: '/k_jwks',
     adminUrl: '/k_admin_url',
     backChannelLogout: '/k_logout',

@@ -1361,7 +1361,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             case RouteEnum.CALLBACK:
                 return `${prefix}${config.routePaths?.callback ?? RouteUrlDefaults.callback}`;
             case RouteEnum.LOGOUT_CALLBACK:
-                return `${prefix}${config.routePaths?.logout_callback ?? RouteUrlDefaults.logout_callback}`;
+                return `${prefix}${config.routePaths?.logoutCallback ?? RouteUrlDefaults.logoutCallback}`;
             case RouteEnum.PUBLIC_KEYS:
                 return `${prefix}${config.routePaths?.publicKeys ?? RouteUrlDefaults.publicKeys}`;
             case RouteEnum.ADMIN_URL:

@@ -184,6 +184,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         const adapter = new this(app, customConfig);
 
         // Decorate all requests with the adapter
+        // Dev note: This MUST go before the below kcc initiation. Order matters to Express.js
         app.use((req, res, next) => {
             // Ensure multiple adapters are not registered
             if (req.kccAdapter !== undefined) {
@@ -210,26 +211,28 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
     };
 }
 
-export const lock = (routeConfigOrRoles?: KeycloakRouteConfigOrRoles): RequestHandler => async (...args) => {
-    // Determine the input route config type and build the requisite route config object
-    let routeConfig: KeycloakRouteConfig | undefined;
-    if (Array.isArray(routeConfigOrRoles) || routeConfigOrRoles === undefined) {
-        routeConfig = {
-            roles: routeConfigOrRoles ?? [],
-        };
-    } else if (routeConfigOrRoles === false) {
-        routeConfig = undefined;
-    } else {
-        routeConfig = routeConfigOrRoles;
-    }
+export const lock = (routeConfigOrRoles?: KeycloakRouteConfigOrRoles): RequestHandler => {
+    return async (...args) => {
+        // Determine the input route config type and build the requisite route config object
+        let routeConfig: KeycloakRouteConfig | undefined;
+        if (Array.isArray(routeConfigOrRoles) || routeConfigOrRoles === undefined) {
+            routeConfig = {
+                roles: routeConfigOrRoles ?? [],
+            };
+        } else if (routeConfigOrRoles === false) {
+            routeConfig = undefined;
+        } else {
+            routeConfig = routeConfigOrRoles;
+        }
 
-    // Extract the request handler param
-    const [req] = args;
+        // Extract the request handler param
+        const [req] = args;
 
-    // Check that the adapter is even registered.
-    if (req.kccAdapter === undefined) {
-        throw new Error(`Keycloak connector adapter not register!`);
-    }
+        // Check that the adapter is even registered.
+        if (req.kccAdapter === undefined) {
+            throw new Error(`Keycloak connector adapter not register!`);
+        }
 
-    await req.kccAdapter.onRequest(routeConfig, ...args);
+        await req.kccAdapter.onRequest(routeConfig, ...args);
+    };
 }

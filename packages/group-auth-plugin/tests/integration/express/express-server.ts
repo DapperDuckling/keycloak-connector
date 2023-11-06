@@ -60,7 +60,7 @@ router.get('/', groupAuth('tasty'), groupAuth('tasty'), (req, res) => {
 
 // Lock all routes in this router behind a login page
 // (must place before declaring any other routes for it to be effective)
-router.use(lock());
+// router.use(lock());
 
 // Public route
 router.get('/public', lock(false), (req, res) => {
