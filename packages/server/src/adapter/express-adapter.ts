@@ -13,6 +13,7 @@ import type {Logger} from "pino";
 import {KeycloakConnector} from "../keycloak-connector.js";
 import bodyParser from "body-parser";
 import {isObject} from "../helpers/utils.js";
+import {TokenCache} from "../cache-adapters/index.js";
 
 export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 
@@ -33,13 +34,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 
     }
 
-    public buildConnectorRequest = async (request: Request, routeConfigOrRoles: KeycloakRouteConfigOrRoles): Promise<ConnectorRequest> => {
-
-        // Determine the input route config type and build the requisite route config object
-        const routeConfig: KeycloakRouteConfig | false = (Array.isArray(routeConfigOrRoles) || routeConfigOrRoles === undefined) ? {
-            roles: routeConfigOrRoles ?? [],
-        } : routeConfigOrRoles;
-
+    public buildConnectorRequest = async <RouteConfig>(request: Request, routeConfig: RouteConfig | undefined): Promise<ConnectorRequest> => {
         return {
             ...request.headers?.origin !== undefined && {origin: request.headers?.origin},
             url: request.url,
@@ -48,7 +43,8 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             headers: request.headers,
             routeConfig: {
                 ...this.globalRouteConfig,
-                ...(routeConfig !== false) && routeConfig,
+                // ...(routeConfig !== false) && routeConfig,
+                ...routeConfig,
             },
             ...request.kccUserData !== undefined && {keycloak: request.kccUserData},
             ...isObject(request.body) && {body: request.body},
@@ -143,7 +139,13 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         }
     };
 
-    private lock = (routeConfigOrRoles?: KeycloakRouteConfigOrRoles): RequestHandler => async (req, res, next) => {
+    // Kept for backwards compatibility
+    private lock = (...args: Parameters<typeof lock>) => lock(...args);
+
+    public onRequest = async <RouteConfig = KeycloakRouteConfig>(routeConfig: RouteConfig | undefined, ...args: Parameters<RequestHandler>) => {
+
+        // Extract the request handler params
+        const [req, res, next] = args;
 
         // Check for cookie-parser plugin
         if (req.cookies === undefined) {
@@ -151,8 +153,8 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         }
 
         // Grab user data
-        const connectorReq = await this.buildConnectorRequest(req, routeConfigOrRoles);
-        const userDataResponse = await this.keycloakConnector.getUserData(connectorReq);
+        const connectorReq = await req.kccAdapter.buildConnectorRequest<RouteConfig>(req, routeConfig);
+        const userDataResponse = await req.kccAdapter.keycloakConnector.getUserData(connectorReq);
 
         // Set any cookies from user data response
         userDataResponse.cookies?.forEach(cookieParam => res.cookie(cookieParam.name, cookieParam.value, cookieParam.options));
@@ -165,19 +167,17 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         // if (routeConfigOrRoles === false) return next();
 
         // Grab the protector response
-        const connectorResponse = await this.keycloakConnector.buildRouteProtectionResponse(connectorReq, req.kccUserData);
+        const connectorResponse = await req.kccAdapter.keycloakConnector.buildRouteProtectionResponse(connectorReq, req.kccUserData);
 
         // Handle the response
         if (connectorResponse) {
-            await this.handleResponse(connectorResponse, req, res, next);
+            await req.kccAdapter.handleResponse(connectorResponse, req, res, next);
         } else {
             next();
         }
-    };
+    }
 
-    // Private getter due to type checking. Keycloak connector is set later in initialization,
-    // but will not be used until after initialization is complete.
-    private get keycloakConnector() {
+    public get keycloakConnector() {
         return this._keycloakConnector as KeycloakConnector<SupportedServers.express>;
     }
 
@@ -189,6 +189,17 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         // Initialize the keycloak connector
         adapter._keycloakConnector = await KeycloakConnector.init<SupportedServers.express>(adapter, customConfig);
 
+        // Decorate all requests with the adapter
+        app.use((req, res, next) => {
+            // Ensure multiple adapters are not registered
+            if (req.kccAdapter !== undefined) {
+                throw new Error('Detected duplicate keycloak-connector registration, this is not supported.');
+            }
+
+            req.kccAdapter = adapter;
+            next();
+        })
+
         //todo: update readme to reflect no automatic locking
         // // Add handler to every request
         // // Forcing all pages to require at least a valid login
@@ -199,4 +210,23 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             ...adapter._keycloakConnector.getExposed()
         };
     };
+}
+
+export const lock = (routeConfigOrRoles?: KeycloakRouteConfigOrRoles): RequestHandler => async (...args) => {
+    // Determine the input route config type and build the requisite route config object
+    let routeConfig: KeycloakRouteConfig | undefined;
+    if (Array.isArray(routeConfigOrRoles) || routeConfigOrRoles === undefined) {
+        routeConfig = {
+            roles: routeConfigOrRoles ?? [],
+        };
+    } else if (routeConfigOrRoles === false) {
+        routeConfig = undefined;
+    } else {
+        routeConfig = routeConfigOrRoles;
+    }
+
+    // Extract the request handler param
+    const [req] = args;
+
+    await req.kccAdapter.onRequest(routeConfig, ...args);
 }

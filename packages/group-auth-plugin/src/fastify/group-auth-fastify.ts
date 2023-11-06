@@ -10,14 +10,12 @@ export type GroupAuthFastifyRouteOpt = {
 }
 
 export const groupAuth = (...args: Parameters<typeof groupAuthOriginal>): GroupAuthFastifyRouteOpt => {
-    const {group, groupAuthConfig} = groupAuthOriginal(...args);
+    // const {group, groupAuthConfig} = groupAuthOriginal(...args);
+    const groupAuthRouteConfig = groupAuthOriginal(...args);
 
     return {
         config: {
-            groupAuth: {
-                ...group !== undefined && {group: group},
-                ...groupAuthConfig && {config: groupAuthConfig}
-            }
+            ...groupAuthRouteConfig,
         }
     }
 }

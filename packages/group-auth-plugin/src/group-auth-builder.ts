@@ -1,14 +1,14 @@
-import type {GroupAuthConfig} from "./types.js";
+import type {GroupAuthConfig, GroupAuthRouteConfig} from "./types.js";
 
 type GroupAuthConfigPartial = Partial<GroupAuthConfig>;
-type GroupAuthReturn = {
-    group: string | undefined;
-    groupAuthConfig: GroupAuthConfigPartial | undefined;
-}
+// type GroupAuthReturn = {
+//     group: string | undefined;
+//     groupAuthConfig: GroupAuthConfigPartial | undefined;
+// }
 
-export function groupAuth(groupAuthConfig: GroupAuthConfigPartial): GroupAuthReturn;
-export function groupAuth(group: string, groupAuthConfig?: GroupAuthConfigPartial): GroupAuthReturn;
-export function groupAuth(groupOrConfig: GroupAuthConfigPartial | string, groupAuthConfigOrNothing?: GroupAuthConfigPartial): GroupAuthReturn {
+export function groupAuth(groupAuthConfig: GroupAuthConfigPartial): GroupAuthRouteConfig;
+export function groupAuth(group: string, groupAuthConfig?: GroupAuthConfigPartial): GroupAuthRouteConfig;
+export function groupAuth(groupOrConfig: GroupAuthConfigPartial | string, groupAuthConfigOrNothing?: GroupAuthConfigPartial): GroupAuthRouteConfig {
 
     let group;
     let groupAuthConfig: Partial<GroupAuthConfig> | undefined;
@@ -22,5 +22,18 @@ export function groupAuth(groupOrConfig: GroupAuthConfigPartial | string, groupA
         groupAuthConfig = groupOrConfig;
     }
 
-    return {group, groupAuthConfig};
+    // return {group, groupAuthConfig};
+    return {
+        groupAuth: {
+            ...group !== undefined && {group: group},
+            ...groupAuthConfig && {config: groupAuthConfig}
+        }
+    };
 }
+
+// export const groupAuthBuilder = (group: string | undefined, groupAuthConfig?: GroupAuthConfigPartial | undefined): GroupAuthRouteConfig => ({
+//     groupAuth: {
+//         ...group !== undefined && {group: group},
+//         ...groupAuthConfig && {config: groupAuthConfig}
+//     }
+// });

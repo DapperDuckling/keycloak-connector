@@ -46,14 +46,14 @@ const {lock, registerAuthPlugin} = await keycloakConnectorExpress(app, {
     fetchUserInfo: true,
 });
 
-await groupAuthExpress(registerAuthPlugin, {
+await groupAuthExpress(app, registerAuthPlugin, {
     app: 'my-cool-app'
 });
 
 const router = express.Router();
 
 // Public route
-router.get('/', groupAuth('tasty'), (req, res) => {
+router.get('/', groupAuth('tasty'), groupAuth('tasty'), (req, res) => {
     // Send the response
     res.send({ hello: 'world1' });
 });

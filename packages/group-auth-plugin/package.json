@@ -17,10 +17,11 @@
   },
   "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
   "scripts": {
-    "build": "tsc && cpy ./src/**/*.d.ts ./dist",
+    "build": "tsc",
+    "build-old": "tsc && cpy ./src/**/*.d.ts ./dist",
     "prepublishOnly": "npm run build",
     "test:start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts",
-    "test:start:express": "npm run build && cd ./tests/integration/express/ && nodemon ./express-server.ts"
+    "test:start:express": "npm run build && cd ./tests/integration/express/ && nodemon --exec ts-node -T ./express-server.ts"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
