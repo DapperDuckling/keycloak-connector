@@ -27,7 +27,7 @@ export enum ErrorHints {
     UNAUTHENTICATED = "UNAUTHENTICATED",
     UNAUTHORIZED = "UNAUTHORIZED",
     JWT_EXPIRED = "JWT_EXPIRED",
-
+    UNKNOWN = "UNKNOWN",
 }
 
 export class LoginError extends Error {

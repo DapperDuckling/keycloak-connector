@@ -369,7 +369,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     private getAuthFlowNonce = (req: ConnectorRequest): string|null => {
         // Check for login flow nonce
-        // (`base` added since browsers are not required to send an origin for all requests. It has no other function than to allow the built-in `URL` class to work in-line)
+        // (`base` of "localhost" added since browsers are not required to send an origin for all requests. It has no other function than to allow the built-in `URL` class to work in-line)
         return (new URL(req.url, "https://localhost")).searchParams.get('auth_flow_nonce');
     }
 
@@ -468,8 +468,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
                     // Log the issue as a possibility to detect attacks
                     this._config.pinoLogger?.warn(e, `Failed to complete login, RP error`);
 
-                    // Default 400 error
-                    throw new LoginError(ErrorHints.CODE_400);
+                    // This could be 400 or 500 error
+                    throw new LoginError(ErrorHints.UNKNOWN);
                 }
             } else if (e instanceof OPError) {
                 // Log the issue
@@ -1134,7 +1134,12 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 ({
                     oidcIssuer: this.components.oidcIssuer,
                     oidcClient: this.components.oidcClient
-                } = await KeycloakConnector.createOidcClients(this.components.oidcConfig, this._config.oidcClientMetadata, this.components.connectorKeys.privateJwk));
+                } = await KeycloakConnector.createOidcClients(
+                    this.components.oidcConfig,
+                    this._config.oidcClientMetadata,
+                    this.components.connectorKeys.privateJwk,
+                    this._config.DANGEROUS_disableJwtClientAuthentication
+                ));
 
                 this._config.pinoLogger?.debug(`OIDC update complete`);
                 return true;
@@ -1166,6 +1171,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             authCookieTimeout: 35 * 60 * 1000, // Default: 35 minutes
             stateType: StateOptions.STATELESS,
             fetchUserInfo: true,
+            DANGEROUS_disableJwtClientAuthentication: (process.env['DANGEROUS_KC_DISABLE_JWT_CLIENT_AUTHENTICATION'] === "true"),
 
             // Consumer provided configuration
             ...customConfig,
@@ -1196,23 +1202,48 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 // Force certain auth method and signing algorithms based on FAPI
                 token_endpoint_auth_method: 'private_key_jwt',
                 tls_client_certificate_bound_access_tokens: false,
-                introspection_endpoint_auth_method: 'private_key_jwt',
-                revocation_endpoint_auth_method: 'private_key_jwt',
+                // Removed auth methods, defaults to above setting
+                // introspection_endpoint_auth_method: 'private_key_jwt',
+                // revocation_endpoint_auth_method: 'private_key_jwt',
+                id_token_signed_response_alg: KeycloakConnector.REQUIRED_ALGO,
+                authorization_signed_response_alg: KeycloakConnector.REQUIRED_ALGO,
                 token_endpoint_auth_signing_alg: KeycloakConnector.REQUIRED_ALGO,
                 request_object_signing_alg: KeycloakConnector.REQUIRED_ALGO,
                 introspection_endpoint_auth_signing_alg: KeycloakConnector.REQUIRED_ALGO,
                 revocation_endpoint_auth_signing_alg: KeycloakConnector.REQUIRED_ALGO,
             }
-        };
-
-        // Check for invalid client metadata
-        if (config.oidcClientMetadata.client_id === EMPTY_STRING) throw new Error(`Client ID not specified or environment variable "KC_CLIENT_ID" not found`);
-        if (config.oidcClientMetadata.client_secret === EMPTY_STRING) throw new Error(`Client secret not specified or environment variable "KC_CLIENT_SECRET" not found`);
-        if (config.oidcClientMetadata.redirect_uris === undefined || config.oidcClientMetadata.redirect_uris.length === 0)  throw new Error(`No login redirect URIs specified`);
-        if (config.oidcClientMetadata.post_logout_redirect_uris === undefined || config.oidcClientMetadata.post_logout_redirect_uris.length === 0)  throw new Error(`No post logout redirect URIs specified`);
+        }
 
         // Manipulate pino logger to embed a _prefix into each message
         if (config.pinoLogger) config.pinoLogger = config.pinoLogger.child({"Source": "KeycloakConnector"});
+
+        // Check if disabling jwt authentication
+        if (config.DANGEROUS_disableJwtClientAuthentication) {
+            // Update the config to disable jwt auth
+            config.oidcClientMetadata.token_endpoint_auth_method = 'client_secret_post';
+
+            // Check if there is a missing client secret when we need one
+            if (config.oidcClientMetadata.client_secret === EMPTY_STRING) throw new Error(`Client secret not specified or environment variable "KC_CLIENT_SECRET" not found`);
+
+        } else if (config.oidcClientMetadata.client_secret !== EMPTY_STRING) {
+            throw new Error(`"Client secret" has no purpose in production. Keycloak Connector WILL NOT start until removed.`);
+        }
+
+
+        // Check for invalid client metadata
+        if (config.oidcClientMetadata.client_id === EMPTY_STRING) throw new Error(`Client ID not specified or environment variable "KC_CLIENT_ID" not found`);
+        if (config.oidcClientMetadata.redirect_uris === undefined || config.oidcClientMetadata.redirect_uris.length === 0)  throw new Error(`No login redirect URIs specified`);
+        if (config.oidcClientMetadata.post_logout_redirect_uris === undefined || config.oidcClientMetadata.post_logout_redirect_uris.length === 0)  throw new Error(`No post logout redirect URIs specified`);
+
+        // Check for the dangerous condition
+        if (config.DANGEROUS_disableJwtClientAuthentication) {
+            config.pinoLogger?.warn(`DANGEROUS_disableJwtClientAuthentication is enabled, DO NOT USE THIS SETTING IN PRODUCTION`);
+
+            // Check if this is production (not guaranteed to catch, but as a last chance catch)
+            if (process.env['NODE_ENV'] === "production") {
+                throw new Error(`DANGEROUS_disableJwtClientAuthentication is set to "true" in production. Keycloak client WILL NOT start in this configuration for your safety.`);
+            }
+        }
 
         // Build the oidc discovery url (ref: https://issues.redhat.com/browse/KEYCLOAK-571)
         const authPath = (config.keycloakVersionBelow18) ? "/auth" : "";
@@ -1233,7 +1264,12 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const connectorKeys = await keyProvider.getActiveKeys();
 
         // Grab the oidc clients
-        const oidcClients = await KeycloakConnector.createOidcClients(openIdConfig, config.oidcClientMetadata, connectorKeys.privateJwk);
+        const oidcClients = await KeycloakConnector.createOidcClients(
+            openIdConfig,
+            config.oidcClientMetadata,
+            connectorKeys.privateJwk,
+            config.DANGEROUS_disableJwtClientAuthentication
+        );
 
         // Ensure we have a JWKS uri
         if (oidcClients.oidcIssuer.metadata.jwks_uri === undefined) {
@@ -1278,13 +1314,21 @@ export class KeycloakConnector<Server extends SupportedServers> {
         });
     }
 
-    private static async createOidcClients(newOidcConfig: IssuerMetadata, oidcClientMetadata: ClientMetadata, privateJwk: JWK) {
+    private static async createOidcClients(
+        newOidcConfig: IssuerMetadata,
+        oidcClientMetadata: ClientMetadata,
+        privateJwk: JWK,
+        DANGEROUS_disableJwtClientAuthentication: boolean = false
+    ) {
 
         // Initialize Issuer with the new config
         const oidcIssuer = new Issuer(newOidcConfig);
 
+        // Determine the client to use
+        const clientConstructor = DANGEROUS_disableJwtClientAuthentication ? oidcIssuer.Client : oidcIssuer.FAPI1Client;
+
         // Initialize the new Client
-        const oidcClient = new oidcIssuer.FAPI1Client(oidcClientMetadata, {keys: [privateJwk]});
+        const oidcClient = new clientConstructor(oidcClientMetadata, {keys: [privateJwk]});
 
         return {
             oidcIssuer: oidcIssuer,

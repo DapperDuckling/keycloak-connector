@@ -7,9 +7,7 @@ import * as path from "path";
 import {keycloakConnectorFastify} from "@dapperduckling/keycloak-connector-server";
 import {routes} from "./routes.js";
 import type {Logger} from "pino";
-import {clusterKeyProvider} from "@dapperduckling/keycloak-connector-server";
 import {RedisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-redis";
-import type {ClusterJobMessage, RequestUpdateSystemJwksMsg, SubscriberListener} from "@dapperduckling/keycloak-connector-server";
 
 // Configure fastify
 const fastify = Fastify({
@@ -57,10 +55,10 @@ await fastify.register(fastifyStatic, {
     prefix: '/public/', // optional: default '/'
 });
 
-// Create our cluster provider
-const clusterProvider = new RedisClusterProvider({
-    pinoLogger: fastify.log as Logger,
-});
+// // Create our cluster provider
+// const clusterProvider = new RedisClusterProvider({
+//     pinoLogger: fastify.log as Logger,
+// });
 
 // //todo: remove
 // await awsRedisClusterProvider.connectOrThrow();
@@ -85,8 +83,8 @@ await fastify.register(keycloakConnectorFastify, {
     authServerUrl: 'http://localhost:8080/',
     realm: 'local-dev',
     refreshConfigMins: -1, // Disable for dev testing
-    clusterProvider: clusterProvider,
-    keyProvider: clusterKeyProvider,
+    // clusterProvider: clusterProvider,
+    // keyProvider: clusterKeyProvider,
 });
 
 // // Set and receive a cluster message
@@ -116,40 +114,40 @@ await fastify.register(keycloakConnectorFastify, {
 // Register our routes
 await fastify.register(routes);
 
-// Test key update service
-let okay = false
-const updateKeys = async () => {
-    console.log("Deleting old keys");
-    await clusterProvider.remove('key-provider:connector-keys');
-    console.log("SENDING MESSAGE");
-    const requestTime = Date.now()/1000;
-    const listeningChannel = `listen-to-me:${requestTime}`;
-
-    const listener: SubscriberListener = (message, senderId) => {
-        console.log(`Received message from ${senderId}`, message);
-    };
-    await clusterProvider.subscribe(listeningChannel, listener);
-    await clusterProvider.publish<RequestUpdateSystemJwksMsg>("key-provider:listening-channel", {
-        event: "request-update-system-jwks",
-        listeningChannel: listeningChannel,
-        jobName: `The coolest job name::${requestTime}`,
-        requestTime: requestTime,
-    });
-    console.log("UPDATE MESSAGE BROADCAST");
-
-    if (!okay) {
-        okay = true;
-        setTimeout(async () => {
-            await updateKeys();
-        }, 2500);
-    }
-
-    // Unsubscribe from our listener
-    setTimeout(async () => await clusterProvider.unsubscribe(listeningChannel, listener, true), 60000);
-}
-setTimeout(async () => {
-    await updateKeys();
-}, 2500);
+// // Test key update service
+// let okay = false
+// const updateKeys = async () => {
+//     console.log("Deleting old keys");
+//     await clusterProvider.remove('key-provider:connector-keys');
+//     console.log("SENDING MESSAGE");
+//     const requestTime = Date.now()/1000;
+//     const listeningChannel = `listen-to-me:${requestTime}`;
+//
+//     const listener: SubscriberListener = (message, senderId) => {
+//         console.log(`Received message from ${senderId}`, message);
+//     };
+//     await clusterProvider.subscribe(listeningChannel, listener);
+//     await clusterProvider.publish<RequestUpdateSystemJwksMsg>("key-provider:listening-channel", {
+//         event: "request-update-system-jwks",
+//         listeningChannel: listeningChannel,
+//         jobName: `The coolest job name::${requestTime}`,
+//         requestTime: requestTime,
+//     });
+//     console.log("UPDATE MESSAGE BROADCAST");
+//
+//     if (!okay) {
+//         okay = true;
+//         setTimeout(async () => {
+//             await updateKeys();
+//         }, 2500);
+//     }
+//
+//     // Unsubscribe from our listener
+//     setTimeout(async () => await clusterProvider.unsubscribe(listeningChannel, listener, true), 60000);
+// }
+// setTimeout(async () => {
+//     await updateKeys();
+// }, 2500);
 
 try {
     await fastify.listen({ port: 3005, host: '0.0.0.0'});

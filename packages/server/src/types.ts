@@ -68,6 +68,9 @@ export interface KeycloakConnectorConfigBase {
     /** The keycloak client secret **/
     clientSecret?: string;
 
+    /** Option to disable signed JWT authentication **/
+    DANGEROUS_disableJwtClientAuthentication?: boolean;
+
     /** The OP realm to use */
     realm: string;
 
