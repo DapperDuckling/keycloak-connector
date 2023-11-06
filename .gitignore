@@ -27,3 +27,7 @@ yarn-error.log*
 sampleTrainingData.ts
 /resources/arms-gateway.yml
 /resources/api-yml.PNG
+
+/.idea/keycloak-connector.iml
+/.idea/vcs.xml
+/.idea/workspace.xml
