@@ -1,5 +1,6 @@
 {
   "name": "@dapperduckling/keycloak-connector-client",
+  "private": true,
   "version": "0.0.6",
   "description": "A utility library to integrate keycloak into frontend applications",
   "main": "dist/index.js",
