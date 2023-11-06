@@ -6,8 +6,9 @@ A custom plugin enabling permission management via Keycloak groups. Adds functio
 ### Example Usage
 ```javascript
 /** Example usage for ARM */
+/** Example usage for ARM */
 router.get(
-    "/members/:oid?",
+    "/members/:org_id?",
     authenticateAdmin,
     groupAuth({
         requireAdmin: true,
@@ -17,14 +18,14 @@ router.get(
          * Require Admin logic (user must have at least one of the listed permissions)
          *  - org_id in request:
          *      - darksaber-admin
-         *      - organizations/<oid>/admin
+         *      - organizations/<org_id>/admin
          *  - app_id in request:
          *      - darksaber-admin
-         *      - applications/<aid>/app-admin
+         *      - applications/<app_id>/app-admin
          *  - org_id and app_id in request:
          *      - darksaber-admin
-         *      - applications/<aid>/app-admin
-         *      - applications/<aid>/<oid>/admin   AND organizations/<oid>/*
+         *      - applications/<app_id>/app-admin
+         *      - applications/<app_id>/<org_id>/admin   AND organizations/<org_id>/*
          */
 
         /**
@@ -104,6 +105,43 @@ router.get(
 
     }
 )
+
+
+router.get(
+    `/status`,
+    groupAuth('supervisor'),
+    async (req, res) => {
+        /**
+         * Assuming request was '/status', then...
+         *
+         * This route is accessible by those with any of the following groups:
+         *   - `/darksaber-admin`
+         *   - `/applications/ABCD-EFGH-IJ/app-admin`
+         *   - `/applications/ABCD-EFGH-IJ/supervisor`
+         *   - `/applications/ABCD-EFGH-IJ/<any org-id>/admin` AND `/organizations/<matching-org-id>/*`
+         *   - `/applications/ABCD-EFGH-IJ/<any org-id>/supervisor` AND `/organizations/<matching-org-id>/*`
+         */
+
+    }
+)
+
+
+router.get(
+    `/status/:org_id`,
+    groupAuth('supervisor', {noImplicitApp: true}),
+    async (req, res) => {
+        /**
+         * Assuming request was '/status', then...
+         *
+         * This route is accessible by those with any of the following groups:
+         *   - `/darksaber-admin`
+         *   - `/organizations/ABCD-EFGH-IJ/app-admin`
+         *   - `/organizations/ABCD-EFGH-IJ/supervisor`
+         */
+
+    }
+)
+
 
 /** Standalone function call */
 // Use case: Endpoint exists to take N-number organization ids through a form POST, and need to confirm permissions

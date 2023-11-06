@@ -4,7 +4,7 @@ export type ConnectorCallback<Server extends SupportedServers> = (connectorReq: 
 export interface RouteRegistrationOptions {
     method: HTTPMethod,
     url: string,
-    isPublic: boolean,
+    isUnlocked: boolean,
 }
 export abstract class AbstractAdapter<Server extends SupportedServers> {
 

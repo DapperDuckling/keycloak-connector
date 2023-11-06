@@ -110,7 +110,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         this.registerRoute(adapter, {
             url: this.getRoutePath(RouteEnum.LOGIN_PAGE),
             method: "GET",
-            isPublic: true,
+            isUnlocked: true,
         }, this.handleLoginGet);
 
         /**
@@ -119,7 +119,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         this.registerRoute(adapter,{
             url: this.getRoutePath(RouteEnum.LOGIN_POST),
             method: "POST",
-            isPublic: true,
+            isUnlocked: true,
         }, this.handleLoginPost);
 
         /**
@@ -128,7 +128,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         this.registerRoute(adapter, {
             url: this.getRoutePath(RouteEnum.CALLBACK),
             method: "GET",
-            isPublic: true,
+            isUnlocked: true,
         }, this.handleCallback);
 
         /**
@@ -137,7 +137,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         this.registerRoute(adapter,{
             url: this.getRoutePath(RouteEnum.LOGOUT_PAGE),
             method: "GET",
-            isPublic: true,
+            isUnlocked: true,
         }, this.handleLogoutGet);
 
         /**
@@ -146,7 +146,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         this.registerRoute(adapter,{
             url: this.getRoutePath(RouteEnum.LOGOUT_POST),
             method: "POST",
-            isPublic: true,
+            isUnlocked: true,
         }, this.handleLogoutPost);
 
 
@@ -156,7 +156,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         this.registerRoute(adapter, {
             url: this.getRoutePath(RouteEnum.LOGOUT_CALLBACK),
             method: "GET",
-            isPublic: true,
+            isUnlocked: true,
         }, this.handleLogoutCallback);
 
         /**
@@ -165,7 +165,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         this.registerRoute(adapter, {
             url: this.getRoutePath(RouteEnum.PUBLIC_KEYS),
             method: "GET",
-            isPublic: true,
+            isUnlocked: true,
         }, this.handleClientJWKS);
 
         /**
@@ -174,7 +174,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         this.registerRoute(adapter, {
             url: this.getRoutePath(RouteEnum.ADMIN_URL),
             method: "POST",
-            isPublic: true,
+            isUnlocked: true,
         }, this.handleAdminMessages);
 
         /**
@@ -183,7 +183,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         this.registerRoute(adapter, {
             url: this.getRoutePath(RouteEnum.BACK_CHANNEL_LOGOUT),
             method: "POST",
-            isPublic: true,
+            isUnlocked: true,
         }, this.handleBackChannelLogout);
 
         /**
@@ -192,7 +192,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         this.registerRoute(adapter, {
             url: this.getRoutePath(RouteEnum.LOGIN_STATUS),
             method: "GET",
-            isPublic: true,
+            isUnlocked: true,
         }, this.handleLoginStatus);
     }
 

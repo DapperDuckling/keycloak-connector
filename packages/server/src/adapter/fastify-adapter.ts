@@ -78,7 +78,7 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
         }
 
         // Build the route configuration
-        const routeConfig: KeycloakRouteConfig = (options.isPublic) ? {
+        const routeConfig: KeycloakRouteConfig = (options.isUnlocked) ? {
             public: true
         } : {
             public: false,

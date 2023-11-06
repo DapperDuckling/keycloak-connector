@@ -107,14 +107,14 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         const routerMethod = this.getRouterMethod(options);
 
         // Build any required lock
-        const lockHandler = lock(options.isPublic ? false : []);
+        const lockHandler = lock(options.isUnlocked ? false : []);
 
         // Parse application/x-www-form-urlencoded
         const urlencodedParser = bodyParser.urlencoded({ extended: false })
 
         // Register the route with route handler
         routerMethod(options.url, lockHandler, urlencodedParser, async (req, res, next) => {
-            const connectorReq = await this.buildConnectorRequest(req, {public: options.isPublic});
+            const connectorReq = await this.buildConnectorRequest(req, {public: options.isUnlocked});
             const response = await connectorCallback(connectorReq);
             await this.handleResponse(response, req, res, next);
         });

@@ -143,7 +143,7 @@ app.get('/', (req, res) => {
 });
 
 // Non-public route
-app.get('/not-public', lock, (req, res) => {
+app.get('/not-public', lock(), (req, res) => {
     // Send the response
     res.send('hey, but hidden behind login!');
 });
