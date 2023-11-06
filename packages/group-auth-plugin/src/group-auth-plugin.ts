@@ -85,7 +85,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         }
     }
 
-    decorateResponse = async (connectorRequest: ConnectorRequest<GroupAuthData>, userData: UserData, logger: Logger | undefined): Promise<void> => {
+    decorateResponse = async (connectorRequest: ConnectorRequest, userData: UserData, logger: Logger | undefined): Promise<void> => {
         // Decorate the user data with default group info
         connectorRequest.kccUserGroupAuthData = {
             appId: null,

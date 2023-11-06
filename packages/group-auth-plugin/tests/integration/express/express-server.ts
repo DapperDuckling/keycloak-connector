@@ -6,9 +6,8 @@ import cookieParser from "cookie-parser";
 import {RedisClusterProvider} from "keycloak-connector-cluster-redis";
 import {default as logger} from "pino-http";
 import {clusterKeyProvider} from "keycloak-connector-server";
-// import {groupAuth, groupAuthExpress} from "../../../src/express/index.js";
 import {groupAuth, groupAuthExpress} from "keycloak-connector-group-auth-plugin/express";
-// import {groupAuth, groupAuthExpress} from "keycloak-connector-group-auth-plugin/src/express/index.js";
+// import {groupAuth, groupAuthExpress} from "keycloak-connector-group-auth-plugin/src/express";
 
 // const test: Request = {}
 // test.
