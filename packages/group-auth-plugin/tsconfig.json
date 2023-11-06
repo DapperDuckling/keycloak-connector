@@ -29,7 +29,10 @@
     "preserveConstEnums": true,
     "moduleResolution": "nodenext",
     "target": "es2022",
-    "rootDir": "./src/"
+    "rootDir": "./src/",
+    "paths": {
+      "keycloak-connector-server": ["../server"],
+    }
   },
   "include": [
     "./src/**/*"

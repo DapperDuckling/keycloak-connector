@@ -8,7 +8,6 @@ import {
     TokenSet
 } from "openid-client";
 import type {
-    ConnectorRequest,
     ConnectorResponse,
     CookieOptionsBase,
     CookieParams,
@@ -18,7 +17,7 @@ import type {
     RefreshTokenSetResult, RefreshTokenSet,
     SupportedServers,
     UserData,
-    UserDataResponse
+    UserDataResponse, ConnectorRequest
 } from "./types.js";
 import {VerifiableJwtTokenTypes, RouteEnum, StateOptions} from "./types.js";
 import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapter/abstract-adapter.js";

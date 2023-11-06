@@ -1,7 +1,6 @@
 import type {
     AuthPluginInternalConfig,
     AuthPluginOnRegisterConfig,
-    ConnectorRequest,
     UserData
 } from "keycloak-connector-server";
 import {AbstractAuthPlugin, AuthPluginOverride} from "keycloak-connector-server";
@@ -12,7 +11,8 @@ import type {
     GroupAuthRouteConfig,
     InheritanceTree,
     KcGroupClaims,
-    MappedInheritanceTree, UserGroupPermissions, UserGroups
+    MappedInheritanceTree, UserGroupPermissions, UserGroups,
+    ConnectorRequest
 } from "./types.js";
 import {getUserGroups} from "./group-regex-helpers.js";
 import {UserGroupPermissionKey} from "./types.js";
@@ -85,7 +85,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         }
     }
 
-    decorateResponse = async (connectorRequest: ConnectorRequest, userData: UserData, logger: Logger | undefined): Promise<void> => {
+    decorateResponse = async (connectorRequest: ConnectorRequest<GroupAuthData>, userData: UserData, logger: Logger | undefined): Promise<void> => {
         // Decorate the user data with default group info
         connectorRequest.kccUserGroupAuthData = {
             appId: null,
@@ -187,7 +187,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         }
 
         // Loop over the connectorRequest.urlParams and set up a switch statement based on the key
-        for (const [paramKey, paramValue] of Object.entries(connectorRequest.urlParams)) {
+        for (const [paramKey, paramValue] of Object.entries<string>(connectorRequest.urlParams)) {
             switch (paramKey) {
                 case groupAuthConfig.orgParam:
                     constraints.org = paramValue;

@@ -1,11 +1,21 @@
+import type {ConnectorRequest as ConnectorRequestOriginal} from "keycloak-connector-server";
+
 export type InheritanceTree = Record<string, string[] | "*">;
 export type MappedInheritanceTree = Record<string, Set<string> | "*">;
+
+
+export interface ConnectorRequest<
+    KcRouteConfig extends object = Record<string, unknown>,
+    KcClaims extends object = Record<string, unknown>
+> extends ConnectorRequestOriginal<KcRouteConfig, KcClaims> {
+    kccUserGroupAuthData?: GroupAuthData
+}
 
 export interface KcGroupClaims {
     groups?: string[];
 }
 
-export type GroupAuthRouteConfig = {
+export interface GroupAuthRouteConfig {
     groupAuth?: GroupAuth;
 }
 
