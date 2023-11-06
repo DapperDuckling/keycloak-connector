@@ -220,7 +220,9 @@ export const lock = (routeConfigOrRoles?: KeycloakRouteConfigOrRoles): RequestHa
                 roles: routeConfigOrRoles ?? [],
             };
         } else if (routeConfigOrRoles === false) {
-            routeConfig = undefined;
+            routeConfig = {
+                public: true,
+            };
         } else {
             routeConfig = routeConfigOrRoles;
         }
