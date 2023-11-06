@@ -21,10 +21,17 @@ export abstract class AbstractAuthPlugin {
 
     protected constructor() {}
 
+    /**
+     * Do not override
+     * @param onRegisterConfig
+     */
     public async onRegister(onRegisterConfig: AuthPluginOnRegisterConfig) {
         this.logger = onRegisterConfig.logger?.child({"Source": `${this._internalConfig.name}`});
+        await this.onPluginRegister(onRegisterConfig);
         return undefined;
     }
+
+    abstract onPluginRegister(onRegisterConfig: AuthPluginOnRegisterConfig): Promise<undefined>
 
     get internalConfig(): AuthPluginInternalConfig {
         return this._internalConfig;

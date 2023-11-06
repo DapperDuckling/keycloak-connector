@@ -54,7 +54,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         this.orgTreePermissions = this.inheritanceTreePermissions(this.groupAuthConfig.orgInheritanceTree);
     }
 
-    public override async onRegister(onRegisterConfig: AuthPluginOnRegisterConfig) {
+    public async onPluginRegister(onRegisterConfig: AuthPluginOnRegisterConfig) {
         // Ensure the fetch user info setting is configured
         if (onRegisterConfig.keycloakConfig.fetchUserInfo === undefined || onRegisterConfig.keycloakConfig.fetchUserInfo === false) {
             throw new Error("Must set `fetchUserInfo` in order to use Group Auth Plugin");
@@ -139,42 +139,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         }
 
         // Extract the groups from the user info
-        //todo: uncomment
-        // const allUserGroups = userData.userInfo?.groups ?? [];
-
-        //dev only
-        const allUserGroups = [
-            "/organizations/unit-f4990bd4-7b94-4953-8942-14a7da742a6a/admin",
-            "/organizations/unit-02610669-ce6f-4004-a9bb-304243eaf8f4/admin",
-            "/organizations/unit-c1be7965-c654-4537-b9b6-b403f4067e87/admin",
-            "/organizations/unit-16c4f8fd-0dd9-409c-a95a-23f22aabffc1/admin",
-            "/organizations/unit-46be75b1-e27b-4991-bd8b-522e1fbc6c4f/admin",
-            "/organizations/unit-323541a7-5fc8-49e5-a33c-4b50bed69d56/admin",
-            "/equilibrium-admin",
-            "/lost-horizon-admin",
-            "/organizations/unit-anyuunt-thanks/member",
-            "/organizations/unit-anyuunt-thanks/admin",
-            "/organizations/unit-02610669-ce6f-4004-a9bb-304243eaf8f4/member",
-            "/organizations/unit-16c4f8fd-0dd9-409c-a95a-23f22aabffc1/member",
-            "/organizations/unit-46be75b1-e27b-4991-bd8b-522e1fbc6c4f/member",
-            "/organizations/unit-323541a7-5fc8-49e5-a33c-4b50bed69d56/member",
-            "/organizations/unit-c1be7965-c654-4537-b9b6-b403f4067e87/member",
-            "/spawner-site-admin",
-            "/spawner-unit-553-033734cf-697d-48dd-abdc-341ebcbcc5c1",
-            "/applications/pegasus/unit-46be75b1-e27b-4991-bd8b-522e1fbc6c4f/user",
-            "/applications/pegasus/unit-02610669-ce6f-4004-a9bb-304243eaf8f4/user",
-            "/applications/pegasus/unit-323541a7-5fc8-49e5-a33c-4b50bed69d56/user",
-            "/applications/pegasus/unit-f4990bd4-7b94-4953-8942-14a7da742a6a/user",
-            "/applications/pegasus/unit-16c4f8fd-0dd9-409c-a95a-23f22aabffc1/user",
-            "/applications/testing/unit-c1be7965-c654-4537-b9b6-b403f4067e87/user",
-            "/standalone/nope1/user",
-            "/standalone/nope2/user",
-            "/standalone/nope51/admin",
-            "/standalone/nope51/user",
-            "/applications/pegasus/app-admin",
-            "/applications/yarp/app-admin",
-            "/applications/testing/app-admin",
-        ];
+        const allUserGroups = userData.userInfo?.groups ?? [];
 
         // Grab the route's group auth config
         const groupAuthConfig: GroupAuthConfig = {
@@ -249,12 +214,19 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             // Check if the user has org-wide admin access
             if (groupAuthConfig.adminGroups?.orgAdmin !== undefined &&
                 userGroups.organizations[UserGroupPermissionKey]?.has(groupAuthConfig.adminGroups.orgAdmin) === true) {
+                this.logger?.debug(`User has org-wide admin access`);
                 return true;
             }
 
             // Check if the user has access to the specified organization
             // (i.e. check if a member has ANY permission in a specific organization)
-            return (userGroups.organizations[org]?.size ?? 0) > 0;
+            if ((userGroups.organizations[org]?.size ?? 0) > 0) {
+                this.logger?.debug(`User has org access via a valid (any) user permission for ${org}`);
+                return true;
+            } else {
+                this.logger?.debug(`User does not have org access for ${org}`);
+                return true;
+            }
         }
 
         const hasAppPermission = (permission: string, appConstraint: string, orgConstraint: string | undefined): boolean => {
@@ -273,7 +245,10 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             const appGroups = regAppGroups ?? standAloneAppGroups;
 
             // Determine if the user has any application permissions period
-            if (appGroups === undefined) return false;
+            if (appGroups === undefined) {
+                this.logger?.debug(`User does not have any app permissions for this application`);
+                return false;
+            }
 
             // Record if this is a standalone app
             const isStandAloneApp = (regAppGroups === undefined);
@@ -286,21 +261,29 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             if (groupAuthConfig.adminGroups?.appAdmin !== undefined
                 && appWidePermissions.has(groupAuthConfig.adminGroups.appAdmin)) {
                 kccUserGroupAuthData.appId = appConstraint;
+                this.logger?.debug(`User has app admin permission`);
                 return true;
             }
 
             // Check if the user has the required app-wide permission
-            const hasAppWidePermission = this.hasPermission(appWidePermissions, permission, mappedAppInheritanceTree);
-            if (hasAppWidePermission) {
+            const hasRequiredAppWidePermission = this.hasPermission(appWidePermissions, permission, mappedAppInheritanceTree);
+            if (hasRequiredAppWidePermission) {
                 kccUserGroupAuthData.appId = appConstraint;
                 return true;
             }
 
             // Check if we require an admin
-            if (groupAuthConfig.requireAdmin === true) return false;
+            if (groupAuthConfig.requireAdmin === true) {
+                this.logger?.debug(`Route requires admin, but user is not an application admin`);
+                return false;
+            }
 
             // If this is a standalone app, there is no org subgroup to check
-            if (isStandAloneApp) return false;
+            // (a user would have to have an "app-wide" permission checked above)
+            if (isStandAloneApp) {
+                this.logger?.debug(`User does not have required permission standalone application`);
+                return false;
+            }
 
             // Update app group type because typescript is not smart enough to do it on its own
             Narrow<UserGroups["applications"][string]>(appGroups);
@@ -310,21 +293,33 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             for (const [org, appOrgPermissions] of Object.entries(appGroups)) {
 
                 // Check if there is an org constraint and this org does not match
-                if (orgConstraint !== undefined && orgConstraint !== org) continue;
+                if (orgConstraint !== undefined && orgConstraint !== org) {
+                    this.logger?.debug(`User has app permission (may not be the required permission) for org different than required by org constraint`);
+                    continue;
+                };
 
                 // Check if the user has access to the constrained org
-                if (!hasOrgAccess(org)) continue;
+                if (!hasOrgAccess(org)) {
+                    this.logger?.debug(`User has app permission via org, but not access to org "${org}"`);
+                    continue;
+                }
 
                 // Check if the user has the required app permission for the specific org
-                if (!this.hasPermission(appOrgPermissions, permission, mappedAppInheritanceTree)) continue;
+                if (!this.hasPermission(appOrgPermissions, permission, mappedAppInheritanceTree)) {
+                    this.logger?.debug(`User has access to org "${org}", but not required permission to app "${permission}"`);
+                    continue;
+                }
 
                 // Has org access and app permission for this organization
                 kccUserGroupAuthData.appId = appConstraint;
                 kccUserGroupAuthData.orgId = org;
+
+                this.logger?.debug(`User has required permission in app and access to org`);
                 return true;
             }
 
             // No match
+            this.logger?.debug(`User does not have application permission`);
             return false;
         }
 

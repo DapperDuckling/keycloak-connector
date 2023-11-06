@@ -47,13 +47,13 @@ const {registerAuthPlugin} = await keycloakConnectorExpress(app, {
 });
 
 await groupAuthExpress(app, registerAuthPlugin, {
-    app: 'my-cool-app'
+    app: 'pegasus'
 });
 
 const router = express.Router();
 
 // Public route
-router.get('/', groupAuth('tasty'), groupAuth('tasty'), (req, res) => {
+router.get('/', groupAuth('user'), (req, res) => {
     // Send the response
     res.send({ hello: 'world1' });
 });
