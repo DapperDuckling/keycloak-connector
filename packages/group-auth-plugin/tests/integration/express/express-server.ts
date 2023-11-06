@@ -1,10 +1,15 @@
-import express from 'express';
+// /// <reference path="../../../src/global.d.ts" />
+import './dot-env.js'; // Must be the first import
+import express, {type Request} from 'express';
 import {keycloakConnectorExpress} from "keycloak-connector-server";
 import cookieParser from "cookie-parser";
 import {RedisClusterProvider} from "keycloak-connector-cluster-redis";
 import {default as logger} from "pino-http";
 import {clusterKeyProvider} from "keycloak-connector-server";
-import {groupAuth} from "keycloak-connector-group-auth-plugin/express";
+import {groupAuth, groupAuthExpress} from "keycloak-connector-group-auth-plugin/express";
+
+// const test: Request = {}
+// test.
 
 const loggerHttp = logger.default({
     level: "debug",
@@ -30,7 +35,7 @@ const clusterProvider = new RedisClusterProvider({
 });
 
 // Initialize the keycloak connector
-const {lock} = await keycloakConnectorExpress(app, {
+const {lock, registerAuthPlugin} = await keycloakConnectorExpress(app, {
     serverOrigin: `http://localhost:3005`,
     authServerUrl: 'http://localhost:8080/',
     realm: 'local-dev',
@@ -39,6 +44,10 @@ const {lock} = await keycloakConnectorExpress(app, {
     keyProvider: clusterKeyProvider,
     pinoLogger: loggerHttp.logger,
     fetchUserInfo: true,
+});
+
+await groupAuthExpress(registerAuthPlugin, {
+    app: 'my-cool-app'
 });
 
 const router = express.Router();

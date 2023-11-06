@@ -32,10 +32,10 @@ export type GroupAuthConfig = {
 
 // export type GroupAuthData = ReturnType<GroupAuthPlugin['exposedEndpoints']> & {
 export type GroupAuthData = {
-    superAdmin: boolean | null,
     appId: string | null,
-    standalone: boolean | null,
     orgId: string | null,
+    standalone: boolean | null,
+    superAdmin: boolean | null,
     debugInfo: Record<string, any>
 }
 

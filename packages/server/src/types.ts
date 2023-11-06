@@ -12,6 +12,7 @@ import type {TokenSetParameters} from "openid-client";
 import type {UserinfoResponse} from "openid-client";
 import {UserInfoCache} from "./cache-adapters/index.js";
 import type {KeycloakConnector} from "./keycloak-connector.js";
+import type {KeycloakConnectorServer} from "./global.js";
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -164,7 +165,10 @@ export enum RouteEnum {
 
 export type Cookies = { [cookieName: string]: string | undefined };
 
-export interface ConnectorRequest<KcRouteConfig extends object = Record<string, unknown>, KcClaims extends object = Record<string, unknown>> {
+export interface ConnectorRequest<
+    KcRouteConfig extends object = Record<string, unknown>,
+    KcClaims extends object = Record<string, unknown>
+> extends KeycloakConnectorServer.ConnectorRequest {
     origin?: string;
     url: string;
     urlParams: Record<string, string>;

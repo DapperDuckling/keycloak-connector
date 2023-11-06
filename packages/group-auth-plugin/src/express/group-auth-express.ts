@@ -9,6 +9,8 @@ export const groupAuth = (...args: Parameters<typeof groupAuthOriginal>): Reques
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     return async (req, res, next) => {
+        // must check that the group auth plugin is even registered.
+
         //todo: handle request
 
         // @ts-ignore

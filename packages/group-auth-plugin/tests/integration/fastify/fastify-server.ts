@@ -1,11 +1,11 @@
 import './dot-env.js'; // Must be the first import
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
-import {fastifyStatic} from "@fastify/static";
+import {default as fastifyStatic} from "@fastify/static";
 import * as path from "path";
 import {keycloakConnectorFastify} from "keycloak-connector-server";
 import {routes} from "./routes.js";
-import {groupAuthFastify} from "keycloak-connector-group-auth-plugin";
+import {groupAuth, groupAuthFastify} from "keycloak-connector-group-auth-plugin/fastify";
 
 // Configure fastify
 const fastify = Fastify({

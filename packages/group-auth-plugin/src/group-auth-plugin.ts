@@ -19,6 +19,7 @@ import {UserGroupPermissionKey} from "./types.js";
 import {depthFirstSearch} from "./helpers/search-algos.js";
 import {Narrow} from "./helpers/utils.js";
 import {GroupAuthConfigDefaults} from "./helpers/defaults.js";
+import type { Request } from "express-serve-static-core";
 
 export class GroupAuthPlugin extends AbstractAuthPlugin {
     protected readonly _internalConfig: AuthPluginInternalConfig = {
@@ -89,9 +90,10 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         connectorRequest.kccUserGroupAuthData = {
             appId: null,
             orgId: null,
-            groups: null,
+            standalone: null,
+            superAdmin: null,
             debugInfo: {},
-            ...this.exposedEndpoints(),
+            ...this.exposedEndpoints()
         }
 
         logger?.debug(`Group Auth plugin decorating response`);

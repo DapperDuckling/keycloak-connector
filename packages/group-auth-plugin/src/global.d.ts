@@ -1,4 +1,4 @@
-import {GroupAuthData} from "./fastify/index.js";
+import {GroupAuthData} from "./types.js";
 
 declare module 'keycloak-connector-server' {
     interface ConnectorRequest {
