@@ -1,5 +1,5 @@
 {
-  "name": "keycloak-connector",
+  "name": "@dapperduckling/keycloak-connector",
   "private": true,
   "type": "module",
   "workspaces": [

@@ -1,5 +1,5 @@
 {
-  "name": "keycloak-connector-cluster-redis",
+  "name": "@dapperduckling/keycloak-connector-cluster-redis",
   "version": "0.0.1",
   "description": "Provides cluster communications through Redis, enabling synchronized scaling without interruption to security nor user experience.",
   "keywords": [
