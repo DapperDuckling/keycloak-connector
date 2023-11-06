@@ -4,12 +4,12 @@ import cookie from '@fastify/cookie';
 import {fastifyStatic} from "@fastify/static";
 import * as path from "path";
 
-import {keycloakConnectorFastify} from "keycloak-connector-server";
+import {keycloakConnectorFastify} from "@dapperduckling/keycloak-connector-server";
 import {routes} from "./routes.js";
 import type {Logger} from "pino";
-import {clusterKeyProvider} from "keycloak-connector-server";
+import {clusterKeyProvider} from "@dapperduckling/keycloak-connector-server";
 import {RedisClusterProvider} from "keycloak-connector-cluster-redis";
-import type {ClusterJobMessage, RequestUpdateSystemJwksMsg, SubscriberListener} from "keycloak-connector-server";
+import type {ClusterJobMessage, RequestUpdateSystemJwksMsg, SubscriberListener} from "@dapperduckling/keycloak-connector-server";
 
 // Configure fastify
 const fastify = Fastify({

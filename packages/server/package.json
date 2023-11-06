@@ -36,7 +36,7 @@
     "@types/fastify-static": "^2.2.1",
     "@types/jest": "^29.5.1",
     "cpy": "^10.1.0",
-    "keycloak-connector-cluster-redis": "file:../cluster-redis",
+    "@dapperduckling/keycloak-connector-cluster-redis": "file:../cluster-redis",
     "nodemon": "^3.0.1",
     "pino-http": "^8.4.0",
     "readline-sync": "^1.4.10",

@@ -7,8 +7,8 @@ import type {
     NewJwksAvailableMsg,
     PendingJwksUpdateMsg, RequestActiveKey,
     RequestUpdateSystemJwksMsg, ServerActiveKey
-} from "keycloak-connector-server";
-import {AbstractKeyProvider} from "keycloak-connector-server";
+} from "@dapperduckling/keycloak-connector-server";
+import {AbstractKeyProvider} from "@dapperduckling/keycloak-connector-server";
 
 export const numberOfServers = {
     express: 1,

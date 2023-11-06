@@ -1,5 +1,5 @@
 import type {GroupAuthConfig, GroupAuthRouteConfig} from "../types.js";
-import {AuthPluginManager, lock} from "keycloak-connector-server";
+import {AuthPluginManager, lock} from "@dapperduckling/keycloak-connector-server";
 import {GroupAuthPlugin} from "../group-auth-plugin.js";
 import type {RequestHandler} from "express-serve-static-core";
 import {groupAuth as groupAuthOriginal} from "../group-auth-builder.js";

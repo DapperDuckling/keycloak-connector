@@ -1,4 +1,4 @@
-import type {ClusterConfig} from "keycloak-connector-server";
+import type {ClusterConfig} from "@dapperduckling/keycloak-connector-server";
 import type {ClusterNode, ClusterOptions, RedisOptions} from "ioredis";
 import Redis, {Cluster} from "ioredis";
 

@@ -2,8 +2,8 @@ import type {
     AuthPluginInternalConfig,
     AuthPluginOnRegisterConfig,
     UserData
-} from "keycloak-connector-server";
-import {AbstractAuthPlugin, AuthPluginOverride} from "keycloak-connector-server";
+} from "@dapperduckling/keycloak-connector-server";
+import {AbstractAuthPlugin, AuthPluginOverride} from "@dapperduckling/keycloak-connector-server";
 import type {Logger} from "pino";
 import type {
     GroupAuthConfig,

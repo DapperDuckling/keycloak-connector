@@ -37,7 +37,7 @@
     "cpy": "^10.1.0"
   },
   "dependencies": {
-    "keycloak-connector-server": "file:../server"
+    "@dapperduckling/keycloak-connector-server": "file:../server"
   },
   "publishConfig": {
     "access": "public"

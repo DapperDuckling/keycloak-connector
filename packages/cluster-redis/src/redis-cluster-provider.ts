@@ -1,5 +1,5 @@
-import type {Listener, LockOptions} from "keycloak-connector-server";
-import {AbstractClusterProvider, BaseClusterEvents} from "keycloak-connector-server";
+import type {Listener, LockOptions} from "@dapperduckling/keycloak-connector-server";
+import {AbstractClusterProvider, BaseClusterEvents} from "@dapperduckling/keycloak-connector-server";
 import {webcrypto} from "crypto";
 import * as fs from "fs";
 import {fileURLToPath} from 'url';

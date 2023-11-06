@@ -3,7 +3,7 @@ import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import {default as fastifyStatic} from "@fastify/static";
 import * as path from "path";
-import {keycloakConnectorFastify} from "keycloak-connector-server";
+import {keycloakConnectorFastify} from "@dapperduckling/keycloak-connector-server";
 import {routes} from "./routes.js";
 import {groupAuth, groupAuthFastify} from "keycloak-connector-group-auth-plugin/fastify";
 

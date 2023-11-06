@@ -1,4 +1,4 @@
-import type {ConnectorRequest as ConnectorRequestOriginal} from "keycloak-connector-server";
+import type {ConnectorRequest as ConnectorRequestOriginal} from "@dapperduckling/keycloak-connector-server";
 
 export type InheritanceTree = Record<string, string[] | "*">;
 export type MappedInheritanceTree = Record<string, Set<string> | "*">;

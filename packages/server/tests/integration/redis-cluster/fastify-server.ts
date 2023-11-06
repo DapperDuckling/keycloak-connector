@@ -3,10 +3,10 @@ import type {FastifyInstance} from 'fastify';
 import cookie from '@fastify/cookie';
 import {fastifyStatic} from "@fastify/static";
 import * as path from "path";
-import {keycloakConnectorFastify} from "keycloak-connector-server";
+import {keycloakConnectorFastify} from "@dapperduckling/keycloak-connector-server";
 import {fastifyRoutes} from "./fastify-routes.js";
 import type {Logger} from "pino";
-import {clusterKeyProvider} from "keycloak-connector-server";
+import {clusterKeyProvider} from "@dapperduckling/keycloak-connector-server";
 import {RedisClusterProvider} from "keycloak-connector-cluster-redis";
 import {loggerOpts} from "./main.test.js";
 

@@ -1,12 +1,12 @@
 import express from 'express';
-import {keycloakConnectorExpress} from "keycloak-connector-server";
+import {keycloakConnectorExpress} from "@dapperduckling/keycloak-connector-server";
 import cookieParser from "cookie-parser";
 import type {Express} from "express-serve-static-core";
 import {RedisClusterProvider} from "keycloak-connector-cluster-redis";
 import logger from "pino-http";
-import {clusterKeyProvider} from "keycloak-connector-server";
+import {clusterKeyProvider} from "@dapperduckling/keycloak-connector-server";
 import {loggerOpts} from "./main.test.js";
-import {lock} from "keycloak-connector-server";
+import {lock} from "@dapperduckling/keycloak-connector-server";
 
 export async function makeExpressServer(port: number) {
     const loggerOptsCloned = structuredClone(loggerOpts);
