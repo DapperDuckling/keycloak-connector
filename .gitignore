@@ -31,3 +31,5 @@ sampleTrainingData.ts
 /.idea/keycloak-connector.iml
 /.idea/vcs.xml
 /.idea/workspace.xml
+
+/*.log
