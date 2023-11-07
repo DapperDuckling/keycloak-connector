@@ -8,7 +8,61 @@ import type {
     PendingJwksUpdateMsg, RequestActiveKey,
     RequestUpdateSystemJwksMsg, ServerActiveKey
 } from "@dapperduckling/keycloak-connector-server";
-import {AbstractKeyProvider} from "@dapperduckling/keycloak-connector-server";
+import {AbstractKeyProvider, isDev} from "@dapperduckling/keycloak-connector-server";
+import {fromNodeProviderChain} from "@aws-sdk/credential-providers";
+import { ElastiCacheClient } from '@aws-sdk/client-elasticache';
+
+import pino from "pino";
+import {SignatureV4} from "@smithy/signature-v4";
+import type {HttpRequest} from "@aws-sdk/types";
+import {Hash} from "@aws-sdk/hash-node";
+import { formatUrl } from '@aws-sdk/util-format-url';
+
+// Use AWS SDK to get temporary credentials
+const awsCredentialProvider = fromNodeProviderChain({
+    clientConfig: {
+        ...process.env["AWS_REGION"] && {region: process.env["AWS_REGION"]},
+    },
+});
+
+const signer = new SignatureV4({
+    service: 'elasticache',
+    region: 'us-gov-west-1',
+    credentials: awsCredentialProvider,
+    sha256: Hash.bind(null, 'sha256'),
+});
+
+const request: HttpRequest = {
+    method: 'GET',
+    protocol: 'http:',
+    hostname: `keycloak-connector-aws-redis-channel-v5-001.keycloak-connector-aws-redis-channel-v5.6ufjp6.usgw1.cache.amazonaws.com`,
+    port: 6379,
+    path: '/',
+    query: {
+        Action: 'connect',
+        User: 'arm-dev',
+    },
+    headers: {
+        host: `keycloak-connector-aws-redis-channel-v5-001.keycloak-connector-aws-redis-channel-v5.6ufjp6.usgw1.cache.amazonaws.com`,
+    },
+}
+
+const presigned = await signer.presign(request);
+const format = formatUrl(presigned).replace(`http://`, '');
+
+
+export const redisCredentialProvider = async () => {
+    try {
+        // const credentials = await awsCredentialProvider();
+        return {
+            // password: credentials.secretAccessKey,
+            password: format,
+        }
+    } catch (e) {
+        console.error("Error getting AWS credentials", e);
+        return undefined;
+    }
+}
 
 export const numberOfServers = {
     express: 5,
@@ -19,11 +73,22 @@ export const numberOfServers = {
 const prefix = process.env["CLUSTER_REDIS_PREFIX"];
 if (prefix === undefined) throw new Error('No prefix in env variables');
 
+export const logger = pino({
+    level: isDev() ? 'debug' : 'info',
+    transport: {
+        target: 'pino-pretty',
+        options: {
+            translateTime: 'UTC:yyyy-mm-dd HH:MM:ss.l o',
+        }
+    }
+});
+
 const mainRedisClusterProvider = await redisClusterProvider({
-    prefix: prefix
+    prefix: prefix,
+    credentialProvider: redisCredentialProvider,
+    pinoLogger: logger,
 });
 await mainRedisClusterProvider.connectOrThrow();
-console.log("Deleting old keys");
 const deleteResult = await mainRedisClusterProvider.remove('key-provider:connector-keys');
 
 // Build the prompt loop promise

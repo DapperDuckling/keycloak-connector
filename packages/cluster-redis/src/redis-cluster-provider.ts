@@ -1,5 +1,10 @@
 import type {Listener, LockOptions} from "@dapperduckling/keycloak-connector-server";
-import {AbstractClusterProvider, BaseClusterEvents} from "@dapperduckling/keycloak-connector-server";
+import {
+    AbstractClusterProvider,
+    BaseClusterEvents,
+    deferredFactory,
+    isDev, promiseWaitTimeout
+} from "@dapperduckling/keycloak-connector-server";
 import {webcrypto} from "crypto";
 import * as fs from "fs";
 import {fileURLToPath} from 'url';
@@ -26,6 +31,10 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
     private readonly uniqueClientId: string;
     private readonly subscriptionListeners = new EventEmitter();
     private readonly SUB_EVENT_PREFIX = `-`; // Used when sending events to the subscription event emitter to ensure an "error" is never sent
+    private readonly CREDENTIALS_UPDATE_INTERVAL = 60;
+    private readonly MAX_CREDENTIALS_WAIT = 60000;
+    private updatingCredentials: Promise<undefined> | undefined;
+
 
     protected constructor(config: RedisClusterConfig) {
         super(config);
@@ -130,8 +139,13 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
     private generateDefaults(config: RedisClusterConfig) {
 
+        // Extract configuration information from environment variables
+        const username = (!isDev()) ? process.env["CLUSTER_REDIS_USERNAME"] : process.env["CLUSTER_REDIS_USERNAME_DEV"] ?? process.env["CLUSTER_REDIS_USERNAME"];
+        const password = (!isDev()) ? process.env["CLUSTER_REDIS_PASSWORD"] : process.env["CLUSTER_REDIS_PASSWORD_DEV"] ?? process.env["CLUSTER_REDIS_PASSWORD"];
+        const prefix = (!isDev()) ? process.env["CLUSTER_REDIS_PREFIX"] : process.env["CLUSTER_REDIS_PREFIX_DEV"] ?? process.env["CLUSTER_REDIS_PREFIX"];
+
         // Set the prefix variable
-        if (process.env["CLUSTER_REDIS_PREFIX"]) config.prefix = process.env["CLUSTER_REDIS_PREFIX"];
+        if (prefix) config.prefix ??= prefix;
 
         const defaultHostOption = {
             ...process.env["CLUSTER_REDIS_HOST"] && {host: process.env["CLUSTER_REDIS_HOST"]},
@@ -140,22 +154,33 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
             ...config.redisOptions?.port && {port: config.redisOptions.port}
         }
 
+        // Add a default update interval
+        config.credentialUpdateIntervalMins ??= this.CREDENTIALS_UPDATE_INTERVAL;
+
         // Create a host options if not already declared
         config.hostOptions ??= [defaultHostOption];
 
         config.redisOptions = {
             ...defaultHostOption,
-            ...process.env["CLUSTER_REDIS_USERNAME"] && {username: process.env["CLUSTER_REDIS_USERNAME"]},
-            ...process.env["CLUSTER_REDIS_PASSWORD"] && {password: process.env["CLUSTER_REDIS_PASSWORD"]},
+            ...username && {username: username},
+            ...password && {password: password},
             connectionName: process.env["CLUSTER_REDIS_CLIENT_NAME"] ?? `keycloak-connector-client-${config.prefix}${this.uniqueClientId}`,
             reconnectOnError: (err) => {
-                // Reconnect on READONLY state to handle AWS ElastiCache primary replica changes
-                const targetError = "READONLY";
-                return err.message.includes(targetError);
+                // Attempt to update credentials
+                // Dev note: This is an async function, but there is no good way to make
+                //  ioredis wait for new credentials to arrive. We'll just expect to keep failing
+                //  until the credentials are updated.
+                void this.updateCredentials();
+
+                this.clusterConfig.pinoLogger?.error(`Redis connection error: ${err.message}`);
+
+                return true;
+                // // Reconnect on READONLY state to handle AWS ElastiCache primary replica changes
+                // const targetError = "READONLY";
+                // return err.message.includes(targetError);
             },
-            connectTimeout: 60, // An initial connection should not take more than one minute
             ...!(process.env["CLUSTER_REDIS_DANGEROUSLY_DISABLE_TLS"]?.toLowerCase() === "true" || config.DANGEROUS_allowUnsecureConnectionToRedisServer) && {tls: {
-                    ...process.env["CLUSTER_REDIS_TLS_SNI"] && {servername: process.env["CLUSTER_REDIS_TLS_SNI"]},
+                ...process.env["CLUSTER_REDIS_TLS_SNI"] && {servername: process.env["CLUSTER_REDIS_TLS_SNI"]},
             }},
             ...config.prefix && {keyPrefix: config.prefix},
             ...config.redisOptions,
@@ -165,30 +190,100 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
         return config;
     }
 
+    private queueCredentialsUpdate() {
+        const updateIntervalMins = this.clusterConfig.credentialUpdateIntervalMins;
+        if (updateIntervalMins === undefined || this.clusterConfig.credentialProvider === undefined) return;
+
+        // Queue the next update
+        this.clusterConfig.pinoLogger?.info(`Queuing credential update in ${updateIntervalMins} minutes`);
+
+        setTimeout(
+            async () => {
+                await this.updateCredentials();
+                await this.reAuthClients();
+                this.queueCredentialsUpdate();
+            },
+            updateIntervalMins * 60 * 1000
+        );
+    }
+
+    private async reAuthClients() {
+
+        const redisOptions = this.clusterConfig.redisOptions;
+        if (redisOptions?.username === undefined || redisOptions?.password === undefined) return;
+
+        this.clusterConfig.pinoLogger?.info(`Re-authenticating clients`);
+
+        try {
+            await this.client.auth(redisOptions.username, redisOptions.password);
+            await this.subscriber.auth(redisOptions.username, redisOptions.password);
+            this.clusterConfig.pinoLogger?.info(`Finished re-authenticating clients`);
+        } catch (e) {
+            this.clusterConfig.pinoLogger?.info(`Error re-authenticating clients`);
+        }
+    }
+
     private async updateCredentials() {
-        // Update the credentials
-        const credentials = await this.clusterConfig.credentialProvider?.();
 
-        // Check if we received any credentials
-        if (credentials === undefined) return;
+        // Check for a credential provider
+        if (this.clusterConfig.credentialProvider === undefined) return;
 
-        let clientOptions;
-        if (this.isClientClusterMode(this.client)) {
-            clientOptions = this.client.options.redisOptions;
-        } else {
-            clientOptions = this.client.options;
-        }
+        // Check if we are already updating credentials
+        if (this.updatingCredentials !== undefined) return this.updatingCredentials;
 
-        // Update the redis client options
-        if (clientOptions) {
-            clientOptions.username = credentials.username;
-            clientOptions.password = credentials.password;
-        }
+        this.clusterConfig.pinoLogger?.info(`Updating credentials`);
 
-        // Update the config options (not required, but will prevent confusion)
-        if (this.clusterConfig.redisOptions) {
-            this.clusterConfig.redisOptions.username = credentials.username;
-            this.clusterConfig.redisOptions.password = credentials.password;
+        // Obtain a "lock"
+        const lockPromise = deferredFactory<undefined>();
+        this.updatingCredentials = lockPromise.promise;
+
+        try {
+            // Grab new credentials
+            const credentialPromise = this.clusterConfig.credentialProvider();
+
+            // Don't wait too long for the result
+            const credentials = await promiseWaitTimeout(credentialPromise, this.MAX_CREDENTIALS_WAIT);
+
+            // Check if we received any credentials (and we have at least one record in the resultant object)
+            if (credentials === undefined || Object.values(credentials).every(value => value === undefined)) {
+                this.clusterConfig.pinoLogger?.error(`Credential provider provided no credentials to Redis Cluster Provider`);
+                return;
+            }
+
+            // Create an array of all the options objects we need to update
+            const optionsToUpdate = [this.clusterConfig.redisOptions];
+
+            // Grab the redis client options
+            if (this.isClientClusterMode(this.client)) {
+                optionsToUpdate.push(this.client.options.redisOptions);
+            } else {
+                optionsToUpdate.push(this.client.options);
+            }
+
+            // Grab the redis subscriber options
+            if (this.isClientClusterMode(this.subscriber)) {
+                optionsToUpdate.push(this.subscriber.options.redisOptions);
+            } else {
+                optionsToUpdate.push(this.subscriber.options);
+            }
+
+            // Update all options
+            optionsToUpdate.forEach(options => {
+                if (options === undefined) return;
+                if (credentials.username) options.username = credentials.username;
+                if (credentials.password) options.password = credentials.password;
+            });
+
+            this.clusterConfig.pinoLogger?.info(`Finished updating credentials`);
+
+        } catch (e) {
+            this.clusterConfig.pinoLogger?.error(`Failed to update credentials`);
+            this.clusterConfig.pinoLogger?.error(e);
+
+        } finally {
+            // Release the updating credentials "lock"
+            lockPromise.resolve(undefined);
+            this.updatingCredentials = undefined;
         }
     }
 
@@ -252,7 +347,8 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
             await this.client.connect();
         } catch (e) {
             const errMsg = `Client failed to connect to redis cluster`;
-            this.clusterConfig.pinoLogger?.error(e, errMsg);
+            this.clusterConfig.pinoLogger?.error(e);
+            this.clusterConfig.pinoLogger?.error(errMsg);
             throw new Error(errMsg);
         }
 
@@ -260,7 +356,8 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
             await this.subscriber.connect();
         } catch (e) {
             const errMsg = `Subscriber failed to connect to redis cluster`;
-            this.clusterConfig.pinoLogger?.error(e, errMsg);
+            this.clusterConfig.pinoLogger?.error(e);
+            this.clusterConfig.pinoLogger?.error(errMsg);
             throw new Error(errMsg);
         }
 
@@ -456,6 +553,9 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
         // Update the credentials using a credential provider
         await redisClusterProvider.updateCredentials();
+
+        // Queue the credential updates
+        redisClusterProvider.queueCredentialsUpdate();
 
         // Return the new cluster provider
         return redisClusterProvider;

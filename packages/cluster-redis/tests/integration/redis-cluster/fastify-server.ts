@@ -9,6 +9,7 @@ import type {Logger} from "pino";
 import {clusterKeyProvider} from "@dapperduckling/keycloak-connector-server";
 import {redisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-redis";
 import {loggerOpts} from "./main.test.js";
+import { redisCredentialProvider } from './orchestrator.js';
 
 export async function makeFastifyServer(port: number) {
     const loggerOptsCloned = structuredClone(loggerOpts);
@@ -31,6 +32,7 @@ export async function makeFastifyServer(port: number) {
 
     const clusterProvider = await redisClusterProvider({
         pinoLogger: fastify.log as Logger,
+        credentialProvider: redisCredentialProvider,
     });
 
     // Initialize the keycloak-connector

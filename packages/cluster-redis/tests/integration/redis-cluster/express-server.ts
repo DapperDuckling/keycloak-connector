@@ -7,6 +7,7 @@ import {redisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-r
 import {clusterKeyProvider} from "@dapperduckling/keycloak-connector-server";
 import {loggerOpts} from "./main.test.js";
 import {lock} from "@dapperduckling/keycloak-connector-server";
+import {redisCredentialProvider} from "./orchestrator.js";
 
 export async function makeExpressServer(port: number) {
     const loggerOptsCloned = structuredClone(loggerOpts);
@@ -24,6 +25,7 @@ export async function makeExpressServer(port: number) {
 
     const clusterProvider = await redisClusterProvider({
         pinoLogger: loggerHttp.logger,
+        credentialProvider: redisCredentialProvider,
     });
 
     // Initialize the keycloak connector

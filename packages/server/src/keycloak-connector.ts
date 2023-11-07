@@ -1218,17 +1218,17 @@ export class KeycloakConnector<Server extends SupportedServers> {
         if (config.pinoLogger) config.pinoLogger = config.pinoLogger.child({"Source": "KeycloakConnector"});
 
         // Check if disabling jwt authentication
+        const missingClientSecret = config.oidcClientMetadata.client_secret === undefined || config.oidcClientMetadata.client_secret === EMPTY_STRING;
         if (config.DANGEROUS_disableJwtClientAuthentication) {
             // Update the config to disable jwt auth
             config.oidcClientMetadata.token_endpoint_auth_method = 'client_secret_post';
 
             // Check if there is a missing client secret when we need one
-            if (config.oidcClientMetadata.client_secret === EMPTY_STRING) throw new Error(`Client secret not specified or environment variable "KC_CLIENT_SECRET" not found`);
+            if (missingClientSecret) throw new Error(`Client secret not specified or environment variable "KC_CLIENT_SECRET" not found`);
 
-        } else if (config.oidcClientMetadata.client_secret !== EMPTY_STRING) {
-            throw new Error(`"Client secret" has no purpose in production. Keycloak Connector WILL NOT start until removed.`);
+        } else if (!missingClientSecret) {
+            throw new Error(`"Client secret" has no purpose with JWT client authentication enabled (production default). Keycloak Connector WILL NOT start until removed.`);
         }
-
 
         // Check for invalid client metadata
         if (config.oidcClientMetadata.client_id === EMPTY_STRING) throw new Error(`Client ID not specified or environment variable "KC_CLIENT_ID" not found`);

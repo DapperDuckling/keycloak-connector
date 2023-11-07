@@ -42,7 +42,7 @@ const fastify = Fastify({
 1. Create new users (under "User management")
    - User settings: \<see below>
      - Recommend creating `<app name>-prod` & `<app name>-dev` accounts
-   - Authentication mode: IAM authentication (todo: determine how this works)
+   - Authentication mode: ~~IAM authentication~~ (not yet implemented by AWS SDKs), use password
    - Access string: \<see below>
      - To restrict access to a specific of commands & partition data between users, we'll build a unique authentication string.
      - Template (fill in blanks): `on clearselectors resetkeys ~<app name>-<prod|dev>:* resetchannels &<app name>-<prod|dev>:* -@all +@FAST`
