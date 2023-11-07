@@ -7,7 +7,7 @@ import {keycloakConnectorFastify} from "@dapperduckling/keycloak-connector-serve
 import {fastifyRoutes} from "./fastify-routes.js";
 import type {Logger} from "pino";
 import {clusterKeyProvider} from "@dapperduckling/keycloak-connector-server";
-import {RedisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-redis";
+import {redisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-redis";
 import {loggerOpts} from "./main.test.js";
 
 export async function makeFastifyServer(port: number) {
@@ -29,7 +29,7 @@ export async function makeFastifyServer(port: number) {
         prefix: '/public/', // optional: default '/'
     });
 
-    const clusterProvider = new RedisClusterProvider({
+    const clusterProvider = await redisClusterProvider({
         pinoLogger: fastify.log as Logger,
     });
 

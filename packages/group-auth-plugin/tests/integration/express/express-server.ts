@@ -2,7 +2,7 @@ import './dot-env.js'; // Must be the first import
 import express, {type Request} from 'express';
 import {keycloakConnectorExpress, lock, clusterKeyProvider} from "@dapperduckling/keycloak-connector-server";
 import cookieParser from "cookie-parser";
-import {RedisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-redis";
+import {redisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-redis";
 import {default as logger} from "pino-http";
 import {groupAuth, groupAuthExpress} from "@dapperduckling/keycloak-connector-group-auth-plugin/express";
 
@@ -25,7 +25,7 @@ app.use(loggerHttp);
 // Register the cookie parser
 app.use(cookieParser());
 
-const clusterProvider = new RedisClusterProvider({
+const clusterProvider = await redisClusterProvider({
     pinoLogger: loggerHttp.logger,
 });
 

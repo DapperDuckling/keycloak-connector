@@ -1,7 +1,7 @@
 import readline from "node:readline/promises";
 import {stdin as input, stdout as output} from "node:process";
 import process from "process";
-import {RedisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-redis";
+import {redisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-redis";
 import type {
     CancelPendingJwksUpdateMsg, ClusterMessage,
     NewJwksAvailableMsg,
@@ -19,7 +19,7 @@ export const numberOfServers = {
 const prefix = process.env["CLUSTER_REDIS_PREFIX"];
 if (prefix === undefined) throw new Error('No prefix in env variables');
 
-const mainRedisClusterProvider = new RedisClusterProvider({
+const mainRedisClusterProvider = await redisClusterProvider({
     prefix: prefix
 });
 await mainRedisClusterProvider.connectOrThrow();

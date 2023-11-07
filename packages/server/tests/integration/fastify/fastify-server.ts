@@ -7,7 +7,7 @@ import * as path from "path";
 import {keycloakConnectorFastify} from "@dapperduckling/keycloak-connector-server";
 import {routes} from "./routes.js";
 import type {Logger} from "pino";
-import {RedisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-redis";
+import {redisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-redis";
 
 // Configure fastify
 const fastify = Fastify({
@@ -56,7 +56,7 @@ await fastify.register(fastifyStatic, {
 });
 
 // // Create our cluster provider
-// const clusterProvider = new RedisClusterProvider({
+// const clusterProvider = await redisClusterProvider({
 //     pinoLogger: fastify.log as Logger,
 // });
 

@@ -6,6 +6,7 @@ import {numberOfServers, promptPromise} from "./orchestrator.js";
 import {sleep} from "@dapperduckling/keycloak-connector-server";
 import type {Express} from "express-serve-static-core";
 import type {FastifyInstance} from "fastify";
+import { fromNodeProviderChain } from "@aws-sdk/credential-providers";
 
 EventEmitter.setMaxListeners(10000);
 EventEmitter.defaultMaxListeners = 10000;
@@ -31,6 +32,14 @@ type BuildServerComponents = {
     makeServerPromise: MakeServerPromise
     startServerFactory: StartServerFactory
 }
+
+// Use AWS SDK to get temporary credentials
+const credProvider = fromNodeProviderChain({
+    clientConfig: {
+        ...process.env["AWS_REGION"] && {region: process.env["AWS_REGION"]}
+    },
+});
+
 
 function buildServer(port: number, serverType: string): BuildServerComponents {
     let makeServerPromise: MakeServerPromise;

@@ -2,7 +2,13 @@ import type {ClusterConfig} from "@dapperduckling/keycloak-connector-server";
 import type {ClusterNode, ClusterOptions, RedisOptions} from "ioredis";
 import Redis, {Cluster} from "ioredis";
 
+interface Credentials {
+    username: string,
+    password: string,
+}
+
 export interface BaseRedisConfig extends ClusterConfig {
+    credentialProvider?: () => Promise<Credentials | undefined>,
     hostOptions?: [ClusterNode, ...ClusterNode[]],
     redisOptions?: RedisOptions,
     prefix?: string,

@@ -13,7 +13,7 @@ import type {
 import {RedisClusterEvents} from "./types.js";
 import {EventEmitter} from "node:events";
 
-export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
+class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
     protected override clusterConfig: RedisClusterConfig;
     private readonly client: RedisClient;
@@ -27,8 +27,7 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
     private readonly subscriptionListeners = new EventEmitter();
     private readonly SUB_EVENT_PREFIX = `-`; // Used when sending events to the subscription event emitter to ensure an "error" is never sent
 
-    constructor(config?: RedisClusterConfig) {
-        config ??= {};
+    protected constructor(config: RedisClusterConfig) {
         super(config);
 
         // Generate a unique id for this client
@@ -164,6 +163,33 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
         }
 
         return config;
+    }
+
+    private async updateCredentials() {
+        // Update the credentials
+        const credentials = await this.clusterConfig.credentialProvider?.();
+
+        // Check if we received any credentials
+        if (credentials === undefined) return;
+
+        let clientOptions;
+        if (this.isClientClusterMode(this.client)) {
+            clientOptions = this.client.options.redisOptions;
+        } else {
+            clientOptions = this.client.options;
+        }
+
+        // Update the redis client options
+        if (clientOptions) {
+            clientOptions.username = credentials.username;
+            clientOptions.password = credentials.password;
+        }
+
+        // Update the config options (not required, but will prevent confusion)
+        if (this.clusterConfig.redisOptions) {
+            this.clusterConfig.redisOptions.username = credentials.username;
+            this.clusterConfig.redisOptions.password = credentials.password;
+        }
     }
 
     private ensureTlsConfig() {
@@ -423,4 +449,18 @@ export class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEv
 
         return (result !== null);
     }
+
+    static async init(config: RedisClusterConfig = {}) {
+        // Create a new instance of the cluster provider
+        const redisClusterProvider = new RedisClusterProvider(config);
+
+        // Update the credentials using a credential provider
+        await redisClusterProvider.updateCredentials();
+
+        // Return the new cluster provider
+        return redisClusterProvider;
+
+    }
 }
+
+export const redisClusterProvider = RedisClusterProvider.init;

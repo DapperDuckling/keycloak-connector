@@ -3,7 +3,7 @@ import {keycloakConnectorExpress} from "@dapperduckling/keycloak-connector-serve
 import cookieParser from "cookie-parser";
 import type {Express} from "express-serve-static-core";
 import logger from "pino-http";
-import {RedisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-redis";
+import {redisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-redis";
 import {clusterKeyProvider} from "@dapperduckling/keycloak-connector-server";
 import {loggerOpts} from "./main.test.js";
 import {lock} from "@dapperduckling/keycloak-connector-server";
@@ -22,7 +22,7 @@ export async function makeExpressServer(port: number) {
     // Register the cookie parser
     app.use(cookieParser());
 
-    const clusterProvider = new RedisClusterProvider({
+    const clusterProvider = await redisClusterProvider({
         pinoLogger: loggerHttp.logger,
     });
 

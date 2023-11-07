@@ -16,13 +16,14 @@ const fastify = Fastify({
 });
 ```
 
-### Redis on AWS ElastiCache Setup
+### Setup Redis on AWS ElastiCache
+##### STOP! If you're already using AWS ElastiCache, skip to [Authenticating each application](#authenticating-each-application)
 
 1. Create a new EC2 security group to link Redis to EC2 instances
    - Allow inbound connections on tcp/6379
 2. Create a new ElastiCache default user
-   - User Id: `<as desired>`
-   - User name: `default`
+   - User Id: `keycloak-connector-aws-redis-admin` (or any other)
+   - Username: `default` (do not change)
    - Authentication mode: `Password(s)`
    - Password 1: `<Use a 64 character or more password>`
    - Access string: `on ~* &* +@all`
@@ -33,18 +34,25 @@ const fastify = Fastify({
     - **Note:** Careful when selecting the size of the instance, the tiniest one probably works for now
     - Transit encryption mode: `required`
     - Access control: `user group access control list`
-    - User group: `<new group name>`
+    - User group: `keycloak-connector-aws-redis-channel` (or any other)
     - Add cluster to the new security group
 5. Add the security group to any EC2 instances you want to have access
 
 ### Authenticating each application
-1. Create a new user
-   - User settings: \<as desired>
+1. Create new users (under "User management")
+   - User settings: \<see below>
+     - Recommend creating `<app name>-prod` & `<app name>-dev` accounts
    - Authentication mode: IAM authentication (todo: determine how this works)
-   - Access string: \<read below>
+   - Access string: \<see below>
      - To restrict access to a specific of commands & partition data between users, we'll build a unique authentication string.
-     - Example: `on clearselectors resetkeys ~my-cool-app:* resetchannels &my-cool-app:* -@all +@FAST`
-     - The above allows read/write access to keys & pub/sub channels that match the `my-cool-app:*` glob and allows commands in the `FAST` category.
+     - Template (fill in blanks): `on clearselectors resetkeys ~<app name>-<prod|dev>:* resetchannels &<app name>-<prod|dev>:* -@all +@FAST`
+     - The above allows read/write access to keys & pub/sub channels that match the `my-cool-app-prod:*` glob and allows commands in the `FAST` category.
+       - Note: After submitting, the final access string will not have `clearselectors`, `resetkeys`, and `resetchannels`. These are directives to force clear permissions for existing sessions.
+2. Tie new users to the user group (under "User groups")
+   - Select `keycloak-connector-aws-redis-channel` (or your group)
+   - Modify
+   - Manage
+   - Enable the desired users
 
 ### Connecting through EC2 (bastion) instance
 1. Copy the endpoint url
