@@ -1,7 +1,6 @@
 import type {
     AuthPluginInternalConfig,
     AuthPluginOnRegisterConfig,
-    DecorateUserStatus,
     UserData
 } from "@dapperduckling/keycloak-connector-server";
 import {AbstractAuthPlugin, AuthPluginOverride} from "@dapperduckling/keycloak-connector-server";
