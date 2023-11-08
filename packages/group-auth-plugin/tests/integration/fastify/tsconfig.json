@@ -27,9 +27,9 @@
     "preserveConstEnums": true,
     "moduleResolution": "nodenext",
     "target": "es2022",
-    "types": ["node"],
+//    "types": ["node"],
 
-    "rootDir": "../" // test if this works
+//    "rootDir": "../" // test if this works
   },
   "exclude": [
     "node_modules",

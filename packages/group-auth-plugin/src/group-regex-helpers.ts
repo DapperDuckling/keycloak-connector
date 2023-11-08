@@ -1,4 +1,4 @@
-import {type GroupRegexHandlers, UserGroupPermissionKey, type UserGroups} from "./types.js";
+import {type GroupAuthConfig, type GroupRegexHandlers, UserGroupPermissionKey, type UserGroupsInternal} from "./types.js";
 import {Narrow} from "./helpers/utils.js";
 
 const groupRegexHandlers: GroupRegexHandlers = new Map();
@@ -39,7 +39,7 @@ groupRegexHandlers.set(
         // Check for an org id
         if (orgId !== undefined && appType === "applications") {
             // Force typescript to narrow the scope
-            Narrow<UserGroups['applications'][string]>(targetApp);
+            Narrow<UserGroupsInternal['applications'][string]>(targetApp);
 
             // Start the organization permission set for this app
             targetApp[orgId] ??= new Set<string>();
@@ -71,9 +71,12 @@ groupRegexHandlers.set(
     }
 );
 
-export const getUserGroups = (allUserGroups: string[]): UserGroups => {
+export const getUserGroups = (allUserGroups: string[], adminGroups: GroupAuthConfig['adminGroups']): UserGroupsInternal => {
 
-    const userGroups = {
+    const userGroups: UserGroupsInternal = {
+        systemAdmin: (adminGroups?.superAdmin && allUserGroups.includes(adminGroups.superAdmin)) === true,
+        allAppAdmin: (adminGroups?.allAppAdmin && allUserGroups.includes(adminGroups.allAppAdmin)) === true,
+        allOrgAdmin: (adminGroups?.allOrgAdmin && allUserGroups.includes(adminGroups.allOrgAdmin)) === true,
         applications: {},
         organizations: {},
         standalone: {},

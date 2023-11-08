@@ -155,7 +155,7 @@ export type CustomRouteUrl = {
     publicKeys?: string;
     adminUrl?: string;
     backChannelLogout?: string;
-    loginStatus?: string;
+    userStatus?: string;
 }
 
 export enum RouteEnum {
@@ -168,7 +168,7 @@ export enum RouteEnum {
     PUBLIC_KEYS,
     ADMIN_URL,
     BACK_CHANNEL_LOGOUT,
-    LOGIN_STATUS,
+    USER_STATUS,
 }
 
 export type Cookies = { [cookieName: string]: string | undefined };
@@ -475,6 +475,11 @@ interface OidcStandardClaims {
      * @see https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
      */
     updated_at?: number;
+}
+
+export type UserStatus<Data extends Record<string, any> = Record<string, any>> = Data & {
+    loggedIn: boolean;
+    userInfo: UserinfoResponse | undefined;
 }
 
 export interface UserData<KcClaims extends object = Record<string, unknown>> {

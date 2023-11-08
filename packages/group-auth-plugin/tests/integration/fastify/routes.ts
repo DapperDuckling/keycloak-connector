@@ -1,18 +1,17 @@
 import type {FastifyPluginAsync, RouteShorthandOptions} from "fastify";
 import type {RouteGenericInterface} from "fastify/types/route.js";
-import type {GroupAuth, GroupAuthRouteConfig} from "@dapperduckling/keycloak-connector-group-auth-plugin";
-import {groupAuth} from "@dapperduckling/keycloak-connector-group-auth-plugin";
+import {groupAuth} from "@dapperduckling/keycloak-connector-group-auth-plugin/fastify";
 
 export const routes: FastifyPluginAsync = async (fastify, options) =>  {
 
     // const test = groupAuth("thisgroup");
 
     // Define the basic route
-    fastify.get<RouteGenericInterface, GroupAuthRouteConfig>('/s/:app_id/:org_id', groupAuth("testgroup"), async (request, reply) => {
+    fastify.get('/s/:app_id/:org_id', groupAuth("testgroup"), async (request, reply) => {
         debugger;
     });
 
-    fastify.get<RouteGenericInterface, GroupAuthRouteConfig>('/t/:my_org_param', groupAuth("testgroup", {
+    fastify.get('/t/:my_org_param', groupAuth("testgroup", {
         orgParam: "my_org_param"
     }), async (request, reply) => {
         debugger;

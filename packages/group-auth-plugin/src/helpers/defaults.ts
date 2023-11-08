@@ -6,7 +6,7 @@ export const GroupAuthConfigDefaults: Partial<GroupAuthConfig> = {
     requireAdmin: false,
     adminGroups: {
         superAdmin: "/darksaber-admin",
-        orgAdmin: "org-admin",
+        allOrgAdmin: "org-admin",
         appAdmin: "app-admin",
     },
     defaultRequiredPermission: "user",

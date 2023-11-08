@@ -1,6 +1,6 @@
 import type {DecorateResponse, IsUserAuthorized} from "./abstract-auth-plugin.js";
 import {AbstractAuthPlugin} from "./abstract-auth-plugin.js";
-import type {ConnectorRequest, KeycloakConnectorConfigBase, UserData} from "../types.js";
+import type {ConnectorRequest, KeycloakConnectorConfigBase, UserData, UserStatus} from "../types.js";
 import type {Logger} from "pino";
 
 export enum AuthPluginOverride {
@@ -85,6 +85,24 @@ export class AuthPluginManager {
                 throw new Error(`Issue invoking decorateResponse from auth plugin ${name}`);
             }
         }
+    }
+
+    public decorateUserStatus = async (connectorRequest: ConnectorRequest): Promise<Record<string, any>> => {
+        let userStatus = {}
+
+        // Loop through the plugins
+        for (const [name, plugin] of this.plugins.entries()) {
+            try {
+                userStatus = {
+                    ...userStatus,
+                    ...await plugin.decorateUserStatus(connectorRequest),
+                }
+            } catch (e) {
+                throw new Error(`Issue invoking decorateUserStatus from auth plugin ${name}`);
+            }
+        }
+
+        return userStatus;
     }
 
     public isUserAuthorized: IsUserAuthorized = async (connectorRequest: ConnectorRequest, userData: UserData): Promise<boolean> => {

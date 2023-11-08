@@ -17,7 +17,7 @@ import type {
     RefreshTokenSetResult, RefreshTokenSet,
     SupportedServers,
     UserData,
-    UserDataResponse, ConnectorRequest
+    UserDataResponse, ConnectorRequest, UserStatus
 } from "./types.js";
 import {VerifiableJwtTokenTypes, RouteEnum, StateOptions} from "./types.js";
 import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapter/abstract-adapter.js";
@@ -190,10 +190,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
          * Provides a quick endpoint for client side scripts to check status of authentication
          */
         this.registerRoute(adapter, {
-            url: this.getRoutePath(RouteEnum.LOGIN_STATUS),
+            url: this.getRoutePath(RouteEnum.USER_STATUS),
             method: "GET",
             isUnlocked: true,
-        }, this.handleLoginStatus);
+        }, this.handleUserStatus);
     }
 
     private registerRoute(adapter: AbstractAdapter<Server>,
@@ -598,12 +598,17 @@ export class KeycloakConnector<Server extends SupportedServers> {
         };
     };
 
-    private handleLoginStatus = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
+    private handleUserStatus = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
+        // Build user status with response
+        const response: UserStatus = {
+            ...await this.authPluginManager.decorateUserStatus(req), // Grab additional decoration from plugins
+            loggedIn: req.kccUserData?.isAuthenticated ?? false,
+            userInfo: req.kccUserData?.userInfo,
+        }
+
         return {
             statusCode: 200,
-            responseText: JSON.stringify({
-                "user-is-logged-in": req.kccUserData?.isAuthenticated ?? false,
-            }),
+            responseText: JSON.stringify(response),
         };
     }
 
@@ -1022,12 +1027,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Check if unauthenticated
         if (!userData.isAuthenticated) {
 
-            //todo: auto update their access token?? probably not here. move to the user data function
-
-            // // Auto redirect to login page
-            // if (req.routeConfig.autoRedirect !== false && req.headers['sec-fetch-mode'] === 'navigate') {
-            //     return new ConnectorErrorRedirect(this.getRoutePath(RouteEnum.LOGIN_PAGE), ErrorHints.UNAUTHENTICATED);
-            // }
             // Auto-show login page
             if (connectorRequest.routeConfig.autoRedirect !== false && connectorRequest.headers['sec-fetch-mode'] === 'navigate') {
                 return await this.handleLoginGet();
@@ -1414,8 +1413,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 return `${prefix}${config.routePaths?.adminUrl ?? RouteUrlDefaults.adminUrl}`;
             case RouteEnum.BACK_CHANNEL_LOGOUT:
                 return `${prefix}${config.routePaths?.backChannelLogout ?? RouteUrlDefaults.backChannelLogout}`;
-            case RouteEnum.LOGIN_STATUS:
-                return `${prefix}${config.routePaths?.loginStatus ?? RouteUrlDefaults.loginStatus}`;
+            case RouteEnum.USER_STATUS:
+                return `${prefix}${config.routePaths?.userStatus ?? RouteUrlDefaults.userStatus}`;
         }
     }
 

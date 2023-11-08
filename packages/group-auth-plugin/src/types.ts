@@ -4,7 +4,7 @@ export type InheritanceTree = Record<string, string[] | "*">;
 export type MappedInheritanceTree = Record<string, Set<string> | "*">;
 
 
-export interface ConnectorRequest extends ConnectorRequestOriginal<GroupAuthRouteConfig> {
+export interface ConnectorRequest extends ConnectorRequestOriginal<GroupAuthRouteConfig, KcGroupClaims> {
     kccUserGroupAuthData?: GroupAuthData
 }
 
@@ -21,6 +21,18 @@ export type GroupAuth = {
     config?: Omit<Partial<GroupAuthConfig>, 'adminGroups'>,
 }
 
+export type GroupAuthUserStatus = {
+    isSystemAdmin: boolean,
+    isAppAdmin: boolean,
+    isAllOrgAdmin: boolean,
+    isAllAppAdmin: boolean,
+    isOrgAdmin: boolean,
+    isUser: boolean,
+    orgAdminGroups: string[],
+    appAdminGroups: string[],
+    allGroupData: UserGroups,
+}
+
 export type GroupAuthConfig = {
     app: string,
     orgParam?: string,
@@ -28,9 +40,11 @@ export type GroupAuthConfig = {
     requireAdmin?: boolean,
     adminGroups?: {
         superAdmin?: string,
-        orgAdmin?: string,
+        allOrgAdmin?: string,
+        allAppAdmin?: string,
         appAdmin?: string,
-    }
+        orgAdmin?: string,
+    },
     defaultRequiredPermission?: string,
     appInheritanceTree?: InheritanceTree,
     orgInheritanceTree?: InheritanceTree,
@@ -46,27 +60,35 @@ export type GroupAuthData = {
     debugInfo: Record<string, any>
 }
 
-export type UserGroupPermissions = Set<string>;
+export type UserGroupPermissions<T = undefined> = T extends "array" ? string[] : Set<string>;
 
-export const UserGroupPermissionKey = Symbol('app-wide permissions');
+// Removing symbol based key. While good for ensuring no conflicts, it does not lend to passing an object
+//  to another application.
+// export const UserGroupPermissionKey = Symbol('app-wide permissions');
+export const UserGroupPermissionKey = "_";
 
-export type UserGroups = {
+export type UserGroups = UserGroupsInternal<"array">;
+
+export type UserGroupsInternal<T = undefined> = {
+    systemAdmin: boolean,
+    allAppAdmin: boolean,
+    allOrgAdmin: boolean,
     organizations: {
-        [UserGroupPermissionKey]?: UserGroupPermissions,
-        [orgId: string]: UserGroupPermissions
+        // [UserGroupPermissionKey]?: UserGroupPermissions<T>,
+        [orgId: string]: UserGroupPermissions<T>
     },
     applications: {
         [appId: string]: {
-            [UserGroupPermissionKey]: UserGroupPermissions,
-            [orgId: string]: UserGroupPermissions
+            [UserGroupPermissionKey]: UserGroupPermissions<T>,
+            [orgId: string]: UserGroupPermissions<T>
         },
     }
     standalone: {
         [appId: string]: {
-            [UserGroupPermissionKey]: UserGroupPermissions,
+            [UserGroupPermissionKey]: UserGroupPermissions<T>,
         }
     }
 }
 
 type RegExpExecGroups = Required<Pick<RegExpExecArray, 'groups'>>['groups'];
-export type GroupRegexHandlers = Map<RegExp, (userGroups: UserGroups, matchGroups: RegExpExecGroups) => void>;
+export type GroupRegexHandlers = Map<RegExp, (userGroups: UserGroupsInternal, matchGroups: RegExpExecGroups) => void>;

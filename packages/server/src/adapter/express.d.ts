@@ -8,16 +8,5 @@ declare module "http" {
         kccUserData: UserData;
         kccAdapter?: ExpressAdapter;
         _keycloakReqHandled: boolean;
-        //todo: update
-    }
-
-    interface ServerResponse {
-        //todo: update
-        bigTestBoi?: string;
-    }
-
-    interface OutgoingMessage {
-        //todo: update
-        wowOutgoingTest: string;
     }
 }

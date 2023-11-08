@@ -1,4 +1,4 @@
-import type {ConnectorRequest, KeycloakConnectorConfigBase, UserData} from "../types.js";
+import type {ConnectorRequest, KeycloakConnectorConfigBase, UserData, UserStatus} from "../types.js";
 import type {Logger} from "pino";
 import {AuthPluginOverride} from "./auth-plugin-manager.js";
 
@@ -13,6 +13,7 @@ export type AuthPluginOnRegisterConfig = {
 }
 
 export type DecorateResponse = (connectorRequest: ConnectorRequest, userData: UserData, logger?: Logger) => Promise<void>;
+export type DecorateUserStatus<UserStatus = Record<string, any>> = (connectorRequest: ConnectorRequest, logger?: Logger) => Promise<Record<string, UserStatus>>;
 export type IsUserAuthorized = (connectorRequest: ConnectorRequest, userData: UserData, logger?: Logger) => Promise<boolean>;
 
 export abstract class AbstractAuthPlugin {
@@ -38,6 +39,7 @@ export abstract class AbstractAuthPlugin {
     }
 
     abstract decorateResponse: DecorateResponse;
+    abstract decorateUserStatus: DecorateUserStatus;
     abstract isAuthorized: IsUserAuthorized;
     abstract exposedEndpoints: () => Record<string, any>;
 }

@@ -7,11 +7,11 @@ export const RouteUrlDefaults: CustomRouteUrl = {
     logoutPage: '/logout',
     logoutPost: '/logout',
     callback: '/callback',
-    logoutCallback: '/logout_callback', // Todo: Is this used?
-    publicKeys: '/k_jwks',
-    adminUrl: '/k_admin_url',
-    backChannelLogout: '/k_logout',
-    loginStatus: '/login_status',
+    logoutCallback: '/logout-callback', // Todo: Is this used?
+    publicKeys: '/k-jwks',
+    adminUrl: '/k-admin-url',
+    backChannelLogout: '/k-logout',
+    userStatus: '/user-status',
 }
 
 export const RouteConfigDefault: KeycloakRouteConfig = {
