@@ -359,12 +359,18 @@ export class KeycloakConnector<Server extends SupportedServers> {
     }
 
     private validateSameOriginOrThrow = (req: ConnectorRequest) => {
-        if (req.origin !== this._config.serverOrigin) {
-            // Log this error (possibly detect attacks)
-            this._config.pinoLogger?.warn(`POST request came from different origin. Expected: ${this._config.serverOrigin}, Got: ${req.origin}`);
 
-            throw new LoginError(ErrorHints.CODE_400);
-        }
+        // Check for dev and the server has a "localhost" origin
+        const hostname = (URL.canParse(this._config.serverOrigin)) ? (new URL(this._config.serverOrigin))?.hostname : undefined;
+        if (isDev() && hostname === "localhost") return;
+
+        // Check for the same origin
+        if (req.origin === this._config.serverOrigin) return;
+
+        // Log this error (possibly detect attacks)
+        this._config.pinoLogger?.warn(`POST request came from different origin. Expected: ${this._config.serverOrigin}, Got: ${req.origin}`);
+
+        throw new LoginError(ErrorHints.CODE_400);
     }
 
     private getAuthFlowNonce = (req: ConnectorRequest): string|null => {
