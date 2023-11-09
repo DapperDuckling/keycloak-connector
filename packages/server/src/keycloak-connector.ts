@@ -482,6 +482,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
                     throw new LoginError(ErrorHints.UNKNOWN);
                 }
             } else if (e instanceof OPError) {
+                //todo: Handle a login_required error
+
                 // Log the issue
                 this._config.pinoLogger?.error(e, `Unexpected response from OP`);
             } else {
