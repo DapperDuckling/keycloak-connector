@@ -232,6 +232,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Once KC returns a valid login, the nonce will be used to grab the cookies unique to this login attempt
         const authFlowNonce = generators.nonce();
 
+        // Check if this is a silent request
+        const isSilent = (req.urlQuery["silent"] !== undefined);
+
         // Build the redirect uri
         const redirectUri = this.buildRedirectUriOrThrow(authFlowNonce);
 
@@ -241,6 +244,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             redirect_uri: redirectUri,
             response_mode: "jwt",
             scope: "openid",
+            ...isSilent && {prompt: "none"},
         });
 
         // Collect the cookies we would like the server to send back

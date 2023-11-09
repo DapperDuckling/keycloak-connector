@@ -36,6 +36,7 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
         ...request.headers?.origin && {origin: request.headers?.origin},
         url: request.url,
         urlParams: request.params as Record<string, string>,
+        urlQuery: request.query as Record<string, unknown>,
         cookies: request.cookies,
         headers: request.raw.headers,
         routeConfig: {

@@ -34,22 +34,21 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 
     }
 
-    public buildConnectorRequest = async <RouteConfig>(request: Request, routeConfig: RouteConfig | undefined): Promise<ConnectorRequest> => {
-        return {
-            ...request.headers?.origin !== undefined && {origin: request.headers?.origin},
-            url: request.url,
-            urlParams: request.params,
-            cookies: request.cookies as Cookies,
-            headers: request.headers,
-            routeConfig: {
-                ...this.globalRouteConfig,
-                // ...(routeConfig !== false) && routeConfig,
-                ...routeConfig,
-            },
-            ...request.kccUserData !== undefined && {keycloak: request.kccUserData},
-            ...isObject(request.body) && {body: request.body},
-        };
-    };
+    public buildConnectorRequest = async <RouteConfig>(request: Request, routeConfig: RouteConfig | undefined): Promise<ConnectorRequest> => ({
+        ...request.headers?.origin !== undefined && {origin: request.headers?.origin},
+        url: request.url,
+        urlParams: request.params,
+        urlQuery: request.query,
+        cookies: request.cookies as Cookies,
+        headers: request.headers,
+        routeConfig: {
+            ...this.globalRouteConfig,
+            // ...(routeConfig !== false) && routeConfig,
+            ...routeConfig,
+        },
+        ...request.kccUserData !== undefined && {keycloak: request.kccUserData},
+        ...isObject(request.body) && {body: request.body},
+    });
 
     //todo: wrap this in a try catch handler send 500 on errors
     public handleResponse = async (connectorResponse: ConnectorResponse<SupportedServers.express>, req: Request, res: Response, next: NextFunction): Promise<void> => {

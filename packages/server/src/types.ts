@@ -180,6 +180,7 @@ export interface ConnectorRequest<
     origin?: string;
     url: string;
     urlParams: Record<string, string>;
+    urlQuery: Record<string, unknown>;
     cookies: Cookies;
 
     /** Headers must be lowercase **/
