@@ -50,60 +50,56 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         ...isObject(request.body) && {body: request.body},
     });
 
-    //todo: wrap this in a try catch handler send 500 on errors
     public handleResponse = async (connectorResponse: ConnectorResponse<SupportedServers.express>, req: Request, res: Response, next: NextFunction): Promise<void> => {
 
-        // Safety check improper uses
-        if (req._keycloakReqHandled) {
-            throw new Error('Invalid adapter usage, attempted to handle response more than once for a single request.');
-        }
-
-        // Set handling flag
-        req._keycloakReqHandled = true;
-
-        // Set any cookies
-        connectorResponse.cookies?.forEach(cookieParam => res.cookie(cookieParam.name, cookieParam.value, cookieParam.options));
-
-        // Set the response code
-        if (connectorResponse.statusCode !== undefined) res.status(connectorResponse.statusCode);
-
-        // Handle exclusive parameters
-        if (connectorResponse.redirectUrl !== undefined) {
-            // Redirect if needed
-            res.redirect(connectorResponse.redirectUrl);
-
-        } else if (connectorResponse.serveFile !== undefined) {
-
-            // Grab the file path
-            const fileToServe = connectorResponse.serveFile;
-            // todo: remove hard coded path in this section
-
-            //todo: test error handling
-            // Send file (async style)
-            await new Promise<void>((resolve, reject) => {
-                res.sendFile(fileToServe, {
-                    root: './public/',
-                }, (err) => {
-                    this.pinoLogger?.error('Could not find file to serve', connectorResponse.serveFile);
-                    reject(err);
-                });
-                resolve();
-            });
-
-
-            //todo: future, have nginx serve the files
-            // res.header("x-accel-redirect", "/protected-content/auth/index.html");
-
-        } else {
-
-            // Check if this is an html response
-            if (connectorResponse.responseHtml !== undefined) {
-                // Add content type header
-                res.type('html');
+        try {
+            // Safety check improper uses
+            if (req._keycloakReqHandled) {
+                throw new Error('Invalid adapter usage, attempted to handle response more than once for a single request.');
             }
 
-            // Send a regular response
-            res.send(connectorResponse.responseHtml ?? connectorResponse.responseText ?? "");
+            // Set handling flag
+            req._keycloakReqHandled = true;
+
+            // Set any cookies
+            connectorResponse.cookies?.forEach(cookieParam => res.cookie(cookieParam.name, cookieParam.value, cookieParam.options));
+
+            // Set the response code
+            if (connectorResponse.statusCode !== undefined) res.status(connectorResponse.statusCode);
+
+            // Handle exclusive parameters
+            if (connectorResponse.redirectUrl !== undefined) {
+                // Redirect if needed
+                res.redirect(connectorResponse.redirectUrl);
+
+            } else if (connectorResponse.serveFile !== undefined) {
+
+                // Grab the file path
+                const fileToServe = connectorResponse.serveFile;
+                // todo: remove hard coded path in this section
+                // Send file
+                res.sendFile(fileToServe, (err) => {
+                    this.pinoLogger?.error('Could not find file to serve', connectorResponse.serveFile);
+                    next(new Error());
+                });
+
+            } else {
+
+                // Check if this is an html response
+                if (connectorResponse.responseHtml !== undefined) {
+                    // Add content type header
+                    res.type('html');
+                }
+
+                // Send a regular response
+                res.send(connectorResponse.responseHtml ?? connectorResponse.responseText ?? "");
+            }
+        } catch (e) {
+            // Log the error
+            this.pinoLogger?.error(e);
+
+            // Serve the error
+            next(new Error());
         }
     };
 
