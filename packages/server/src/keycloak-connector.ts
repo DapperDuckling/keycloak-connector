@@ -19,7 +19,7 @@ import type {
     UserData,
     UserDataResponse, ConnectorRequest, UserStatus
 } from "./types.js";
-import {VerifiableJwtTokenTypes, RouteEnum, StateOptions} from "./types.js";
+import {VerifiableJwtTokenTypes, RouteEnum, StateOptions, SilentLoginEvent} from "./types.js";
 import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapter/abstract-adapter.js";
 import type {JWK} from "jose";
 import * as jose from 'jose';
@@ -35,6 +35,7 @@ import RPError = errors.RPError;
 import OPError = errors.OPError;
 import {TokenCache, UserInfoCache} from "./cache-adapters/index.js";
 import {AuthPluginManager} from "./auth-plugins/index.js";
+import {silentLoginResponseHTML} from "./helpers/silent-login.js";
 
 export class KeycloakConnector<Server extends SupportedServers> {
 
@@ -236,7 +237,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const isSilent = (req.urlQuery["silent"] !== undefined);
 
         // Build the redirect uri
-        const redirectUri = this.buildRedirectUriOrThrow(authFlowNonce);
+        const redirectUri = this.buildRedirectUriOrThrow({authFlowNonce: authFlowNonce, isSilent: isSilent});
 
         const authorizationUrl = this.components.oidcClient.authorizationUrl({
             code_challenge_method: "S256",
@@ -340,10 +341,14 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }];
     }
 
-    private buildRedirectUriOrThrow = (authFlowNonce: string, isLogout = false): string => {
+    private buildRedirectUriOrThrow = (config: {
+        authFlowNonce: string,
+        isLogout?: boolean,
+        isSilent?: boolean
+    }): string => {
 
         // Grab the base redirect uri
-        const redirectUriBase = (!isLogout) ?
+        const redirectUriBase = (!config.isLogout) ?
             this.components.oidcClient.metadata.redirect_uris?.[0] :
             this.components.oidcClient.metadata.post_logout_redirect_uris?.[0];
 
@@ -357,7 +362,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const redirectUriObj = new URL(redirectUriBase);
 
         // Add the login flow nonce to redirect the uri
-        redirectUriObj.searchParams.append("auth_flow_nonce", authFlowNonce);
+        redirectUriObj.searchParams.append("auth_flow_nonce", config.authFlowNonce);
+
+        // Add the silent query param
+        if (config.isSilent) redirectUriObj.searchParams.append("silent", "true");
 
         return redirectUriObj.toString();
     }
@@ -403,6 +411,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
             redirectUriRaw: string | undefined;
         };
 
+        // Check if this is a silent request
+        const isSilent = (req.urlQuery["silent"] !== undefined);
+
         try {
             const redirectUri64 = req.cookies?.[`${Cookies.REDIRECT_URI_B64}-${authFlowNonce}`];
 
@@ -421,7 +432,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         // Build the redirect uri
-        const redirectUri = this.buildRedirectUriOrThrow(authFlowNonce);
+        const redirectUri = this.buildRedirectUriOrThrow({authFlowNonce: authFlowNonce, isSilent: isSilent});
 
         // Check for a code verifier
         if (inputCookies.codeVerifier === undefined) {
@@ -482,10 +493,20 @@ export class KeycloakConnector<Server extends SupportedServers> {
                     throw new LoginError(ErrorHints.UNKNOWN);
                 }
             } else if (e instanceof OPError) {
-                //todo: Handle a login_required error
+                if (e.message.includes("login_required") && isSilent) {
+                    // Remove auth flow cookies
+                    const cookies = [...this.removeAuthFlowCookies(req.cookies, authFlowNonce)];
+                    return {
+                        statusCode: 303,
+                        cookies: cookies,
+                        redirectUrl
+                    }
 
-                // Log the issue
-                this._config.pinoLogger?.error(e, `Unexpected response from OP`);
+                } else {
+                    // Log the issue
+                    this._config.pinoLogger?.error(e, `Unexpected response from OP`);
+                }
+
             } else {
                 // Log the issue
                 this._config.pinoLogger?.error(e, `Unexpected error during login`);
@@ -508,7 +529,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const authFlowNonce = generators.nonce();
 
         // Build the redirect uri
-        const redirectUri = this.buildRedirectUriOrThrow(authFlowNonce, true);
+        const redirectUri = this.buildRedirectUriOrThrow({authFlowNonce: authFlowNonce, isLogout: true});
 
         // Grab the ID token
         const idToken = req.cookies?.[Cookies.ID_TOKEN];
@@ -622,6 +643,22 @@ export class KeycloakConnector<Server extends SupportedServers> {
             statusCode: 200,
             responseText: JSON.stringify(response),
         };
+    }
+
+    private handleSilentLoginResponse = async (loginEvent: SilentLoginEvent): Promise<ConnectorResponse<Server>> => {
+        // // Check if not logged in
+        // if (!loggedIn) return {
+        //     statusCode: 303,
+        //     redirectUrl: this._config.serverOrigin,
+        // }
+
+        // todo: actually grab the request instead
+
+        return  {
+            cookies: [], //todo:
+            responseText: silentLoginResponseHTML("doij", isDev())
+        }
+
     }
 
     private removeAuthFlowCookies<Server extends SupportedServers>(reqCookies: unknown, authFlowNonce: string): CookieParams<Server>[] {
