@@ -695,7 +695,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return  {
             statusCode: 200,
             cookies: finalCookies,
-            responseText: silentLoginResponseHTML(message, isDev())
+            responseHtml: silentLoginResponseHTML(message, isDev())
         }
     }
 

@@ -99,7 +99,10 @@ export const silentLoginResponseHTML = (message: SilentLoginMessage, enableDebug
     const silentLoginResponseFunction = silentLoginResponse.toString();
 
     // Convert the message to a json string
-    const messageJson = JSON.stringify(message);
+    let messageJson = JSON.stringify(message);
+
+    // Add slashes
+    messageJson = messageJson.replaceAll('"', '\\"');
 
     // Return the html
     return `
@@ -109,6 +112,7 @@ export const silentLoginResponseHTML = (message: SilentLoginMessage, enableDebug
       <h3>Silent Login Response</h3>
       <p>This page loaded in error. <a id="back-to-main" href="#">Back to main</a></p>
       <script>
+      debugger;
         const enableDebugger = ${(enableDebugger) ? "true" : "false"};
         const message = "${messageJson}";
         (${silentLoginResponseFunction})();

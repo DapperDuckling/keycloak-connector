@@ -95,8 +95,15 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             // res.header("x-accel-redirect", "/protected-content/auth/index.html");
 
         } else {
+
+            // Check if this is an html response
+            if (connectorResponse.responseHtml !== undefined) {
+                // Add content type header
+                res.type('html');
+            }
+
             // Send a regular response
-            res.send(connectorResponse.responseText ?? "");
+            res.send(connectorResponse.responseHtml ?? connectorResponse.responseText ?? "");
         }
     };
 

@@ -200,6 +200,7 @@ export interface ConnectorResponse<Server extends SupportedServers> {
     serveFile?: string,
     redirectUrl?: string,
     responseText?: string,
+    responseHtml?: string,
     statusCode?: number,
     cookies?: CookieParams<Server>[],
 }

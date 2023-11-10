@@ -65,7 +65,19 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
             return reply.sendFile(connectorResponse.serveFile);
         }
 
-        return reply.send(connectorResponse.responseText ?? "");
+        // Check if this is an html response
+        if (connectorResponse.responseHtml !== undefined) {
+            // Add content type header
+            reply.header("Content-Type", "text/html");
+        }
+
+        //todo: debug remove *** security risk if not
+        reply.header("Access-Control-Allow-Origin", "http://localhost:3005");
+        reply.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+        reply.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        reply.header("Access-Control-Allow-Credentials", true);
+
+        return reply.send(connectorResponse.responseHtml ?? connectorResponse.responseText ?? "");
     }
 
     registerRoute(options: RouteRegistrationOptions, connectorCallback: ConnectorCallback<SupportedServers.fastify>): void {
