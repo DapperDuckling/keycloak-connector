@@ -1,4 +1,4 @@
-import {SilentLoginEvent, SilentLoginMessage, UserStatusWrapped} from "../types.js";
+import {SilentLoginEvent, type SilentLoginMessage} from "../types.js";
 import {LocalStorage} from "./cookies.js";
 
 const silentLoginResponse = () => {
@@ -94,9 +94,12 @@ const silentLoginResponse = () => {
 
 }
 
-export const silentLoginResponseHTML = (messageJson: string, enableDebugger: boolean) => {
+export const silentLoginResponseHTML = (message: SilentLoginMessage, enableDebugger: boolean) => {
     // Build the html for the silent login iframe
     const silentLoginResponseFunction = silentLoginResponse.toString();
+
+    // Convert the message to a json string
+    const messageJson = JSON.stringify(message);
 
     // Return the html
     return `

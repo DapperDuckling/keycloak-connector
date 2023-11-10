@@ -171,7 +171,7 @@ export enum RouteEnum {
     USER_STATUS,
 }
 
-export type Cookies = { [cookieName: string]: string | undefined };
+export type ReqCookies = { [cookieName: string]: string | undefined };
 
 export interface ConnectorRequest<
     KcRouteConfig extends object = Record<string, unknown>,
@@ -181,7 +181,7 @@ export interface ConnectorRequest<
     url: string;
     urlParams: Record<string, string>;
     urlQuery: Record<string, unknown>;
-    cookies: Cookies;
+    cookies: ReqCookies;
 
     /** Headers must be lowercase **/
     headers: IncomingHttpHeaders;

@@ -1,25 +1,26 @@
 import {epoch, isDev, sleep} from "./helpers/utils.js";
+import {type ClientMetadata, errors, generators, Issuer, type IssuerMetadata, TokenSet} from "openid-client";
 import {
-    type ClientMetadata,
-    errors,
-    generators,
-    Issuer,
-    type IssuerMetadata,
-    TokenSet
-} from "openid-client";
-import type {
-    ConnectorResponse,
-    CookieOptionsBase,
-    CookieParams,
-    KeycloakConnectorConfigBase,
-    KeycloakConnectorConfigCustom,
-    KeycloakConnectorInternalConfiguration,
-    RefreshTokenSetResult, RefreshTokenSet,
-    SupportedServers,
-    UserData,
-    UserDataResponse, ConnectorRequest, UserStatus
+    type ConnectorRequest,
+    type ConnectorResponse,
+    type CookieOptionsBase,
+    type CookieParams,
+    type KeycloakConnectorConfigBase,
+    type KeycloakConnectorConfigCustom,
+    type KeycloakConnectorInternalConfiguration,
+    type RefreshTokenSet,
+    type RefreshTokenSetResult,
+    type ReqCookies,
+    RouteEnum,
+    SilentLoginEvent,
+    type SilentLoginMessage,
+    StateOptions,
+    type SupportedServers,
+    type UserData,
+    type UserDataResponse,
+    type UserStatus,
+    VerifiableJwtTokenTypes
 } from "./types.js";
-import {VerifiableJwtTokenTypes, RouteEnum, StateOptions, SilentLoginEvent} from "./types.js";
 import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapter/abstract-adapter.js";
 import type {JWK} from "jose";
 import * as jose from 'jose';
@@ -28,14 +29,15 @@ import {CookieNames, Cookies, CookiesToKeep} from "./helpers/cookies.js";
 import {RouteUrlDefaults, UserDataDefault} from "./helpers/defaults.js";
 import type {JWTPayload, JWTVerifyResult} from "jose/dist/types/types.js";
 import {RoleHelper} from "./helpers/role-helper.js";
-import {standaloneKeyProvider} from "./crypto/index.js";
 import type {KeyProviderConfig} from "./crypto/index.js";
+import {standaloneKeyProvider} from "./crypto/index.js";
 import {webcrypto} from "crypto";
-import RPError = errors.RPError;
-import OPError = errors.OPError;
 import {TokenCache, UserInfoCache} from "./cache-adapters/index.js";
 import {AuthPluginManager} from "./auth-plugins/index.js";
 import {silentLoginResponseHTML} from "./helpers/silent-login.js";
+import hash from "object-hash";
+import RPError = errors.RPError;
+import OPError = errors.OPError;
 
 export class KeycloakConnector<Server extends SupportedServers> {
 
@@ -449,6 +451,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Validate the redirect uri (or throw)
         this.validateRedirectUriOrThrow(postAuthRedirectUri);
 
+        // Grab and add the cookies to remove (for immediate expiration)
+        const cookies = this.removeAuthFlowCookies(req.cookies, authFlowNonce);
+
         try {
             const tokenSet = await this.components.oidcClient.callback(
                 redirectUri,
@@ -461,10 +466,12 @@ export class KeycloakConnector<Server extends SupportedServers> {
             );
 
             // Pass the new TokenSet to the handler and grab the resultant cookie(s)
-            const cookies = this.validateAndHandleTokenSet(tokenSet);
+            cookies.push(...this.validateAndHandleTokenSet(tokenSet));
 
-            // Grab and add the cookies to remove (for immediate expiration)
-            cookies.push(...this.removeAuthFlowCookies(req.cookies, authFlowNonce));
+            // Return a silent login response if required
+            if (isSilent) {
+                return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_SUCCESS);
+            }
 
             return {
                 statusCode: 303,
@@ -473,6 +480,18 @@ export class KeycloakConnector<Server extends SupportedServers> {
             }
 
         } catch (e) {
+
+            // Handle silent requests separately
+            if (isSilent) {
+                // Check for login required
+                if (e instanceof RPError && e.message.includes("login_required")) {
+                    return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED);
+                } else {
+                    // Log the error still
+                    this._config.pinoLogger?.error(e, "Error during silent login");
+                    return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_ERROR);
+                }
+            }
 
             if (e instanceof RPError) {
                 // Check for an expired JWT
@@ -493,19 +512,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
                     throw new LoginError(ErrorHints.UNKNOWN);
                 }
             } else if (e instanceof OPError) {
-                if (e.message.includes("login_required") && isSilent) {
-                    // Remove auth flow cookies
-                    const cookies = [...this.removeAuthFlowCookies(req.cookies, authFlowNonce)];
-                    return {
-                        statusCode: 303,
-                        cookies: cookies,
-                        redirectUrl
-                    }
-
-                } else {
-                    // Log the issue
-                    this._config.pinoLogger?.error(e, `Unexpected response from OP`);
-                }
+                // Log the issue
+                this._config.pinoLogger?.error(e, `Unexpected response from OP`);
 
             } else {
                 // Log the issue
@@ -631,34 +639,64 @@ export class KeycloakConnector<Server extends SupportedServers> {
         };
     };
 
+    private buildUserStatus = async (req: ConnectorRequest): Promise<UserStatus> => ({
+        ...await this.authPluginManager.decorateUserStatus(req), // Grab additional decoration from plugins
+        loggedIn: req.kccUserData?.isAuthenticated ?? false,
+        userInfo: req.kccUserData?.userInfo,
+    });
+
     private handleUserStatus = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
         // Build user status with response
-        const response: UserStatus = {
-            ...await this.authPluginManager.decorateUserStatus(req), // Grab additional decoration from plugins
-            loggedIn: req.kccUserData?.isAuthenticated ?? false,
-            userInfo: req.kccUserData?.userInfo,
-        }
+        const userStatus = await this.buildUserStatus(req);
 
         return {
             statusCode: 200,
-            responseText: JSON.stringify(response),
+            responseText: JSON.stringify(userStatus),
         };
     }
 
-    private handleSilentLoginResponse = async (loginEvent: SilentLoginEvent): Promise<ConnectorResponse<Server>> => {
-        // // Check if not logged in
-        // if (!loggedIn) return {
-        //     statusCode: 303,
-        //     redirectUrl: this._config.serverOrigin,
-        // }
+    private cookieArrayToObject = (cookies: CookieParams<Server>[]): ReqCookies => {
+        // Convert the cookies into an object based store
+        return cookies.reduce((cookieStore,currentCookie) => ({...cookieStore, [currentCookie.name]: currentCookie.value}),{});
+    }
 
-        // todo: actually grab the request instead
+    private handleSilentLoginResponse = async (req: ConnectorRequest, cookies: CookieParams<Server>[], event: SilentLoginEvent): Promise<ConnectorResponse<Server>> => {
+        // Convert the cookies into an object based store
+        const requestCookies = this.cookieArrayToObject(cookies);
 
-        return  {
-            cookies: [], //todo:
-            responseText: silentLoginResponseHTML("doij", isDev())
+        // Manipulate the request with updated cookies
+        const newRequest: ConnectorRequest = {
+            ...req,
+            cookies: requestCookies,
         }
 
+        // Force grab a new user data response
+        const userDataResponse = await this.getUserData(newRequest);
+
+        // Combine the resultant cookies (browser should accept newer cookies over old ones)
+        const finalCookies = [...cookies, ...userDataResponse.cookies ?? []];
+
+        // Grab the user status data
+        const userStatus = await this.buildUserStatus(req);
+
+        // Wrap the user status data
+        const userStatsWrapped = {
+            md5: hash(userStatus, {algorithm: "md5"}),
+            payload: userStatus,
+            timestamp: Date.now(),
+        }
+
+        // Build the silent login response message
+        const message: SilentLoginMessage = {
+            event: event,
+            data: userStatsWrapped,
+        }
+
+        return  {
+            statusCode: 200,
+            cookies: finalCookies,
+            responseText: silentLoginResponseHTML(message, isDev())
+        }
     }
 
     private removeAuthFlowCookies<Server extends SupportedServers>(reqCookies: unknown, authFlowNonce: string): CookieParams<Server>[] {

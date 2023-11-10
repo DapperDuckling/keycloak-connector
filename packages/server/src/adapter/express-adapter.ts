@@ -2,7 +2,7 @@ import type {ConnectorCallback, RouteRegistrationOptions} from "./abstract-adapt
 import {AbstractAdapter} from "./abstract-adapter.js";
 import type {
     ConnectorRequest,
-    ConnectorResponse, Cookies,
+    ConnectorResponse, ReqCookies,
     KeycloakConnectorConfigCustom,
     KeycloakRouteConfig, KeycloakRouteConfigOrRoles,
     SupportedServers
@@ -39,7 +39,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         url: request.url,
         urlParams: request.params,
         urlQuery: request.query,
-        cookies: request.cookies as Cookies,
+        cookies: request.cookies as ReqCookies,
         headers: request.headers,
         routeConfig: {
             ...this.globalRouteConfig,
