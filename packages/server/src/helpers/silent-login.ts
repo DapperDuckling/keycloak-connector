@@ -1,11 +1,17 @@
-import {SilentLoginEvent, type SilentLoginMessage} from "../types.js";
-import {LocalStorage} from "./cookies.js";
+import {SilentLoginEvent as SilentLoginEventType, type SilentLoginMessage} from "../types.js";
 
-const silentLoginResponse = () => {
+const silentLoginResponse = (
+    messageJson: string,
+    token: string,
+    silentLoginEventJson: string,
+    enableDebugger: boolean
+) => {
 
     // Dev helper
-    // @ts-ignore
-    if (enableDebugger === true) debugger;
+    if (enableDebugger) debugger;
+
+    // Decode the silent login event constants
+    const SilentLoginEvent = JSON.parse(silentLoginEventJson) as typeof SilentLoginEventType;
 
     // Grab the real reference to the parent
     const parent = window.parent;
@@ -14,26 +20,10 @@ const silentLoginResponse = () => {
     const backToMainLink = document.querySelector<HTMLAnchorElement>("#back-to-main");
     if (backToMainLink) backToMainLink.href = window.location.origin;
 
-    // Check if this page has not been loaded in an iframe
-    if (window.frameElement === null) {
-        // Redirect the user to this page's origin root uri
-        window.location.href = window.location.origin;
-        return;
-    }
-
-    // Ensure the entire page's origins match (top and parent)
-    if (window.top === null || window.top.origin !== parent.origin) {
-        // Do nothing since the origins do not match
-        console.error(`Origins do not match, will not process silent login!`);
-        return;
-    }
-
-    // @ts-ignore
-    const localMessageJson = messageJson;
-
     // Check for a message from the server
-    if (localMessageJson === undefined) {
+    if (messageJson === undefined) {
         console.error(`Missing message from auth server, cannot process silent login!`);
+        parent.postMessage({event: SilentLoginEvent.LOGIN_ERROR}, "*"); //todo: fix origin
         return;
     }
 
@@ -41,11 +31,9 @@ const silentLoginResponse = () => {
         event: SilentLoginEvent.LOGIN_ERROR,
     }
 
-    let message;
-
     try {
         // Ensure we can parse the message
-        message = JSON.parse(localMessageJson);
+        const message = JSON.parse(messageJson);
 
         // Update the message to parent event
         messageToParent.event = message.event;
@@ -66,43 +54,22 @@ const silentLoginResponse = () => {
     } finally {
         // Send the parent a message
         parent.postMessage({
+            token: token,
             event: messageToParent.event,
             ...(messageToParent.data ?? false) && {data: messageToParent.data},
-        }, parent.location.origin);
+        }, "*"); //todo: lock down with origin
     }
-
-    // Check for non-error event
-    switch (messageToParent.event) {
-        case SilentLoginEvent.LOGIN_SUCCESS:
-        case SilentLoginEvent.LOGIN_REQUIRED:
-            break;
-        default:
-            return;
-    }
-
-    try {
-        // Grab the existing user status from local storage
-        const existingUserStatus = JSON.parse(localStorage.getItem(LocalStorage.USER_STATUS) ?? "{}");
-
-        // Update the local storage if this data is newer
-        if (existingUserStatus["timestamp"] === undefined || existingUserStatus["timestamp"] < message.data.timestamp) {
-            localStorage.setItem(LocalStorage.USER_STATUS, JSON.stringify(message.data));
-        }
-    } catch (e) {
-        // Do nothing on purpose
-    }
-
 }
 
-export const silentLoginResponseHTML = (message: SilentLoginMessage, enableDebugger: boolean) => {
+export const silentLoginResponseHTML = (message: SilentLoginMessage, token: string, enableDebugger: boolean) => {
     // Build the html for the silent login iframe
     const silentLoginResponseFunction = silentLoginResponse.toString();
 
-    // Convert the message to a json string
-    let messageJson = JSON.stringify(message);
+    // Convert the message to a json string and add slashes
+    const messageJson = JSON.stringify(message).replaceAll('"', '\\"');
 
-    // Add slashes
-    messageJson = messageJson.replaceAll('"', '\\"');
+    // Grab the silent login event constants and add slashes
+    const silentLoginEventJson = JSON.stringify(SilentLoginEventType).replaceAll('"', '\\"');
 
     // Return the html
     return `
@@ -112,10 +79,7 @@ export const silentLoginResponseHTML = (message: SilentLoginMessage, enableDebug
       <h3>Silent Login Response</h3>
       <p>This page loaded in error. <a id="back-to-main" href="#">Back to main</a></p>
       <script>
-      debugger;
-        const enableDebugger = ${(enableDebugger) ? "true" : "false"};
-        const message = "${messageJson}";
-        (${silentLoginResponseFunction})();
+        (${silentLoginResponseFunction})("${messageJson}", "${token}", "${silentLoginEventJson}", ${(enableDebugger) ? "true" : "false"});
       </script>
       </body>
     </html>

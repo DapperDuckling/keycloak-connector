@@ -218,6 +218,12 @@ export enum SilentLoginEvent {
     LOGIN_ERROR = "LOGIN_ERROR",
 }
 
+export enum SilentLoginTypes {
+    FULL = "FULL",
+    PARTIAL = "PARTIAL",
+    NONE = "NONE",
+}
+
 export type UserStatusWrapped = {
     md5: string,
     payload: UserStatus,

@@ -14,6 +14,7 @@ import {
     RouteEnum,
     SilentLoginEvent,
     type SilentLoginMessage,
+    SilentLoginTypes,
     StateOptions,
     type SupportedServers,
     type UserData,
@@ -223,6 +224,19 @@ export class KeycloakConnector<Server extends SupportedServers> {
         serveFile: "login-start.html",
     });
 
+    private silentRequestConfig = (req: ConnectorRequest): [SilentLoginTypes, string] => {
+        // Ensure there is a token passed
+        const token = req.urlQuery["silent-token"];
+        if (token === undefined || typeof token !== "string") return [SilentLoginTypes.NONE, ""];
+
+        // Determine the silent type
+        const silentParam = (typeof req.urlQuery["silent"] === "string") ? req.urlQuery["silent"] : undefined
+        // @ts-ignore - Ignoring string can't be a part of the login types... that's why I'm using includes dummy!
+        const silentType = (silentParam && Object.values(SilentLoginTypes).includes(silentParam)) ? silentParam : SilentLoginTypes.NONE;
+
+        return [silentType as SilentLoginTypes, token];
+    }
+
     private handleLoginPost = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
         // Ensure the request comes from our origin
@@ -236,10 +250,14 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const authFlowNonce = generators.nonce();
 
         // Check if this is a silent request
-        const isSilent = (req.urlQuery["silent"] !== undefined);
+        const [silentRequestType, silentRequestToken] = this.silentRequestConfig(req);
 
         // Build the redirect uri
-        const redirectUri = this.buildRedirectUriOrThrow({authFlowNonce: authFlowNonce, isSilent: isSilent});
+        const redirectUri = this.buildRedirectUriOrThrow({
+            authFlowNonce: authFlowNonce,
+            silentRequestType: silentRequestType,
+            silentRequestToken: silentRequestToken
+        });
 
         const authorizationUrl = this.components.oidcClient.authorizationUrl({
             code_challenge_method: "S256",
@@ -247,7 +265,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             redirect_uri: redirectUri,
             response_mode: "jwt",
             scope: "openid",
-            ...isSilent && {prompt: "none"},
+            ...(silentRequestType === SilentLoginTypes.FULL) && {prompt: "none"},
         });
 
         // Collect the cookies we would like the server to send back
@@ -346,7 +364,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private buildRedirectUriOrThrow = (config: {
         authFlowNonce: string,
         isLogout?: boolean,
-        isSilent?: boolean
+        silentRequestType?: SilentLoginTypes,
+        silentRequestToken?: string,
     }): string => {
 
         // Grab the base redirect uri
@@ -367,7 +386,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
         redirectUriObj.searchParams.append("auth_flow_nonce", config.authFlowNonce);
 
         // Add the silent query param
-        if (config.isSilent) redirectUriObj.searchParams.append("silent", "true");
+        if (config.silentRequestToken && config.silentRequestType && config.silentRequestType !== SilentLoginTypes.NONE) {
+            redirectUriObj.searchParams.append("silent", config.silentRequestType);
+            redirectUriObj.searchParams.append("silent-token", config.silentRequestToken);
+        }
 
         return redirectUriObj.toString();
     }
@@ -413,9 +435,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
             redirectUriRaw: string | undefined;
         };
 
-        // Check if this is a silent request
-        const isSilent = (req.urlQuery["silent"] !== undefined);
-
         try {
             const redirectUri64 = req.cookies?.[`${Cookies.REDIRECT_URI_B64}-${authFlowNonce}`];
 
@@ -433,8 +452,15 @@ export class KeycloakConnector<Server extends SupportedServers> {
             throw new LoginError(ErrorHints.CODE_400);
         }
 
+        // Check if this is a silent request
+        const [silentRequestType, silentRequestToken] = this.silentRequestConfig(req);
+
         // Build the redirect uri
-        const redirectUri = this.buildRedirectUriOrThrow({authFlowNonce: authFlowNonce, isSilent: isSilent});
+        const redirectUri = this.buildRedirectUriOrThrow({
+            authFlowNonce: authFlowNonce,
+            silentRequestType: silentRequestType,
+            silentRequestToken: silentRequestToken
+        });
 
         // Check for a code verifier
         if (inputCookies.codeVerifier === undefined) {
@@ -469,7 +495,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             cookies.push(...this.validateAndHandleTokenSet(tokenSet));
 
             // Return a silent login response if required
-            if (isSilent) {
+            if (silentRequestType !== SilentLoginTypes.NONE) {
                 return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_SUCCESS);
             }
 
@@ -482,9 +508,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
         } catch (e) {
 
             // Handle silent requests separately
-            if (isSilent) {
+            if (silentRequestType !== SilentLoginTypes.NONE) {
                 // Check for login required
-                if (e instanceof RPError && e.message.includes("login_required")) {
+                if (e instanceof OPError && e.message.includes("login_required")) {
                     return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED);
                 } else {
                     // Log the error still
@@ -692,10 +718,13 @@ export class KeycloakConnector<Server extends SupportedServers> {
             data: userStatsWrapped,
         }
 
+        // Get the silent type configuration
+        const [, silentRequestToken] = this.silentRequestConfig(req);
+
         return  {
             statusCode: 200,
             cookies: finalCookies,
-            responseHtml: silentLoginResponseHTML(message, isDev())
+            responseHtml: silentLoginResponseHTML(message, silentRequestToken, isDev())
         }
     }
 

@@ -21,16 +21,16 @@ export type GroupAuth = {
     config?: Omit<Partial<GroupAuthConfig>, 'adminGroups'>,
 }
 
-export type GroupAuthUserStatus = {
-    isSystemAdmin: boolean,
+export type GroupAuthUserStatus = UserGroups & {
+    // isSystemAdmin: boolean,
+    // isAllOrgAdmin: boolean,
+    // isAllAppAdmin: boolean,
     isAppAdmin: boolean,
-    isAllOrgAdmin: boolean,
-    isAllAppAdmin: boolean,
     isOrgAdmin: boolean,
     isUser: boolean,
     orgAdminGroups: string[],
     appAdminGroups: string[],
-    allGroupData: UserGroups,
+    // allGroupData: UserGroups,
 }
 
 export type GroupAuthConfig = {
@@ -70,9 +70,9 @@ export const UserGroupPermissionKey = "_";
 export type UserGroups = UserGroupsInternal<"array">;
 
 export type UserGroupsInternal<T = undefined> = {
-    systemAdmin: boolean,
-    allAppAdmin: boolean,
-    allOrgAdmin: boolean,
+    isSystemAdmin: boolean,
+    isAllAppAdmin: boolean,
+    isAllOrgAdmin: boolean,
     organizations: {
         // [UserGroupPermissionKey]?: UserGroupPermissions<T>,
         [orgId: string]: UserGroupPermissions<T>

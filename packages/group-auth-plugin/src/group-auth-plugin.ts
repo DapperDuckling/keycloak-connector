@@ -115,15 +115,16 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
         // Generate the group auth user status defaults
         const groupAuthUserStatus: GroupAuthUserStatus = {
-            isSystemAdmin: userGroups.systemAdmin,
-            isAllAppAdmin: userGroups.allAppAdmin,
-            isAllOrgAdmin: userGroups.allOrgAdmin,
+            // isSystemAdmin: userGroups.isSystemAdmin,
+            // isAllAppAdmin: userGroups.isAllAppAdmin,
+            // isAllOrgAdmin: userGroups.isAllOrgAdmin,
+            ...userGroupsPure,
             isAppAdmin: false,
             isOrgAdmin: false,
             isUser: false,
             orgAdminGroups: [],
             appAdminGroups: [],
-            allGroupData: userGroupsPure,
+            // allGroupData: userGroupsPure,
         }
 
         // Grab a list of app admin groups (application and standalone groups)
@@ -268,7 +269,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
         const hasOrgAccess = (org: string) => {
             // Check if user has all org admin access
-            if (userGroups.allOrgAdmin) return true;
+            if (userGroups.isAllOrgAdmin) return true;
 
             // Check if the user has access to the specified organization
             // (i.e. check if a member has ANY permission in a specific organization)
@@ -294,7 +295,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             }
 
             // Check for all app admin
-            if (userGroups.allAppAdmin) return true;
+            if (userGroups.isAllAppAdmin) return true;
 
             // Grab the app group to use for this permission check
             const appGroups = regAppGroups ?? standAloneAppGroups;
@@ -386,7 +387,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
         } else if (constraints.org !== undefined) {
             // Check for an all org admin
-            if (userGroups.allOrgAdmin) {
+            if (userGroups.isAllOrgAdmin) {
                 kccUserGroupAuthData.orgId = constraints.org;
                 return true;
             }

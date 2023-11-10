@@ -71,12 +71,12 @@ groupRegexHandlers.set(
     }
 );
 
-export const getUserGroups = (allUserGroups: string[], adminGroups: GroupAuthConfig['adminGroups']): UserGroupsInternal => {
+export const getUserGroups = (allUserGroups: string[], adminGroupsConfig: GroupAuthConfig['adminGroups']): UserGroupsInternal => {
 
     const userGroups: UserGroupsInternal = {
-        systemAdmin: (adminGroups?.superAdmin && allUserGroups.includes(adminGroups.superAdmin)) === true,
-        allAppAdmin: (adminGroups?.allAppAdmin && allUserGroups.includes(adminGroups.allAppAdmin)) === true,
-        allOrgAdmin: (adminGroups?.allOrgAdmin && allUserGroups.includes(adminGroups.allOrgAdmin)) === true,
+        isSystemAdmin: (adminGroupsConfig?.superAdmin && allUserGroups.includes(adminGroupsConfig.superAdmin)) === true,
+        isAllAppAdmin: (adminGroupsConfig?.allAppAdmin && allUserGroups.includes(adminGroupsConfig.allAppAdmin)) === true,
+        isAllOrgAdmin: (adminGroupsConfig?.allOrgAdmin && allUserGroups.includes(adminGroupsConfig.allOrgAdmin)) === true,
         applications: {},
         organizations: {},
         standalone: {},
