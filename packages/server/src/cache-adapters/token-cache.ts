@@ -54,7 +54,8 @@ export class TokenCache extends AbstractCacheAdapter<RefreshTokenSet, [string]> 
             // Perform the refresh
             tokenSet = await this.config.oidcClient.refresh(validatedRefreshJwt);
         } catch (e) {
-            this.config.pinoLogger?.debug(e, `Failed to perform token refresh`);
+            this.config.pinoLogger?.debug(e);
+            this.config.pinoLogger?.debug(`Failed to perform token refresh`);
             return undefined;
         }
 

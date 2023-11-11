@@ -326,7 +326,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
             this._config.pinoLogger?.warn({
                 redirectUrlOrigin: redirectUriOrigin,
                 serverOrigin: this._config.serverOrigin,
-            }, `Login redirect url origin does not match server origin!`);
+            });
+            this._config.pinoLogger?.warn(`Login redirect url origin does not match server origin!`);
             throw new LoginError(ErrorHints.CODE_400);
         }
 
@@ -435,7 +436,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Check for missing auth flow nonce
         if (authFlowNonce === null) {
             // Log the bad request
-            this._config.pinoLogger?.warn(req.url, "Missing login flow nonce parameter during login attempt");
+            this._config.pinoLogger?.warn(req.url);
+            this._config.pinoLogger?.warn("Missing login flow nonce parameter during login attempt");
 
             // Redirect the user back to the login page
             throw new LoginError(ErrorHints.CODE_400);
@@ -526,7 +528,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
                     return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED);
                 } else {
                     // Log the error still
-                    this._config.pinoLogger?.error(e, "Error during silent login");
+                    this._config.pinoLogger?.error(e);
+                    this._config.pinoLogger?.error("Error during silent login");
                     return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_ERROR);
                 }
             }
@@ -540,22 +543,26 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
                     // Log the issue as the OP may not be able to handle the requests or
                     // the RP (this server) is not able to connect to the OP
-                    this._config.pinoLogger?.error(e, `Timed out while connecting to the OP. It is possible the OP is still trying to fetch this server's public key and has not yet timed out from that response before we did here.`);
+                    this._config.pinoLogger?.error(e);
+                    this._config.pinoLogger?.error(`Timed out while connecting to the OP. It is possible the OP is still trying to fetch this server's public key and has not yet timed out from that response before we did here.`);
 
                 } else {
                     // Log the issue as a possibility to detect attacks
-                    this._config.pinoLogger?.warn(e, `Failed to complete login, RP error`);
+                    this._config.pinoLogger?.warn(e);
+                    this._config.pinoLogger?.warn(`Failed to complete login, RP error`);
 
                     // This could be 400 or 500 error
                     throw new LoginError(ErrorHints.UNKNOWN);
                 }
             } else if (e instanceof OPError) {
                 // Log the issue
-                this._config.pinoLogger?.error(e, `Unexpected response from OP`);
+                this._config.pinoLogger?.error(e);
+                this._config.pinoLogger?.error(`Unexpected response from OP`);
 
             } else {
                 // Log the issue
-                this._config.pinoLogger?.error(e, `Unexpected error during login`);
+                this._config.pinoLogger?.error(e);
+                this._config.pinoLogger?.error(`Unexpected error during login`);
             }
 
             throw new LoginError(ErrorHints.CODE_500);
@@ -1018,7 +1025,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
             // Return the validated access token
             return refreshTokenSetResult.refreshTokenSet.access_token;
         } catch (e) {
-            this._config.pinoLogger?.warn(e, `Failed to get new TokenSet using refresh token`);
+            this._config.pinoLogger?.warn(e);
+            this._config.pinoLogger?.warn(`Failed to get new TokenSet using refresh token`);
             return;
         }
     }
@@ -1058,9 +1066,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
         } catch (e) {
             // Log if only to detect attacks
             if (e instanceof jose.errors.JWTExpired) {
-                this._config.pinoLogger?.warn(e, 'Expired access token used');
+                this._config.pinoLogger?.warn(e);
+                this._config.pinoLogger?.warn('Expired access token used');
             } else {
-                this._config.pinoLogger?.warn(e, 'Error validating access token');
+                this._config.pinoLogger?.warn(e);
+                this._config.pinoLogger?.warn('Error validating access token');
             }
         }
 
@@ -1086,7 +1096,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
             return await this.components.tokenCache.refreshTokenSet(refreshJwt);
 
         } catch (e) {
-            this._config.pinoLogger?.debug(e, `Could not validate refresh token, could not perform refresh.`);
+            this._config.pinoLogger?.debug(e);
+            this._config.pinoLogger?.debug(`Could not validate refresh token, could not perform refresh.`);
         }
 
         // Could not refresh
@@ -1290,7 +1301,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 return true;
 
             } catch (e) {
-                this._config.pinoLogger?.error(e, `Failed to update OIDC configuration`);
+                this._config.pinoLogger?.error(e);
+                this._config.pinoLogger?.error(`Failed to update OIDC configuration`);
                 return false;
             } finally {
                 // Clear the active update promise

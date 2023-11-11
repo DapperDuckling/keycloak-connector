@@ -174,7 +174,8 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
             )
         } catch (e) {
             // Log error
-            this.config.pinoLogger?.info(e, `Failed to perform data update`);
+            this.config.pinoLogger?.info(e);
+            this.config.pinoLogger?.info(`Failed to perform data update`);
 
         } finally {
 

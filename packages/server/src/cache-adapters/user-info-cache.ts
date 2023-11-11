@@ -41,7 +41,8 @@ export class UserInfoCache extends AbstractCacheAdapter<UserinfoResponse, [strin
         try {
             return await this.config.oidcClient.userinfo(validatedAccessJwt);
         } catch (e) {
-            this.config.pinoLogger?.debug(e, `Failed to fetch user info from keycloak`);
+            this.config.pinoLogger?.debug(e);
+            this.config.pinoLogger?.debug(`Failed to fetch user info from keycloak`);
         }
 
         return undefined;

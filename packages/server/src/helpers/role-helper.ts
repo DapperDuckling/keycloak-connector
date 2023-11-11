@@ -167,7 +167,8 @@ export class RoleHelper {
 
             // Ensure the object has some keys
             if (objectKeys.length === 0) {
-                this.config.pinoLogger?.error("No keys provided for role object, cannot process: ", roles);
+                this.config.pinoLogger?.error("No keys provided for role object, cannot process: ");
+                this.config.pinoLogger?.error(roles);
                 throw new Error("No keys provided for role object, cannot process.");
             }
 

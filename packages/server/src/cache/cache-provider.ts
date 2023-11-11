@@ -46,15 +46,16 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         // Add generic error handler to the token update emitter
         this.updateEmitter.on('error', (e) => {
             // Log the error
-            this.config.pinoLogger?.error(e, `Error in cache`);
+            this.config.pinoLogger?.error(e);
+            this.config.pinoLogger?.error(`Error in cache`);
         });
-        
+
         // Build the LRU caches
         this.instanceLevelUpdateLock = new LRUCache<string, string>({
             max: 10000,
             ttl: config.ttl * 1000,
         });
-        
+
         this.cachedResult = new LRUCache<string, T>({
             max: 10000,
             ttl: config.ttl * 1000,
@@ -211,7 +212,8 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
                     // Log this in order to inform the owner they may need to increase the wait timeout
                     this.config.pinoLogger?.warn(`Timed out while waiting for cache miss callback to execute. Waited ${maxCacheMissWaitSecs} seconds`);
                 } else {
-                    this.config.pinoLogger?.error(e, `Unexpected unhandled error from cache miss callback`);
+                    this.config.pinoLogger?.error(e);
+                    this.config.pinoLogger?.error(`Unexpected unhandled error from cache miss callback`);
                 }
             }
 

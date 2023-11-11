@@ -38,7 +38,7 @@ interface PendingNewJwks {
 }
 
 export class ClusterKeyProvider extends AbstractKeyProvider {
-    
+
     private readonly constants = {
         MAX_INITIALIZE_ATTEMPTS: 10,
         CURR_JWKS_START_DELAY_SECS: 2 * 60,         // 2 minutes
@@ -366,7 +366,8 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
             return subResults;
 
         } catch (e) {
-            this.keyProviderConfig.pinoLogger?.error(e, `Error while subscribing to ${listeningChannel}`);
+            this.keyProviderConfig.pinoLogger?.error(e);
+            this.keyProviderConfig.pinoLogger?.error(`Error while subscribing to ${listeningChannel}`);
             return false;
         }
     }

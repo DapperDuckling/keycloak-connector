@@ -316,23 +316,27 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
         // Register the event listeners
         client.on(RedisClusterEvents.READY, (msg: string) => {
-            this.clusterConfig.pinoLogger?.debug(`Redis ${clientNameTag} ready to use`, msg);
+            this.clusterConfig.pinoLogger?.debug(`Redis ${clientNameTag} ready to use`);
+            this.clusterConfig.pinoLogger?.debug(msg);
             this.setIsConnected(isSubscriber, true);
             this.emitEvent(RedisClusterEvents.READY, msg);
         });
         client.on(RedisClusterEvents.END, (msg: string) => {
-            this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} connection has been closed`, msg);
+            this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} connection has been closed`);
+            this.clusterConfig.pinoLogger?.error(msg);
             this.setIsConnected(isSubscriber, false);
             this.emitEvent(RedisClusterEvents.END, msg);
         });
         client.on(RedisClusterEvents.ERROR, (msg: string) => {
-            this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} cluster error`, msg);
+            this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} cluster error`);
+            this.clusterConfig.pinoLogger?.error(msg);
             this.setIsConnected(isSubscriber, false);
             this.emitEvent(BaseClusterEvents.ERROR, msg);
             if (isSubscriber) this.connectionData.subscriberHadToReconnect = true;
         });
         client.on(RedisClusterEvents.RECONNECTING, (msg: string) => {
-            this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} is attempting to reconnect to the server`, msg);
+            this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} is attempting to reconnect to the server`);
+            this.clusterConfig.pinoLogger?.error(msg);
             this.setIsConnected(isSubscriber, false);
             this.emitEvent(RedisClusterEvents.RECONNECTING, msg);
         });
@@ -388,14 +392,16 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
         try {
             this.client.disconnect();
         } catch (e) {
-            this.clusterConfig.pinoLogger?.error(e, `Failed to disconnect from redis cluster`);
+            this.clusterConfig.pinoLogger?.error(e);
+            this.clusterConfig.pinoLogger?.error(`Failed to disconnect from redis cluster`);
             return false;
         }
 
         try {
             this.subscriber.disconnect();
         } catch (e) {
-            this.clusterConfig.pinoLogger?.error(e, `Failed to disconnect from redis cluster`);
+            this.clusterConfig.pinoLogger?.error(e);
+            this.clusterConfig.pinoLogger?.error(`Failed to disconnect from redis cluster`);
             return false;
         }
 
@@ -428,7 +434,8 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
             return true;
         } catch (e) {
-            this.clusterConfig.pinoLogger?.debug(e, `Failed to subscribe to ${channelName}`);
+            this.clusterConfig.pinoLogger?.debug(e);
+            this.clusterConfig.pinoLogger?.debug(`Failed to subscribe to ${channelName}`);
             return false;
         }
     }
@@ -451,7 +458,8 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
             return true;
         } catch (e) {
-            this.clusterConfig.pinoLogger?.debug(e, `Failed to unsubscribe from ${channelName}`);
+            this.clusterConfig.pinoLogger?.debug(e);
+            this.clusterConfig.pinoLogger?.debug(`Failed to unsubscribe from ${channelName}`);
             return false;
         }
     }
@@ -466,7 +474,8 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
             await this.client.publish(channelName, message);
             return true;
         } catch (e) {
-            this.clusterConfig.pinoLogger?.debug(e, `Failed to publish message to ${channelName}`);
+            this.clusterConfig.pinoLogger?.debug(e);
+            this.clusterConfig.pinoLogger?.debug(`Failed to publish message to ${channelName}`);
             return false;
         }
     }
