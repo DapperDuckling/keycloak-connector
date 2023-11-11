@@ -10,6 +10,6 @@
 
 - Update version and publish the package
   ```
-  lerna publish --no-private
+  lerna publish
   ```
 
