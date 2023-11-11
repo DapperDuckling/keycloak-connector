@@ -3,6 +3,8 @@ import {AbstractCacheAdapter} from "./abstract-cache-adapter.js";
 import type {BaseClient, UserinfoResponse} from "openid-client";
 import {cacheFactory} from "../cache/cache-factory.js";
 import {CacheProvider} from "../cache/cache-provider.js";
+import {errors} from "openid-client";
+import RPError = errors.RPError;
 
 export type UserInfoCacheConfig = CacheAdapterConfig & {
     oidcClient: BaseClient,
@@ -41,6 +43,11 @@ export class UserInfoCache extends AbstractCacheAdapter<UserinfoResponse, [strin
         try {
             return await this.config.oidcClient.userinfo(validatedAccessJwt);
         } catch (e) {
+            // Check for a server misconfiguration
+            if (e instanceof RPError && e.message.includes("expected application/jwt response")) {
+                this.config.pinoLogger?.error(`Keycloak misconfiguration! See keycloak-connector-server readme for proper client configuration. (Need to set signature algorithm)`);
+            }
+
             this.config.pinoLogger?.debug(e);
             this.config.pinoLogger?.debug(`Failed to fetch user info from keycloak`);
         }

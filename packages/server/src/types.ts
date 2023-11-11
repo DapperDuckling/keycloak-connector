@@ -65,6 +65,9 @@ export interface KeycloakConnectorConfigBase {
     /** Authorized origins */
     validOrigins?: string[];
 
+    /** Override default redirect uri **/
+    redirectUri?: string;
+
     /** The keycloak client id **/
     clientId?: string;
 

@@ -37,10 +37,10 @@ import {TokenCache, UserInfoCache} from "./cache-adapters/index.js";
 import {AuthPluginManager} from "./auth-plugins/index.js";
 import {silentLoginResponseHTML} from "./helpers/silent-login.js";
 import hash from "object-hash";
+import {fileURLToPath} from "url";
+import path, {dirname} from "path";
 import RPError = errors.RPError;
 import OPError = errors.OPError;
-import { fileURLToPath } from "url";
-import path, { dirname } from "path";
 
 export class KeycloakConnector<Server extends SupportedServers> {
 
@@ -63,6 +63,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private readonly CookieOptionsLax: CookieOptionsBase<Server> = {
         ...this.CookieOptions,
         sameSite: "lax",
+    }
+
+    private readonly CookieOptionsUnrestricted: CookieOptionsBase<Server> = {
+        ...this.CookieOptions,
+        sameSite: "none",
     }
 
     private constructor(
@@ -135,7 +140,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             url: this.getRoutePath(RouteEnum.CALLBACK),
             method: "GET",
             isUnlocked: true,
-        }, this.handleCallback);
+        }, this.handleCallbackWrapped);
 
         /**
          * Shows the client provided logout page
@@ -242,7 +247,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Determine the silent type
         const silentParam = (typeof req.urlQuery["silent"] === "string") ? req.urlQuery["silent"] : undefined
-        // @ts-ignore - Ignoring string can't be a part of the login types... that's why I'm using includes dummy!
+        // @ts-ignore - Ignoring string can't be a part of the login types... that's why I'm using "includes" dummy!
         const silentType = (silentParam && Object.values(SilentLoginTypes).includes(silentParam)) ? silentParam : SilentLoginTypes.NONE;
 
         return [silentType as SilentLoginTypes, token];
@@ -287,7 +292,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             name: `${Cookies.CODE_VERIFIER}-${authFlowNonce}`,
             value: cv,
             options: {
-                ...this.CookieOptionsLax,
+                ...(isDev()) ? this.CookieOptionsUnrestricted : this.CookieOptionsLax,
                 expires: new Date(+new Date() + this._config.authCookieTimeout),
             }
         });
@@ -447,6 +452,23 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return (new URL(req.url, "https://localhost")).searchParams.get('auth_flow_nonce');
     }
 
+    private handleCallbackWrapped = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
+        try {
+            return await this.handleCallback(req);
+        } catch (e) {
+            // Determine the silent login status
+            const [silentRequestType, silentRequestToken] = this.silentRequestConfig(req);
+
+            // Silent, return data via silent login response
+            if (silentRequestType !== SilentLoginTypes.NONE) {
+                return this.handleSilentLoginResponse(req, [], SilentLoginEvent.LOGIN_ERROR);
+            }
+
+            // Rethrow on non-silent requests
+            throw e;
+        }
+    }
+
     private handleCallback = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
         // Grab the auth flow nonce
@@ -535,23 +557,29 @@ export class KeycloakConnector<Server extends SupportedServers> {
             return {
                 statusCode: 303,
                 cookies: cookies,
-                redirectUrl: postAuthRedirectUri ?? this._config.serverOrigin,
+                redirectUrl: postAuthRedirectUri ?? this._config.redirectUri ?? this._config.serverOrigin,
             }
 
         } catch (e) {
 
-            // Handle silent requests separately
-            if (silentRequestType !== SilentLoginTypes.NONE) {
-                // Check for login required
-                if (e instanceof OPError && (e.message.includes("login_required") || e.message.includes("interaction_required"))) {
-                    return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED);
-                } else {
-                    // Log the error still
-                    this._config.pinoLogger?.error(e);
-                    this._config.pinoLogger?.error("Error during silent login");
-                    return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_ERROR);
-                }
+            // Check if silent login requires login
+            if (silentRequestType !== SilentLoginTypes.NONE &&
+                e instanceof OPError &&
+                (e.message.includes("login_required") || e.message.includes("interaction_required"))
+            ) {
+                return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED);
             }
+            // if (silentRequestType !== SilentLoginTypes.NONE) {
+            //     // Check for login required
+            //     if (e instanceof OPError && (e.message.includes("login_required") || e.message.includes("interaction_required"))) {
+            //         return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED);
+            //     } else {
+            //         // Log the error still
+            //         this._config.pinoLogger?.error(e);
+            //         this._config.pinoLogger?.error("Error during silent login");
+            //         return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_ERROR);
+            //     }
+            // }
 
             if (e instanceof RPError) {
                 // Check for an expired JWT
@@ -648,7 +676,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return {
             statusCode: 303,
             cookies: cookies,
-            redirectUrl: postAuthRedirectUri ?? this._config.serverOrigin,
+            redirectUrl: postAuthRedirectUri ?? this._config.redirectUri ?? this._config.serverOrigin,
         }
     }
 
@@ -780,7 +808,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return  {
             statusCode: 200,
             cookies: finalCookies,
-            responseHtml: silentLoginResponseHTML(message, silentRequestToken, isDev())
+            responseHtml: silentLoginResponseHTML(message, silentRequestToken, process.env['DEBUG_SILENT_IFRAME'] !== undefined)
         }
     }
 
