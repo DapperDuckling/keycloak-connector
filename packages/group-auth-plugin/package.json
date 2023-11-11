@@ -1,6 +1,6 @@
 {
   "name": "@dapperduckling/keycloak-connector-group-auth-plugin",
-  "version": "0.0.22",
+  "version": "0.0.23",
   "description": "A plugin enabling Keycloak group permission management via Keycloak groups",
   "keywords": [
     "keycloak group permissions",
