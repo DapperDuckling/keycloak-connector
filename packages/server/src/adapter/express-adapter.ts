@@ -72,15 +72,12 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
                 // Redirect if needed
                 res.redirect(connectorResponse.redirectUrl);
 
-            } else if (connectorResponse.serveFile !== undefined) {
+            } else if (connectorResponse.serveFileFullPath !== undefined) {
 
-                // Grab the file path
-                const fileToServe = connectorResponse.serveFile;
-                // todo: remove hard coded path in this section
                 // Send file
-                res.sendFile(fileToServe, (err) => {
-                    this.pinoLogger?.error('Could not find file to serve', connectorResponse.serveFile);
-                    next(new Error());
+                res.sendFile(connectorResponse.serveFileFullPath, (err) => {
+                    res.status(404);
+                    next();
                 });
 
             } else {

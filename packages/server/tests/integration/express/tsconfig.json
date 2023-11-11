@@ -1,0 +1,38 @@
+{
+  "extends": [
+    "@tsconfig/strictest/tsconfig.json",
+    "@tsconfig/node18/tsconfig.json",
+    "@tsconfig/esm/tsconfig.json"
+  ],
+  "ts-node": {
+    "esm": true,
+    "files": true
+  },
+  "compilerOptions": {
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "baseUrl": ".",
+    "sourceMap": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "removeComments": false,
+    "noEmitOnError": true,
+    "resolveJsonModule": true,
+    "strict": true,
+    "outDir": "./build",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "lib": ["es2020", "DOM"],
+    "module": "nodenext",
+    "preserveConstEnums": true,
+    "moduleResolution": "nodenext",
+    "target": "es2022",
+//    "types": ["node"],
+
+//    "rootDir": "../" // test if this works
+  },
+  "exclude": [
+    "node_modules",
+    "build",
+  ],
+}

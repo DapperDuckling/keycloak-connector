@@ -17,6 +17,8 @@ import type {
 } from "@fastify/static";
 import {RouteConfigDefault} from "../helpers/defaults.js";
 import {isObject} from "../helpers/utils.js";
+import { dirname } from "path";
+import { basename } from "path";
 
 export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
 
@@ -60,9 +62,15 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
             // Redirect if needed
             return reply.redirect(connectorResponse.redirectUrl);
 
-        } else if (connectorResponse.serveFile) {
+        } else if (connectorResponse.serveFileFullPath) {
             // Send any files
-            return reply.sendFile(connectorResponse.serveFile);
+            return reply.sendFile(
+                basename(connectorResponse.serveFileFullPath),
+                dirname(connectorResponse.serveFileFullPath),
+                {
+                    serveDotFiles: false,
+                }
+            );
         }
 
         // Check if this is an html response

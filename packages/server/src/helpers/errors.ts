@@ -3,7 +3,7 @@ import type {SupportedServers} from "../types.js";
 
 export class ConnectorErrorRedirect<Server extends SupportedServers> implements ConnectorResponse<Server> {
     responseText?: string;
-    serveFile?: string;
+    serveFileFullPath?: string;
     redirectUrl?: string;
     cookies?: CookieParams<Server>[];
     statusCode: number;

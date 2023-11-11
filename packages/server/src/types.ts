@@ -156,19 +156,22 @@ export type CustomRouteUrl = {
     adminUrl?: string;
     backChannelLogout?: string;
     userStatus?: string;
+    publicDir?: string;
 }
 
 export enum RouteEnum {
-    LOGIN_PAGE,
-    LOGIN_POST,
-    LOGOUT_PAGE,
-    LOGOUT_POST,
-    CALLBACK,
-    LOGOUT_CALLBACK,  // Todo: Is this used?
-    PUBLIC_KEYS,
-    ADMIN_URL,
-    BACK_CHANNEL_LOGOUT,
-    USER_STATUS,
+    // String enums MUST match key found in CustomRouteUrl type
+    LOGIN_PAGE = "loginPage",
+    LOGIN_POST = "loginPost",
+    LOGOUT_PAGE = "logoutPage",
+    LOGOUT_POST = "logoutPost",
+    CALLBACK = "callback",
+    LOGOUT_CALLBACK = "logoutCallback",  // Todo: Is this used?
+    PUBLIC_KEYS = "publicKeys",
+    ADMIN_URL = "adminUrl",
+    BACK_CHANNEL_LOGOUT = "backChannelLogout",
+    USER_STATUS = "userStatus",
+    PUBLIC_DIR = "publicDir",
 }
 
 export type ReqCookies = { [cookieName: string]: string | undefined };
@@ -197,7 +200,7 @@ export interface UserDataResponse<Server extends SupportedServers> {
 }
 
 export interface ConnectorResponse<Server extends SupportedServers> {
-    serveFile?: string,
+    serveFileFullPath?: string,
     redirectUrl?: string,
     responseText?: string,
     responseHtml?: string,

@@ -39,6 +39,8 @@ import {silentLoginResponseHTML} from "./helpers/silent-login.js";
 import hash from "object-hash";
 import RPError = errors.RPError;
 import OPError = errors.OPError;
+import { fileURLToPath } from "url";
+import path, { dirname } from "path";
 
 export class KeycloakConnector<Server extends SupportedServers> {
 
@@ -198,6 +200,16 @@ export class KeycloakConnector<Server extends SupportedServers> {
             method: "GET",
             isUnlocked: true,
         }, this.handleUserStatus);
+
+        /**
+         * Provides access to the public directory of this plugin
+         * Dev note: Must register this route last
+         */
+        this.registerRoute(adapter, {
+            url: this.getRoutePath(RouteEnum.PUBLIC_DIR),
+            method: "GET",
+            isUnlocked: true,
+        }, this.handleServePublic);
     }
 
     private registerRoute(adapter: AbstractAdapter<Server>,
@@ -220,9 +232,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
         });
     }
 
-    private handleLoginGet = async (): Promise<ConnectorResponse<Server>> => ({
-        serveFile: "login-start.html",
-    });
+    private getDirectory = () => dirname(fileURLToPath(import.meta.url));
+
+    private handleLoginGet = async (): Promise<ConnectorResponse<Server>> => this.servePublic(`login-start.html`);
 
     private silentRequestConfig = (req: ConnectorRequest): [SilentLoginTypes, string] => {
         // Ensure there is a token passed
@@ -550,9 +562,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
     }
 
-    private handleLogoutGet = async (): Promise<ConnectorResponse<Server>> => ({
-        serveFile: "logout-start.html",
-    });
+    private handleLogoutGet = async (): Promise<ConnectorResponse<Server>> => this.servePublic(`logout-start.html`);
 
     private handleLogoutPost = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
@@ -679,6 +689,26 @@ export class KeycloakConnector<Server extends SupportedServers> {
             statusCode: 200,
             responseText: JSON.stringify(userStatus),
         };
+    }
+
+    private handleServePublic = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
+        return this.servePublic(req.urlParams['file'] ?? "login-start.html");
+    }
+
+    private servePublic = async (fileToServe: string): Promise<ConnectorResponse<Server>> => {
+        // Ensure the requested file matches regex
+        if (!/^(?=.*\w)[-_\w.]+$/.test(fileToServe)) {
+            return {
+                statusCode: 404,
+                //todo: see what 400 defaults to
+                // responseText: "Bad request",
+            }
+        }
+
+        // Serve the file
+        return {
+            serveFileFullPath: [this.getDirectory(), 'public', fileToServe].join(path.sep)
+        }
     }
 
     private cookieArrayToObject = (cookies: CookieParams<Server>[]): ReqCookies => {
@@ -1510,28 +1540,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
     static getRoutePath(route: RouteEnum, config: KeycloakConnectorConfigCustom | KeycloakConnectorConfigBase) {
         const prefix = config.routePaths?._prefix ?? RouteUrlDefaults._prefix;
 
-        switch(route) {
-            case RouteEnum.LOGIN_PAGE:
-                return `${prefix}${config.routePaths?.loginPage ?? RouteUrlDefaults.loginPage}`;
-            case RouteEnum.LOGIN_POST:
-                return `${prefix}${config.routePaths?.loginPost ?? RouteUrlDefaults.loginPost}`;
-            case RouteEnum.LOGOUT_PAGE:
-                return `${prefix}${config.routePaths?.logoutPage ?? RouteUrlDefaults.logoutPage}`;
-            case RouteEnum.LOGOUT_POST:
-                return `${prefix}${config.routePaths?.logoutPost ?? RouteUrlDefaults.logoutPost}`;
-            case RouteEnum.CALLBACK:
-                return `${prefix}${config.routePaths?.callback ?? RouteUrlDefaults.callback}`;
-            case RouteEnum.LOGOUT_CALLBACK:
-                return `${prefix}${config.routePaths?.logoutCallback ?? RouteUrlDefaults.logoutCallback}`;
-            case RouteEnum.PUBLIC_KEYS:
-                return `${prefix}${config.routePaths?.publicKeys ?? RouteUrlDefaults.publicKeys}`;
-            case RouteEnum.ADMIN_URL:
-                return `${prefix}${config.routePaths?.adminUrl ?? RouteUrlDefaults.adminUrl}`;
-            case RouteEnum.BACK_CHANNEL_LOGOUT:
-                return `${prefix}${config.routePaths?.backChannelLogout ?? RouteUrlDefaults.backChannelLogout}`;
-            case RouteEnum.USER_STATUS:
-                return `${prefix}${config.routePaths?.userStatus ?? RouteUrlDefaults.userStatus}`;
-        }
+        return `${prefix}${config.routePaths?.[route] ?? RouteUrlDefaults[route]}`;
     }
 
     private getRouteUri = (route: RouteEnum): string => {

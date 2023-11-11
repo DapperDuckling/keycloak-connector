@@ -1,6 +1,6 @@
 import type {CustomRouteUrl, KeycloakRouteConfig, UserData} from "../types.js";
 
-export const RouteUrlDefaults: CustomRouteUrl = {
+export const RouteUrlDefaults: Required<CustomRouteUrl> = {
     _prefix: '/auth',
     loginPage: '/login',
     loginPost: '/login',
@@ -12,6 +12,7 @@ export const RouteUrlDefaults: CustomRouteUrl = {
     adminUrl: '/k-admin-url',
     backChannelLogout: '/k-logout',
     userStatus: '/user-status',
+    publicDir: "/:file"
 }
 
 export const RouteConfigDefault: KeycloakRouteConfig = {

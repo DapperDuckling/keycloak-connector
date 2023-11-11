@@ -6,8 +6,6 @@ import * as path from "path";
 
 import {keycloakConnectorFastify} from "@dapperduckling/keycloak-connector-server";
 import {routes} from "./routes.js";
-import type {Logger} from "pino";
-import {redisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-redis";
 
 // Configure fastify
 const fastify = Fastify({
@@ -35,15 +33,15 @@ fastify.setErrorHandler(async (error, request, reply) => {
     // Log error
     fastify.log.error(error);
 
-    // Send the 500 error
-    return reply.status(500).sendFile('5XX.html');
+    // // Send the 500 error
+    // return reply.status(500).sendFile('5XX.html');
 });
 
-// Setup the file not found handler
-fastify.setNotFoundHandler(async (request, reply) => {
-    // Send the 404 not found
-    return reply.status(404).sendFile('404.html');
-});
+// // Setup the file not found handler
+// fastify.setNotFoundHandler(async (request, reply) => {
+//     // Send the 404 not found
+//     return reply.status(404).sendFile('404.html');
+// });
 
 // To store the session state cookie
 await fastify.register(cookie, {
