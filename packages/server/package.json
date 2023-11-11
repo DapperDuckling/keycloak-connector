@@ -20,7 +20,7 @@
   "scripts": {
     "prepare": "npm ls ts-patch || exit 0 && ts-patch install",
     "clean": "rimraf ./dist/",
-    "build": "npm run clean && tsc && cpy ./src/**/*.d.ts ./dist && cpy ./src/public/* ./dist/public && cpy --flat ./../../node_modules/trianglify/dist/trianglify.bundle.js ./dist/public",
+    "build": "npm run clean && tsc && cpy ./src/**/*.d.ts ./dist && cpy ./src/static/* ./dist/static && cpy --flat ./../../node_modules/trianglify/dist/trianglify.bundle.js ./dist/static",
     "prepublishOnly": "npm run build",
     "test:start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts",
     "test:start:express": "npm run build && cd ./tests/integration/express/ && nodemon ./express-server.ts"
