@@ -203,7 +203,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         /**
          * Provides access to the public directory of this plugin
-         * Dev note: Must register this route last
          */
         this.registerRoute(adapter, {
             url: this.getRoutePath(RouteEnum.PUBLIC_DIR),
