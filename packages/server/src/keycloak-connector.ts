@@ -319,18 +319,28 @@ export class KeycloakConnector<Server extends SupportedServers> {
             redirectUriOrigin = (new URL(rawRedirectUri)).origin;
         } catch (e) {}
 
-        // Check for mismatched origin
-        if (redirectUriOrigin !== this._config.serverOrigin) {
-            // Log the potentially dangerous error
-            this._config.pinoLogger?.warn({
-                redirectUrlOrigin: redirectUriOrigin,
-                serverOrigin: this._config.serverOrigin,
-            });
-            this._config.pinoLogger?.warn(`Login redirect url origin does not match server origin!`);
+        // Check for no redirect origin
+        if (redirectUriOrigin === undefined) {
+            this._config.pinoLogger?.debug(`No redirect uri origin to process`);
             throw new LoginError(ErrorHints.CODE_400);
         }
 
-        return true;
+        // Grab all the valid redirect origins
+        const validRedirectOrigins = [
+            this._config.serverOrigin,
+            ...(this._config.validRedirectOrigins ?? []),
+        ]
+
+        // Check for good origin
+        if (validRedirectOrigins.includes(redirectUriOrigin)) return true;
+
+        // Log the potentially dangerous error
+        this._config.pinoLogger?.warn({
+            redirectUrlOrigin: redirectUriOrigin,
+            serverOrigin: this._config.serverOrigin,
+        });
+        this._config.pinoLogger?.warn(`Login redirect url origin does not match server origin!`);
+        throw new LoginError(ErrorHints.CODE_400);
     }
 
     private buildRedirectCookie = (opts: {
@@ -345,16 +355,20 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Handle the post login redirect uri
         const inputUrlObj = new URL(req.url, req.origin);
         const rawPostAuthRedirectUri = inputUrlObj.searchParams.get('post_auth_redirect_uri');
-        let rawPostAuthRedirectUriObj: URL | null = null;
+
+        try {
+            this.validateRedirectUriOrThrow(rawPostAuthRedirectUri);
+        } catch (e) {
+            return [];
+        }
+
+        let rawPostAuthRedirectUriObj: URL;
 
         try {
             rawPostAuthRedirectUriObj = new URL(rawPostAuthRedirectUri ?? "");
-        } catch (e) {} // Invalid redirect uri, ignore
-
-        // todo: FUTURE FEATURE -- Add option to filter auth redirect uri
-
-        // Build the auth redirect uri cookie if the redirect uri is from the same origin
-        if (!rawPostAuthRedirectUriObj || rawPostAuthRedirectUriObj.origin !== this._config.serverOrigin) return [];
+        } catch (e) {
+            return [];
+        }
 
         // Check if the post auth redirect is the same as the start pages
         if ((!isLogout && rawPostAuthRedirectUriObj.pathname === this.getRoutePath(RouteEnum.LOGIN_PAGE)) ||
