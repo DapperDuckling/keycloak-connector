@@ -45,7 +45,7 @@ const fastify = Fastify({
    - Authentication mode: ~~IAM authentication~~ (not yet implemented by AWS SDKs), use password
    - Access string: \<see below>
      - To restrict access to a specific of commands & partition data between users, we'll build a unique authentication string.
-     - Template (fill in blanks): `on clearselectors resetkeys ~<app name>-<prod|dev>:* resetchannels &<app name>-<prod|dev>:* -@all +@FAST`
+     - Template (fill in blanks): `on clearselectors resetkeys ~<app name>-<prod|dev>:* resetchannels &<app name>-<prod|dev>:* -@all +@fast +@pubsub +@keyspace +@string +@read +@write +@scripting -@dangerous +client|setname +info`
      - The above allows read/write access to keys & pub/sub channels that match the `my-cool-app-prod:*` glob and allows commands in the `FAST` category.
        - Note: After submitting, the final access string will not have `clearselectors`, `resetkeys`, and `resetchannels`. These are directives to force clear permissions for existing sessions.
 2. Tie new users to the user group (under "User groups")

@@ -12,7 +12,7 @@ export const RouteUrlDefaults: Required<CustomRouteUrl> = {
     adminUrl: '/k-admin-url',
     backChannelLogout: '/k-logout',
     userStatus: '/user-status',
-    publicDir: "/:file"
+    publicDir: "/static/:file"
 }
 
 export const RouteConfigDefault: KeycloakRouteConfig = {
