@@ -713,7 +713,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Serve the file
         return {
-            serveFileFullPath: [this.getDirectory(), 'public', fileToServe].join(path.sep)
+            serveFileFullPath: [this.getDirectory(), 'static', fileToServe].join(path.sep)
         }
     }
 
