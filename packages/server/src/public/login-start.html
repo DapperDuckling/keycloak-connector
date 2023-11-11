@@ -4,135 +4,14 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Login</title>
-    <style>
-        html {
-            background: #000;
-        }
-
-        html, body {
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh; /* fallback for unsupported browsers */
-            height: 100lvh;
-            width: 100vw;
-            font-family: "Open Sans", Helvetica, Arial, sans-serif;
-        }
-
-        h3 {
-            font-weight: 100;
-            margin: 0;
-            margin-bottom: 5px;
-            font-size: 1.5em;
-            font-variant: all-small-caps;
-            color: #0062cc;
-        }
-
-        #login-modal {
-            /* min-width: 100px; */
-            width: 450px;
-            height: 100px;
-            border-radius: 5px;
-            background: #ffffff;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 5px 5px 9px 4px #0000006b;
-            padding: 10px 20px;
-            justify-content: center;
-            margin: 10px;
-        }
-
-        #background {
-            height: 100vh; /* fallback for unsupported browsers */
-            height: 100lvh;
-            width: 100vw;
-            position: absolute;
-            z-index: -1;
-        }
-
-        button {
-            box-sizing: border-box;
-            margin: 0;
-            font-family: inherit;
-            overflow: visible;
-            text-transform: none;
-            font-weight: 400;
-            text-align: center;
-            white-space: nowrap;
-            vertical-align: middle;
-            user-select: none;
-            border: 1px solid transparent;
-            transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
-            color: #fff;
-            background-color: #007bff;
-            border-color: #007bff;
-            padding: .5rem 1rem;
-            font-size: 1.1rem;
-            line-height: 0.7;
-            /* border-radius: .3rem; */
-            display: block;
-            width: 100%;
-            -webkit-appearance: button;
-            cursor: pointer;
-        }
-
-        button:hover {
-            color: #fff;
-            background-color: #0069d9;
-            border-color: #0062cc;
-        }
-
-        button:active {
-            color: #fff;
-            background-color: #0062cc;
-            border-color: #005cbf;
-        }
-
-        .info {
-            text-align: center;
-            flex-grow: 1;
-            user-select: none;
-            /* width: 132px; */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-
-        .info p {
-            text-transform: lowercase;
-            font-size: 0.75em;
-            /* font-weight: 750; */
-            margin: 0;
-            position: relative;
-            width: min-content;
-            /* vertical-align: bottom; */
-            display: flex;
-            align-items: flex-end;
-        }
-
-        @media (max-width: 300px) {
-            #login-modal {
-                padding: 0;
-                margin: 0;
-                border-radius: 0;
-            }
-        }
-
-    </style>
+    <title>Sign In</title>
+    <link rel="stylesheet" href="/auth/main.css">
 </head>
 <body>
 <div id="background">
     <canvas id="canvas"></canvas>
 </div>
-<div id="login-modal">
+<div id="modal">
     <div class="info">
         <h3>Sign in to your account</h3>
         <p>localhost</p>
@@ -141,71 +20,7 @@
         <button>Sign In</button>
     </form>
 </div>
-<script src="trianglify.bundle.js"></script>
-<!--<script src="trianglify.js"></script>-->
-<script>
-    const seed = Math.random().toString(36);
-    let delayTimeout = null;
-    let oneMore = false;
-
-    const updateBackground = () => {
-        const backgroundElem = document.querySelector("#background").getClientRects()[0];
-        const pattern = trianglify({
-            // palette: trianglify.defaultOptions.palette.Blues,
-            seed: seed,
-            cellSize: 50,
-            width: backgroundElem.width,
-            height: backgroundElem.height,
-        });
-
-        // Paint to canvas
-        const canvas = document.querySelector("#canvas");
-        pattern.toCanvas(canvas);
-
-        // Clear timeout flag
-        delayTimeout = null;
-
-        // Check for one more flag
-        if (oneMore) {
-            registerPendingUpdate();
-            oneMore = false;
-        }
-    };
-
-    const registerPendingUpdate = () => {
-        delayTimeout = setTimeout(() => updateBackground(), 10);
-    }
-
-    addEventListener("resize", (event) => {
-        if (delayTimeout !== null) {
-            oneMore = true;
-            return;
-        }
-        registerPendingUpdate();
-    });
-
-    window.addEventListener('load', registerPendingUpdate);
-
-    document.addEventListener("DOMContentLoaded", function () {
-        const container = document.getElementById("login-modal");
-
-        document.addEventListener("mousemove", function (e) {
-            const mouseX = e.clientX;
-            const mouseY = e.clientY;
-            const containerX = container.offsetLeft + container.offsetWidth / 2;
-            const containerY = container.offsetTop + container.offsetHeight / 2;
-
-            // Calculate the distance between the cursor and the center of the container
-            const distanceX = mouseX - containerX;
-            const distanceY = mouseY - containerY;
-
-            // Adjust the box-shadow based on the cursor position to be on the opposite side
-            const offsetX = (distanceX / 10) * -0.5;
-            const offsetY = (distanceY / 10) * -0.5;
-
-            container.style.boxShadow = `${offsetX}px ${offsetY}px 40px rgba(0, 0, 0, 0.3)`;
-        });
-    });
-</script>
+<script src="/auth/trianglify.bundle.js"></script>
+<script src="/auth/script.js"></script>
 </body>
 </html>

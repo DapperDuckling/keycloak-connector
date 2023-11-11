@@ -1,1 +1,120 @@
 
+html {
+    background: #000;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh; /* fallback for unsupported browsers */
+    height: 100svh;
+    width: 100vw;
+    font-family: "Open Sans", Helvetica, Arial, sans-serif;
+}
+
+h3 {
+    font-weight: 100;
+    margin: 0;
+    margin-bottom: 5px;
+    font-size: 1.5em;
+    font-variant: all-small-caps;
+    color: #0062cc;
+}
+
+#modal {
+    /* min-width: 100px; */
+    width: 450px;
+    height: 100px;
+    border-radius: 5px;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 5px 5px 9px 4px #0000006b;
+    padding: 10px 20px;
+    justify-content: center;
+    margin: 10px;
+}
+
+#background {
+    height: 100vh; /* fallback for unsupported browsers */
+    height: 100svh;
+    width: 100vw;
+    position: absolute;
+    z-index: -1;
+}
+
+button {
+    box-sizing: border-box;
+    margin: 0;
+    font-family: inherit;
+    overflow: visible;
+    text-transform: none;
+    font-weight: 400;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    user-select: none;
+    border: 1px solid transparent;
+    transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+    color: #fff;
+    background-color: #007bff;
+    border-color: #007bff;
+    padding: .5rem 1rem;
+    font-size: 1.1rem;
+    line-height: 0.7;
+    /* border-radius: .3rem; */
+    display: block;
+    width: 100%;
+    -webkit-appearance: button;
+    cursor: pointer;
+}
+
+button:hover {
+    color: #fff;
+    background-color: #0069d9;
+    border-color: #0062cc;
+}
+
+button:active {
+    color: #fff;
+    background-color: #0062cc;
+    border-color: #005cbf;
+}
+
+.info {
+    text-align: center;
+    flex-grow: 1;
+    user-select: none;
+    /* width: 132px; */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+
+.info p {
+    text-transform: lowercase;
+    font-size: 0.75em;
+    /* font-weight: 750; */
+    margin: 0;
+    position: relative;
+    width: min-content;
+    /* vertical-align: bottom; */
+    display: flex;
+    align-items: flex-end;
+}
+
+@media (max-width: 300px) {
+    #modal {
+        padding: 0;
+        margin: 0;
+        border-radius: 0;
+    }
+}

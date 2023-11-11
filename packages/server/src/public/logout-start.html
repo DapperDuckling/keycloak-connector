@@ -1,25 +1,26 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>Start LOGOUT page</title>
-    <style>
-        body {
-            background: black;
-            color: white;
-        }
-    </style>
-    <script>
-        window.addEventListener('load', () => {
-            const postAuthRedirectUriEncoded = window.encodeURIComponent(document.location.href);
-            document.forms[0].action =  `/auth/logout?post_auth_redirect_uri=${postAuthRedirectUriEncoded}`;
-        });
-    </script>
-
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sign Out</title>
+    <link rel="stylesheet" href="/auth/main.css">
 </head>
 <body>
-<h1>Pretty LOGOUT page here.</h1>
-<!-- Create this from window.encodeURIComponent -- see https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html#output-encoding-for-url-contexts  -->
-<form action="/auth/logout" method="post">
-    <button>Logout</button>
-</form>
+<div id="background">
+    <canvas id="canvas"></canvas>
+</div>
+<div id="modal">
+    <div class="info">
+        <h3>Would you like to sign out?</h3>
+        <p>localhost</p>
+    </div>
+    <form action="logout" method="post">
+        <button>Sign Out</button>
+    </form>
+</div>
+<script src="/auth/trianglify.bundle.js"></script>
+<script src="/auth/script.js"></script>
 </body>
 </html>
