@@ -50,6 +50,10 @@ h3 {
     z-index: -1;
 }
 
+#canvas {
+    pointer-events: none;
+}
+
 button {
     box-sizing: border-box;
     margin: 0;

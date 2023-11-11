@@ -9,7 +9,6 @@ import type {Logger} from "pino";
 import type {
     GroupAuthConfig,
     GroupAuthData,
-    GroupAuthRouteConfig,
     InheritanceTree,
     KcGroupClaims,
     MappedInheritanceTree, UserGroupPermissions, UserGroupsInternal,
@@ -20,12 +19,11 @@ import {UserGroupPermissionKey} from "./types.js";
 import {depthFirstSearch} from "./helpers/search-algos.js";
 import {Narrow} from "./helpers/utils.js";
 import {GroupAuthConfigDefaults} from "./helpers/defaults.js";
-import type {Request} from "express-serve-static-core";
 
 export class GroupAuthPlugin extends AbstractAuthPlugin {
     protected readonly _internalConfig: AuthPluginInternalConfig = {
         name: 'GroupAuthPlugin',
-        override: AuthPluginOverride.DISABLE_BASE_FUNCTION
+        override: AuthPluginOverride.OVERRIDE_NONE,
     }
     protected readonly groupAuthConfig: GroupAuthConfig;
 
