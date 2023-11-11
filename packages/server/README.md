@@ -5,9 +5,17 @@ Keycloak Connector Server is an opinionated utility library built to ease integr
 
 Simple [Keycloak](https://keycloak.org/) connector for [Node.js](https://nodejs.org/) projects using [Fastify](https://www.fastify.io/) or [Express](https://expressjs.com/)
 
-## Securing Keycloak Clients
+## Configuring and securing Keycloak Clients
+### Configure Client
+1. Select client -> Advanced -> (change 5 settings)
+    - Access token signature algorithm: PS256
+    - ID token signature algorithm: PS256
+    - User info signed response algorithm: PS256
+    - Request object signature algorithm: PS256
+    - Authorization response signature algorithm: PS256
+
 **It is imperative to enable `fapi-1-baseline` and `fapi-1-advanced` client profiles to ensure complete FAPI compliance.**
-### Activate Client Profiles
+### Secure Client: Activate Client Profiles
 1. Select realm -> Configure -> Realm Settings
 2. Client policies tab
 3. Policies tab

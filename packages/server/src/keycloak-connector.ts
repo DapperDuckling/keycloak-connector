@@ -328,7 +328,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Grab all the valid redirect origins
         const validRedirectOrigins = [
             this._config.serverOrigin,
-            ...(this._config.validRedirectOrigins ?? []),
+            ...(this._config.validOrigins ?? []),
         ]
 
         // Check for good origin
@@ -426,8 +426,14 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const hostname = (URL.canParse(this._config.serverOrigin)) ? (new URL(this._config.serverOrigin))?.hostname : undefined;
         if (isDev() && hostname === "localhost") return;
 
-        // Check for the same origin
-        if (req.origin === this._config.serverOrigin) return;
+        // Grab all the valid redirect origins
+        const validRedirectOrigins = [
+            this._config.serverOrigin,
+            ...(this._config.validOrigins ?? []),
+        ]
+
+        // Check for good origin
+        if (req.origin && validRedirectOrigins.includes(req.origin)) return;
 
         // Log this error (possibly detect attacks)
         this._config.pinoLogger?.warn(`POST request came from different origin. Expected: ${this._config.serverOrigin}, Got: ${req.origin}`);
@@ -537,7 +543,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             // Handle silent requests separately
             if (silentRequestType !== SilentLoginTypes.NONE) {
                 // Check for login required
-                if (e instanceof OPError && e.message.includes("login_required")) {
+                if (e instanceof OPError && (e.message.includes("login_required") || e.message.includes("interaction_required"))) {
                     return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED);
                 } else {
                     // Log the error still
@@ -741,13 +747,13 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const requestCookies = this.cookieArrayToObject(cookies);
 
         // Manipulate the request with updated cookies
-        const newRequest: ConnectorRequest = {
-            ...req,
-            cookies: requestCookies,
+        req.cookies = {
+            ...req.cookies,
+            ...requestCookies,
         }
 
         // Force grab a new user data response
-        const userDataResponse = await this.getUserData(newRequest);
+        const userDataResponse = await this.getUserData(req);
 
         // Combine the resultant cookies (browser should accept newer cookies over old ones)
         const finalCookies = [...cookies, ...userDataResponse.cookies ?? []];

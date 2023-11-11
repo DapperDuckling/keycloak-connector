@@ -45,6 +45,6 @@ export class UserInfoCache extends AbstractCacheAdapter<UserinfoResponse, [strin
             this.config.pinoLogger?.debug(`Failed to fetch user info from keycloak`);
         }
 
-        return undefined;
+        return Promise.resolve(undefined);
     }
 }
