@@ -9,14 +9,24 @@ export const epoch = (date: Date = new Date()) => Math.floor(date.getTime() / 10
  * @throws Error
  */
 export const promiseWait = <T>(promise: Promise<T>, waitUntilMs: number) => {
+    let nodeTimeout: NodeJS.Timeout | null = null;
+
     // Construct sleep promise
     const sleepPromise = async () => {
         const remainingTime = waitUntilMs - (new Date()).getTime();
-        await sleep(remainingTime);
+        await sleep(remainingTime, undefined, (newNodeTimeout) => {
+            nodeTimeout = newNodeTimeout;
+        });
         throw new WaitTimeoutError();
     };
 
-    return Promise.race<T>([promise, sleepPromise()]);
+    const result = Promise.race<T>([promise, sleepPromise()]);
+
+    // Clear the timeout since the original promise was successful
+    if (nodeTimeout) clearTimeout(nodeTimeout);
+
+    // Return the actual result
+    return result;
 }
 
 export const promiseWaitTimeout = <T>(promise: Promise<T>, timeoutMs: number) => {
@@ -32,9 +42,10 @@ export class WaitTimeoutError extends Error {
     }
 }
 
-export const sleep = (ms: number, extraVariability?: number) => new Promise<true>(resolve => {
+export const sleep = (ms: number, extraVariability?: number, setNodeTimeout?: (nodeTimeout: NodeJS.Timeout) => void) => new Promise<true>(resolve => {
     const timeout = Math.max(0, ms + (Math.random() * (extraVariability ?? 0)));
-    setTimeout(() => resolve(true), timeout);
+    const nodeTimeout = setTimeout(() => resolve(true), timeout);
+    setNodeTimeout?.(nodeTimeout);
 });
 
 export function isDev() {
