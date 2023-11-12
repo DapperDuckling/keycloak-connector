@@ -27,6 +27,10 @@ declare module 'fastify' {
     // interface ContextConfigDefault extends KeycloakRouteConfig {}
 }
 
+export type KeycloakRouteConfigFastify = KeycloakRouteConfig & {
+    bypassAllChecks?: boolean;
+}
+
 // interface KeycloakConnectorFastifyPlugin extends OriginalFastifyPluginAsync<KeycloakConnectorConfigCustom> {}
 //
 // // fastify-plugin automatically adds named export, so be sure to add also this type

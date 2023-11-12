@@ -3,12 +3,12 @@ import {KeycloakConnector} from "../keycloak-connector.js";
 import type {
     KeycloakConnectorConfigCustom,
     UserData,
-    KeycloakRouteConfig,
     SupportedServers
 } from "../types.js";
 import {fastifyPlugin} from "fastify-plugin";
 import {FastifyAdapter} from "./fastify-adapter.js";
 import type {Logger} from "pino";
+import type {KeycloakRouteConfigFastify} from "./fastify.js";
 
 const keycloakConnectorFastifyPlugin: FastifyPluginAsync<KeycloakConnectorConfigCustom> = async (fastify, customConfig): Promise<void> => {
 
@@ -36,13 +36,13 @@ const keycloakConnectorFastifyPlugin: FastifyPluginAsync<KeycloakConnectorConfig
 
     // Add keycloak data to the request params
     fastify.decorateRequest<UserData | null>('kccUserData', null);
-    fastify.addHook<RouteGenericInterface, KeycloakRouteConfig>('onRequest', async function(request, reply) {
+    fastify.addHook<RouteGenericInterface, KeycloakRouteConfigFastify>('onRequest', async function(request, reply) {
 
         // Ignore 404 routes
         if (request.is404) return;
 
         // Ignore bypass all check routes
-        if (request.routeOptions.config.bypassAllChecks) return;
+        if (request.routeOptions.config.verifyUserInfoWithServer) return;
 
         // Grab user data
         const connectorReq = await adapter.buildConnectorRequest(request);

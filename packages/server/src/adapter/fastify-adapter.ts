@@ -3,9 +3,7 @@ import type {
     ConnectorRequest,
     ConnectorResponse,
     KeycloakConnectorConfigCustom,
-    KeycloakRouteConfig,
     SupportedServers,
-    UserDataResponse
 } from "../types.js";
 import type {
     FastifyInstance,
@@ -19,12 +17,12 @@ import {RouteConfigDefault} from "../helpers/defaults.js";
 import {isObject} from "../helpers/utils.js";
 import { dirname } from "path";
 import { basename } from "path";
-import path from "path";
+import type {KeycloakRouteConfigFastify} from "./fastify.js";
 
 export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
 
     private readonly fastify: FastifyInstance;
-    private readonly globalRouteConfig: KeycloakRouteConfig | undefined;
+    private readonly globalRouteConfig: KeycloakRouteConfigFastify | undefined;
     constructor(fastify: FastifyInstance, customConfig: KeycloakConnectorConfigCustom) {
         super();
 
@@ -112,7 +110,7 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
         }
 
         // Build the route configuration
-        const routeConfig: KeycloakRouteConfig = (options.isUnlocked) ? {
+        const routeConfig: KeycloakRouteConfigFastify = (options.isUnlocked) ? {
             public: true
         } : {
             public: false,
