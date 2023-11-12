@@ -12,7 +12,7 @@ import type {
     InheritanceTree,
     KcGroupClaims,
     MappedInheritanceTree, UserGroupPermissions, UserGroupsInternal,
-    ConnectorRequest, GroupAuthUserStatus, UserGroups
+    ConnectorRequest, GroupAuthUserStatus, UserGroups, GroupAuth
 } from "./types.js";
 import {getUserGroups} from "./group-regex-helpers.js";
 import {UserGroupPermissionKey} from "./types.js";
@@ -168,6 +168,54 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         // Update the logger with a prefix
         logger = logger?.child({"Source": `GroupAuthPlugin`});
 
+        // // Create default group info object
+        // const kccUserGroupAuthData: GroupAuthData = {
+        //     superAdmin: null,
+        //     appId: null,
+        //     standalone: null,
+        //     orgId: null,
+        //     debugInfo: {
+        //         "app-lookup": false,
+        //         "org-lookup": false,
+        //         "route-required-super-admin-only": false,
+        //     },
+        // }
+        //
+        // // Decorate the user data with the group info object (typescript being wonky)
+        // connectorRequest.kccUserGroupAuthData = kccUserGroupAuthData;
+
+        logger?.debug(`Group Auth plugin checking for authorization...`);
+
+        const groupAuths = connectorRequest.routeConfig.groupAuths;
+
+        // Check for groupAuths in the routeConfig
+        if (groupAuths === undefined || groupAuths.length === 0) {
+            // No group auth defined, so no restrictions
+            return true;
+        }
+
+        // Check for a "groups" scope in the user info
+        if (userData.userInfo?.groups === undefined) {
+            logger?.warn(`User info does not contain groups scope. Check settings in Keycloak and ensure "Add to userinfo" is selected for the mapped "groups" scope.`);
+        }
+
+        // Loop through the group auth options
+        for (const groupAuth of groupAuths) {
+            // Check if this group auth will authorize
+            if (this.isAuthorizedGroup(connectorRequest, userData, logger, groupAuth)) return true;
+        }
+
+        // No authorization found
+        return false;
+    }
+
+    private isAuthorizedGroup(
+        connectorRequest: ConnectorRequest,
+        userData: UserData<KcGroupClaims>,
+        logger: Logger | undefined,
+        groupAuth: GroupAuth,
+    ) {
+
         // Create default group info object
         const kccUserGroupAuthData: GroupAuthData = {
             superAdmin: null,
@@ -181,31 +229,17 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             },
         }
 
-        // Decorate the user data with the group info object (typescript being wonky)
+        // Decorate the user data with the group info object (intentionally overwrite previous objects)
         connectorRequest.kccUserGroupAuthData = kccUserGroupAuthData;
-
-        logger?.debug(`Group Auth plugin checking for authorization...`);
-
-        // Check for a groupAuth in the routeConfig
-        if (connectorRequest.routeConfig.groupAuth === undefined) {
-            // No group auth defined, so no restrictions
-            //todo: test this theory
-            return true;
-        }
-
-        // Check for a "groups" scope in the user info
-        if (userData.userInfo?.groups === undefined) {
-            logger?.warn(`User info does not contain groups scope. Check settings in Keycloak and ensure "Add to userinfo" is selected for the mapped "groups" scope.`);
-        }
-
-        // Extract the groups from the user info
-        const allUserGroups = userData.userInfo?.groups ?? [];
 
         // Grab the route's group auth config
         const groupAuthConfig: GroupAuthConfig = {
             ...this.groupAuthConfig,
-            ...connectorRequest.routeConfig.groupAuth.config,
+            ...groupAuth.config
         }
+
+        // Extract the groups from the user info
+        const allUserGroups = userData.userInfo?.groups ?? [];
 
         // Check if the user has a group membership that matches the super-user group exactly
         if (groupAuthConfig.adminGroups?.superAdmin !== undefined && allUserGroups.includes(groupAuthConfig.adminGroups.superAdmin)) {
@@ -220,7 +254,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         const userGroups = getUserGroups(allUserGroups, groupAuthConfig.adminGroups);
 
         // Grab the route's group auth required permission
-        const requiredPermission = connectorRequest.routeConfig.groupAuth.permission ?? groupAuthConfig.defaultRequiredPermission;
+        const requiredPermission = groupAuth.permission ?? groupAuthConfig.defaultRequiredPermission;
 
         // Check for a required permission
         if (requiredPermission === undefined) {

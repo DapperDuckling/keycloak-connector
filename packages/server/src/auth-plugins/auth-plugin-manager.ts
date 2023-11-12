@@ -70,7 +70,7 @@ export class AuthPluginManager {
         });
 
         // return {
-        //     groupAuth:
+        //     groupAuths:
         //     groupAuthCheck:
         // groupAuthConfig:
         //     }

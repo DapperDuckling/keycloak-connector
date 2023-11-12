@@ -10,7 +10,7 @@ A custom plugin enabling permission management via Keycloak groups. Adds functio
 router.get(
     "/members/:org_id?",
     authenticateAdmin,
-    groupAuth({
+    groupAuths({
         requireAdmin: true,
     }),
     async (req, res) => {
@@ -41,7 +41,7 @@ router.get(
 
 
 /** Example usage in a regular app */
-const groupAuth = groupAuthConfig({
+const groupAuths = groupAuthConfig({
     app: 'fdrm',
     orgParam: 'org_id',                     // default value
     appParam: 'app_id',                     // default value
@@ -57,7 +57,7 @@ const groupAuth = groupAuthConfig({
 
 router.get(
     `/:org_id/all-tools`,
-    groupAuth('supervisor'),
+    groupAuths('supervisor'),
     async (req, res) => {
         /**
          * Assuming request was '/1234-5678-90/all-tools', then...
@@ -74,7 +74,7 @@ router.get(
 
 router.get(
     `/:app_id/status`,
-    groupAuth('supervisor'),
+    groupAuths('supervisor'),
     async (req, res) => {
         /**
          * Assuming request was '/ABCD-EFGH-IJ/status', then...
@@ -91,7 +91,7 @@ router.get(
 
 router.get(
     `/:app_id/:org_id/status`,
-    groupAuth('supervisor'),
+    groupAuths('supervisor'),
     async (req, res) => {
         /**
          * Assuming request was '/ABCD-EFGH-IJ/1234-5678-90/status', then...
@@ -109,7 +109,7 @@ router.get(
 
 router.get(
     `/status`,
-    groupAuth('supervisor'),
+    groupAuths('supervisor'),
     async (req, res) => {
         /**
          * Assuming request was '/status', then...
@@ -128,7 +128,7 @@ router.get(
 
 router.get(
     `/status/:org_id`,
-    groupAuth('supervisor', {noImplicitApp: true}),
+    groupAuths('supervisor', {noImplicitApp: true}),
     async (req, res) => {
         /**
          * Assuming request was '/status', then...

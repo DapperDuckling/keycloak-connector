@@ -161,7 +161,11 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         // Build the cache miss callback
         const wrappedCacheMissCallback = this.wrapCacheMissCallback(callbackArgs);
 
+        this.config.pinoLogger?.debug(`Calling cache miss callback`);
+
         const result = await this.handleCacheMiss(key, wrappedCacheMissCallback, expiration);
+
+        this.config.pinoLogger?.debug(`Cache miss callback complete`);
 
         // Ensure we still have the instance lock
         const currentInstanceLock = this.instanceLevelUpdateLock.get(key);

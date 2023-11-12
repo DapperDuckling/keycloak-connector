@@ -13,7 +13,7 @@ export interface KcGroupClaims {
 }
 
 export interface GroupAuthRouteConfig {
-    groupAuth?: GroupAuth;
+    groupAuths?: GroupAuth[];
 }
 
 export type GroupAuth = {
