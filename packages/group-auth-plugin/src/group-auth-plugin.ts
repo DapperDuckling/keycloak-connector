@@ -417,11 +417,12 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
     private hasPermission(userPermissions: UserGroupPermissions | undefined, requiredPermission: string, mappedInheritanceTree: MappedInheritanceTree) {
 
-        // Check if the required permission is a wildcard (i.e. you can have any permission... even no permission)
-        if (requiredPermission === "*") return true;
-
         // Check for no user permissions
         if (userPermissions === undefined || userPermissions.size === 0) return false;
+
+        // Check if the required permission is a wildcard
+        // (i.e. you can have any permission, but you must have at least one permission to signify org membership)
+        if (requiredPermission === "*") return true;
 
         // Loop through the user permissions and find the first to match
         for (const userPermission of userPermissions) {

@@ -7,25 +7,24 @@ type GroupAuthConfigPartial = Partial<GroupAuthConfig>;
 // }
 
 export function groupAuth(groupAuthConfig: GroupAuthConfigPartial): GroupAuthRouteConfig;
-export function groupAuth(group: string, groupAuthConfig?: GroupAuthConfigPartial): GroupAuthRouteConfig;
-export function groupAuth(groupOrConfig: GroupAuthConfigPartial | string, groupAuthConfigOrNothing?: GroupAuthConfigPartial): GroupAuthRouteConfig {
+export function groupAuth(permission: string, groupAuthConfig?: GroupAuthConfigPartial): GroupAuthRouteConfig;
+export function groupAuth(permissionOrConfig: GroupAuthConfigPartial | string, groupAuthConfigOrNothing?: GroupAuthConfigPartial): GroupAuthRouteConfig {
 
-    let group;
+    let permission;
     let groupAuthConfig: Partial<GroupAuthConfig> | undefined;
 
     // Handle the different functional overloads
-    if (typeof groupOrConfig === "string") {
-        group = groupOrConfig;
+    if (typeof permissionOrConfig === "string") {
+        permission = permissionOrConfig;
         groupAuthConfig = groupAuthConfigOrNothing;
     } else {
-        group = undefined;
-        groupAuthConfig = groupOrConfig;
+        permission = undefined;
+        groupAuthConfig = permissionOrConfig;
     }
 
-    // return {group, groupAuthConfig};
     return {
         groupAuth: {
-            ...group !== undefined && {group: group},
+            ...permission !== undefined && {permission: permission},
             ...groupAuthConfig && {config: groupAuthConfig}
         }
     };
