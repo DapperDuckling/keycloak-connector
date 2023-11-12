@@ -239,7 +239,14 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     private getDirectory = () => dirname(fileURLToPath(import.meta.url));
 
-    private handleLoginGet = async (): Promise<ConnectorResponse<Server>> => this.servePublic(`login-start.html`);
+    private handleLoginGet = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
+        // Check if the user is already logged in
+        const redirectIfAuthenticated = await this.redirectIfAuthenticated(req);
+        if (redirectIfAuthenticated) return redirectIfAuthenticated;
+
+        // Otherwise, serve the login page
+        return this.servePublic(`login-start.html`);
+    };
 
     private silentRequestConfig = (req: ConnectorRequest): [SilentLoginTypes, string] => {
         // Ensure there is a token passed
@@ -254,7 +261,45 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return [silentType as SilentLoginTypes, token];
     }
 
+    private redirectIfAuthenticated = async (req: ConnectorRequest): Promise<ConnectorResponse<Server> | false> => {
+        // Check if the user is already logged in
+        if (req.kccUserData?.isAuthenticated !== true) return false;
+
+        // Do a quick origin check
+        try {
+            this.validateOriginOrThrow(req);
+        } catch (e) {
+            // Do not continue auth redirect
+            return false;
+        }
+
+        // Determine the silent login status
+        const [silentRequestType, silentRequestToken] = this.silentRequestConfig(req);
+
+        // Silent, return data via silent login response
+        if (silentRequestType !== SilentLoginTypes.NONE) {
+            return this.handleSilentLoginResponse(req, [], SilentLoginEvent.LOGIN_SUCCESS);
+        }
+
+        // Validate the redirect uri (or throw)
+        const rawPostAuthRedirectUri = req.urlQuery['post_auth_redirect_uri'] ?? undefined;
+        let redirectUri = undefined
+        if (typeof rawPostAuthRedirectUri === "string") {
+            this.validateRedirectUriOrThrow(rawPostAuthRedirectUri);
+            redirectUri = rawPostAuthRedirectUri;
+        }
+
+        return {
+            statusCode: 303,
+            redirectUrl: redirectUri ?? this._config.redirectUri ?? this._config.serverOrigin,
+        }
+    }
+
     private handleLoginPost = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
+
+        // Check if the user is already logged in
+        const redirectIfAuthenticated = await this.redirectIfAuthenticated(req);
+        if (redirectIfAuthenticated) return redirectIfAuthenticated;
 
         // Ensure the request comes from our origin
         this.validateOriginOrThrow(req);
@@ -1239,7 +1284,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             // Auto-show login page
             if (connectorRequest.routeConfig.autoRedirect !== false && connectorRequest.headers['sec-fetch-mode'] === 'navigate') {
-                return await this.handleLoginGet();
+                return await this.handleLoginGet(connectorRequest);
             }
 
             //todo: make customizable

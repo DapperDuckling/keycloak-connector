@@ -54,9 +54,16 @@ export class TokenCache extends AbstractCacheAdapter<RefreshTokenSet, [string]> 
             // Perform the refresh
             tokenSet = await this.config.oidcClient.refresh(validatedRefreshJwt);
         } catch (e) {
+            // Do not dump the error if the token is only not active
+            if (e instanceof Error &&
+                e.message.includes('Token is not active')) {
+                this.config.pinoLogger?.debug(`Refresh token is not active, cannot perform token refresh`);
+                return;
+            }
+
             this.config.pinoLogger?.debug(e);
             this.config.pinoLogger?.debug(`Failed to perform token refresh`);
-            return undefined;
+            return;
         }
 
         // Check for an access token

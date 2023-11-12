@@ -117,11 +117,18 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
 
     readonly getFromJwt = async (validatedJwt: string, targetKeyParam: keyof JWTPayload, callbackArgs: A) => {
 
+        this.config.pinoLogger?.debug(`Validating jwt`);
+
         // Grab the key and expiration from the jwt
         const jwtData = this.jwtToKey(validatedJwt, targetKeyParam);
 
         // Check for no result
-        if (jwtData === undefined) return;
+        if (jwtData === undefined) {
+            this.config.pinoLogger?.debug(`No valid jwt found on request`);
+            return;
+        }
+
+        this.config.pinoLogger?.debug(`Using validated jwt to grab data from cache`);
 
         return this.get(jwtData.key, callbackArgs, jwtData.expiration);
     }
@@ -136,6 +143,8 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
                 data: cachedResult,
             }
         }
+
+        this.config.pinoLogger?.debug(`Cache miss`);
 
         // Check if there is already an update occurring on this instance
         if (this.instanceLevelUpdateLock.get(key) !== undefined) {

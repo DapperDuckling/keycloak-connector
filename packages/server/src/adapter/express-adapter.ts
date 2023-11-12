@@ -46,7 +46,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             // ...(routeConfig !== false) && routeConfig,
             ...routeConfig,
         },
-        ...request.kccUserData !== undefined && {keycloak: request.kccUserData},
+        ...request.kccUserData !== undefined && {kccUserData: request.kccUserData},
         ...isObject(request.body) && {body: request.body},
     });
 
