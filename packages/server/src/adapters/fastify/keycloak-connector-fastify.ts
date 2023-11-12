@@ -1,10 +1,10 @@
 import type {FastifyPluginAsync, RouteGenericInterface} from "fastify";
-import {KeycloakConnector} from "../keycloak-connector.js";
+import {KeycloakConnector} from "../../keycloak-connector.js";
 import type {
     KeycloakConnectorConfigCustom,
     UserData,
     SupportedServers
-} from "../types.js";
+} from "../../types.js";
 import {fastifyPlugin} from "fastify-plugin";
 import {FastifyAdapter} from "./fastify-adapter.js";
 import type {Logger} from "pino";

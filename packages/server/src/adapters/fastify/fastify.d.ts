@@ -1,6 +1,6 @@
 import {FastifyPluginAsync as OriginalFastifyPluginAsync, FastifyRegister as OriginalFastifyRegister} from 'fastify';
-import type {KeycloakConnectorExposedProperties, UserData} from "../types.js";
-import {KeycloakRouteConfig} from "../types.js";
+import type {KeycloakConnectorExposedProperties, UserData} from "../../types.js";
+import {KeycloakRouteConfig} from "../../types.js";
 
 
 declare module 'fastify' {
