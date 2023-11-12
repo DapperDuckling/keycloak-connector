@@ -89,16 +89,15 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
         if (options.serveStaticOptions) {
             this.fastify.register(fastifyStatic, {
                 root: options.serveStaticOptions.root,
-                // prefix: options.url,
                 index: false,
                 serveDotFiles: false,
                 serve: false,
-                // index: options.serveStaticOptions.index ?? "/",
             });
 
-            this.fastify.all(`${options.url}/*`, {config: {public: true}}, function (req, reply) {
+            this.fastify.all(`${options.url}/*`, {config: {bypassAllChecks: true}}, function (req, reply) {
                 // @ts-ignore
-                const requestedFile = req.params["*"] ?? "login-start.html";
+                let requestedFile = req.params["*"] ?? "";
+                if (requestedFile === "") requestedFile = options.serveStaticOptions.index ?? "";
                 reply.sendFile(requestedFile);
             })
             return;

@@ -41,8 +41,8 @@ const keycloakConnectorFastifyPlugin: FastifyPluginAsync<KeycloakConnectorConfig
         // Ignore 404 routes
         if (request.is404) return;
 
-        // Ignore public routes
-        if (request.routeOptions.config.public) return;
+        // Ignore bypass all check routes
+        if (request.routeOptions.config.bypassAllChecks) return;
 
         // Grab user data
         const connectorReq = await adapter.buildConnectorRequest(request);
