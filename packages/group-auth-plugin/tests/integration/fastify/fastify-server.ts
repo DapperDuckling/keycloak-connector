@@ -42,13 +42,8 @@ await fastify.register(cookie, {
     prefix: "keycloak-connector_",
 });
 
-await fastify.register(fastifyStatic, {
-    root: path.join(path.resolve(), 'public'),
-    prefix: '/public/', // optional: default '/'
-});
-
 // Initialize the keycloak-connector
-await fastify.register(keycloakConnectorFastify, {
+await fastify.register(keycloakConnectorFastify(), {
     serverOrigin: 'http://localhost:3005',
     authServerUrl: 'http://localhost:8080/',
     realm: 'local-dev',
@@ -65,6 +60,9 @@ await fastify.register(groupAuthFastify, {
         "supervisor": ["forum_admin", "site_test"],
         "site_test": ["forum_admin", "random"],
         "random": ["something_else"],
+    },
+    adminGroups: {
+        orgAdmin: "admin",
     }
 });
 

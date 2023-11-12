@@ -3,10 +3,17 @@ import type {GroupAuth, GroupAuthConfig, GroupAuthRouteConfig} from "./types.js"
 export type GroupAuthConfigPartial = Partial<GroupAuthConfig>;
 export type GroupAuthsArray = Array<string | GroupAuth>;
 
-export function groupAuth(groupAuths: GroupAuthsArray): GroupAuthRouteConfig;
-export function groupAuth(groupAuthConfig: GroupAuthConfigPartial): GroupAuthRouteConfig;
-export function groupAuth(permission: string, groupAuthConfig?: GroupAuthConfigPartial): GroupAuthRouteConfig;
-export function groupAuth(permissionOrConfigOrGroupAuths: GroupAuthsArray | GroupAuthConfigPartial | string, groupAuthConfigOrNothing?: GroupAuthConfigPartial): GroupAuthRouteConfig {
+export interface GroupAuthFunc {
+    (groupAuths: GroupAuthsArray): GroupAuthRouteConfig;
+    (groupAuthConfig: GroupAuthConfigPartial): GroupAuthRouteConfig;
+    (permission: string, groupAuthConfig?: GroupAuthConfigPartial): GroupAuthRouteConfig;
+    (permissionOrConfigOrGroupAuths: GroupAuthsArray | GroupAuthConfigPartial | string, groupAuthConfigOrNothing?: GroupAuthConfigPartial): GroupAuthRouteConfig
+}
+
+// export function groupAuth(groupAuths: GroupAuthsArray): GroupAuthRouteConfig;
+// export function groupAuth(groupAuthConfig: GroupAuthConfigPartial): GroupAuthRouteConfig;
+// export function groupAuth(permission: string, groupAuthConfig?: GroupAuthConfigPartial): GroupAuthRouteConfig;
+export const groupAuth: GroupAuthFunc = (permissionOrConfigOrGroupAuths, groupAuthConfigOrNothing?: GroupAuthConfigPartial): GroupAuthRouteConfig => {
 
     let permission;
     let groupAuthConfig: Partial<GroupAuthConfig> | undefined;
@@ -29,7 +36,7 @@ export function groupAuth(permissionOrConfigOrGroupAuths: GroupAuthsArray | Grou
         ...permission !== undefined && {permission: permission},
         ...groupAuthConfig && {config: groupAuthConfig}
     }]);
-}
+};
 
 const buildGroupAuth = (groupAuthsArray: GroupAuthsArray): GroupAuthRouteConfig => {
     // Transform the group auths

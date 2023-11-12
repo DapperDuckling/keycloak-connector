@@ -22,24 +22,20 @@ export type GroupAuth = {
 }
 
 export type GroupAuthUserStatus = UserGroups & {
-    // isSystemAdmin: boolean,
-    // isAllOrgAdmin: boolean,
-    // isAllAppAdmin: boolean,
     isAppAdmin: boolean,
     isOrgAdmin: boolean,
     isUser: boolean,
     orgAdminGroups: string[],
     appAdminGroups: string[],
-    // allGroupData: UserGroups,
 }
 
 export type GroupAuthConfig = {
     app: string,
-    orgParam?: string,
-    appParam?: string,
-    requireAdmin?: boolean,
+    orgParam?: string | undefined,
+    appParam?: string | undefined,
+    requireAdmin?: boolean | "APP_ADMIN_ONLY" | "ORG_ADMIN_ONLY" | "SYSTEM_ADMIN",
     adminGroups?: {
-        superAdmin?: string,
+        systemAdmin?: string,
         allOrgAdmin?: string,
         allAppAdmin?: string,
         appAdmin?: string,
@@ -56,7 +52,7 @@ export type GroupAuthData = {
     appId: string | null,
     orgId: string | null,
     standalone: boolean | null,
-    superAdmin: boolean | null,
+    systemAdmin: boolean | null,
     debugInfo: Record<string, any>
 }
 

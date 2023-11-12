@@ -1,12 +1,12 @@
 import type {GroupAuthConfig, GroupAuthRouteConfig} from "../types.js";
 import {AuthPluginManager, lock} from "@dapperduckling/keycloak-connector-server";
 import {GroupAuthPlugin} from "../group-auth-plugin.js";
+import {type GroupAuthFunc, groupAuth as groupAuthOriginal} from "../group-auth-builder.js";
 import type {RequestHandler} from "express-serve-static-core";
-import {groupAuth as groupAuthOriginal} from "../group-auth-builder.js";
 import type {Express} from "express";
 
-export function groupAuth(...args: Parameters<typeof groupAuthOriginal>): RequestHandler {
-    const groupAuthRouteConfig = groupAuthOriginal(...args);
+export function groupAuth(...args: Parameters<GroupAuthFunc>): RequestHandler {
+    const groupAuthRouteConfig: GroupAuthRouteConfig = groupAuthOriginal(...args);
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     return async (...args) => {

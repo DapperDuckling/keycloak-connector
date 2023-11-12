@@ -74,7 +74,7 @@ groupRegexHandlers.set(
 export const getUserGroups = (allUserGroups: string[], adminGroupsConfig: GroupAuthConfig['adminGroups']): UserGroupsInternal => {
 
     const userGroups: UserGroupsInternal = {
-        isSystemAdmin: (adminGroupsConfig?.superAdmin && allUserGroups.includes(adminGroupsConfig.superAdmin)) === true,
+        isSystemAdmin: (adminGroupsConfig?.systemAdmin && allUserGroups.includes(adminGroupsConfig.systemAdmin)) === true,
         isAllAppAdmin: (adminGroupsConfig?.allAppAdmin && allUserGroups.includes(adminGroupsConfig.allAppAdmin)) === true,
         isAllOrgAdmin: (adminGroupsConfig?.allOrgAdmin && allUserGroups.includes(adminGroupsConfig.allOrgAdmin)) === true,
         applications: {},

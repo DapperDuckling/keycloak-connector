@@ -4,7 +4,7 @@ import {keycloakConnectorExpress, lock, clusterKeyProvider} from "@dapperducklin
 import cookieParser from "cookie-parser";
 import {redisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-redis";
 import {default as logger} from "pino-http";
-import {groupAuth, groupAuthExpress} from "@dapperduckling/keycloak-connector-group-auth-plugin/express";
+import {groupAuth, groupAuthExpress, GroupAuthHelpers} from "@dapperduckling/keycloak-connector-group-auth-plugin/express";
 
 const loggerHttp = logger.default({
     level: "debug",

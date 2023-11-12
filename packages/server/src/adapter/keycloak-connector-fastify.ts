@@ -42,7 +42,7 @@ const keycloakConnectorFastifyPlugin: FastifyPluginAsync<KeycloakConnectorConfig
         if (request.is404) return;
 
         // Ignore bypass all check routes
-        if (request.routeOptions.config.verifyUserInfoWithServer) return;
+        if (request.routeOptions.config.bypassAllChecks) return;
 
         // Grab user data
         const connectorReq = await adapter.buildConnectorRequest(request);

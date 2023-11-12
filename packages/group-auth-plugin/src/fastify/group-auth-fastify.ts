@@ -2,15 +2,14 @@ import type {FastifyPluginAsync} from "fastify";
 import {fastifyPlugin} from "fastify-plugin";
 import {GroupAuthPlugin} from "../group-auth-plugin.js";
 import type {GroupAuthConfig, GroupAuthRouteConfig} from "../types.js";
-import {groupAuth as groupAuthOriginal} from "../group-auth-builder.js";
-
+import {groupAuth as groupAuthOriginal, type GroupAuthFunc} from "../group-auth-builder.js";
 
 export type GroupAuthFastifyRouteOpt = {
     config: GroupAuthRouteConfig
 }
 
-export function groupAuth(...args: Parameters<typeof groupAuthOriginal>): GroupAuthFastifyRouteOpt {
-    const groupAuthRouteConfig = groupAuthOriginal(...args);
+export function groupAuth(...args: Parameters<GroupAuthFunc>): GroupAuthFastifyRouteOpt {
+    const groupAuthRouteConfig: GroupAuthRouteConfig = groupAuthOriginal(...args);
 
     return {
         config: {

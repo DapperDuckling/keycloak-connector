@@ -94,7 +94,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             appId: null,
             orgId: null,
             standalone: null,
-            superAdmin: null,
+            systemAdmin: null,
             debugInfo: {},
             ...this.exposedEndpoints()
         }
@@ -117,16 +117,12 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
         // Generate the group auth user status defaults
         const groupAuthUserStatus: GroupAuthUserStatus = {
-            // isSystemAdmin: userGroups.isSystemAdmin,
-            // isAllAppAdmin: userGroups.isAllAppAdmin,
-            // isAllOrgAdmin: userGroups.isAllOrgAdmin,
             ...userGroupsPure,
-            isAppAdmin: false,
-            isOrgAdmin: false,
+            isAppAdmin: userGroupsPure.isAllAppAdmin,
+            isOrgAdmin: userGroupsPure.isAllOrgAdmin,
             isUser: false,
             orgAdminGroups: [],
             appAdminGroups: [],
-            // allGroupData: userGroupsPure,
         }
 
         // Grab a list of app admin groups (application and standalone groups)
@@ -151,8 +147,8 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         }
 
         // Update app and org admin
-        groupAuthUserStatus.isAppAdmin = groupAuthUserStatus.appAdminGroups.length > 0;
-        groupAuthUserStatus.isOrgAdmin = groupAuthUserStatus.orgAdminGroups.length > 0;
+        groupAuthUserStatus.isAppAdmin ||= groupAuthUserStatus.appAdminGroups.length > 0;
+        groupAuthUserStatus.isOrgAdmin ||= groupAuthUserStatus.orgAdminGroups.length > 0;
 
         return {
             groupAuth: groupAuthUserStatus
@@ -170,7 +166,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
         // // Create default group info object
         // const kccUserGroupAuthData: GroupAuthData = {
-        //     superAdmin: null,
+        //     systemAdmin: null,
         //     appId: null,
         //     standalone: null,
         //     orgId: null,
@@ -218,7 +214,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
         // Create default group info object
         const kccUserGroupAuthData: GroupAuthData = {
-            superAdmin: null,
+            systemAdmin: null,
             appId: null,
             standalone: null,
             orgId: null,
@@ -242,13 +238,13 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         const allUserGroups = userData.userInfo?.groups ?? [];
 
         // Check if the user has a group membership that matches the super-user group exactly
-        if (groupAuthConfig.adminGroups?.superAdmin !== undefined && allUserGroups.includes(groupAuthConfig.adminGroups.superAdmin)) {
-            connectorRequest.kccUserGroupAuthData.superAdmin = true;
+        if (groupAuthConfig.adminGroups?.systemAdmin !== undefined && allUserGroups.includes(groupAuthConfig.adminGroups.systemAdmin)) {
+            connectorRequest.kccUserGroupAuthData.systemAdmin = true;
             return true;
         }
 
         // Not a super admin
-        kccUserGroupAuthData.superAdmin = false;
+        kccUserGroupAuthData.systemAdmin = false;
 
         // Break apart the user groups into a more manageable object
         const userGroups = getUserGroups(allUserGroups, groupAuthConfig.adminGroups);
@@ -296,7 +292,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         // Check if no valid constraints
         if (Object.values(constraints).every((constraint: unknown) => typeof constraint !== "string" || constraint.length === 0)) {
             // No valid constraints assumes we must require a super admin only
-            kccUserGroupAuthData.debugInfo["routeRequiredSuperAdminOnly"] = true;
+            kccUserGroupAuthData.debugInfo["routeRequiredSystemAdminOnly"] = true;
 
             // Super admin was checked near the beginning, so if this point is reached, they are not a super admin
             logger?.debug(`No valid constraints found, so a super admin was required for this route, but user is not super admin`);
@@ -314,7 +310,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
                 return true;
             } else {
                 this.logger?.debug(`User does not have org access for ${org}`);
-                return true;
+                return false;
             }
         }
 

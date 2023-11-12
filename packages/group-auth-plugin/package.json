@@ -28,7 +28,7 @@
     "./dist"
   ],
   "exports": {
-    ".": "./dist/*",
+    ".": "./dist/index.js",
     "./express": "./dist/express/index.js",
     "./fastify": "./dist/fastify/index.js"
   },

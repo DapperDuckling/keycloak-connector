@@ -5,9 +5,11 @@ export const GroupAuthConfigDefaults: Partial<GroupAuthConfig> = {
     appParam: "app_id",
     requireAdmin: false,
     adminGroups: {
-        superAdmin: "/darksaber-admin",
-        allOrgAdmin: "org-admin",
+        systemAdmin: "/darksaber-admin",
+        allOrgAdmin: "/organizations/all-org-admin",
+        allAppAdmin: "/applications/all-app-admin",
         appAdmin: "app-admin",
+        orgAdmin: "org-admin",
     },
     defaultRequiredPermission: "user",
     appInheritanceTree: { "admin": "*" },

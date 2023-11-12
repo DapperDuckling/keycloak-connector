@@ -36,7 +36,7 @@ export async function makeFastifyServer(port: number) {
     });
 
     // Initialize the keycloak-connector
-    await fastify.register(keycloakConnectorFastify, {
+    await fastify.register(keycloakConnectorFastify(), {
         serverOrigin: `http://localhost:${port}`,
         authServerUrl: 'http://localhost:8080/',
         realm: 'local-dev',
