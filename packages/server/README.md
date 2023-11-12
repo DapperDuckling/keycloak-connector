@@ -5,7 +5,20 @@ Keycloak Connector Server is an opinionated utility library built to ease integr
 
 Simple [Keycloak](https://keycloak.org/) connector for [Node.js](https://nodejs.org/) projects using [Fastify](https://www.fastify.io/) or [Express](https://expressjs.com/)
 
-## Configuring and securing Keycloak Clients
+## Configuring and securing Keycloak
+### Configure Realm Sessions/Tokens
+1. Realm Settings -> Sessions
+    - SSO Session Idle: 4 hours (recommended)
+      - _obtaining new access tokens with a refresh token resets this clock_
+    - SSO Session Max: 1 day (recommended)
+      - _regardless of a user's activity, their sessions will end at the max time_
+    - _The rest can be as desired or blank/zero to inherit_
+2. Realm Settings -> Tokens
+    - Default signature algo: PS256
+    - Revoke refresh token: Enabled
+    - Refresh token max reuse: 0
+    - Access token lifespan: 15 minutes (recommended)
+      - _this must be shorter than SSO session idle timeout_
 ### Configure Client
 1. Select client -> Advanced -> (change 5 settings)
     - Access token signature algorithm: PS256
