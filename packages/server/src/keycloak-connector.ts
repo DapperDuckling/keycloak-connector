@@ -58,6 +58,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         httpOnly: true,
         secure: true,
         path: "/",
+        // ...{partitioned: true}, // hacky way of getting ahead of 3p cookie blocking
     }
 
     private readonly CookieOptionsLax: CookieOptionsBase<Server> = {
@@ -256,7 +257,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private handleLoginPost = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
         // Ensure the request comes from our origin
-        this.validateSameOriginOrThrow(req);
+        this.validateOriginOrThrow(req);
 
         // Generate random values
         const cv = generators.codeVerifier();
@@ -292,7 +293,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             name: `${Cookies.CODE_VERIFIER}-${authFlowNonce}`,
             value: cv,
             options: {
-                ...(isDev()) ? this.CookieOptionsUnrestricted : this.CookieOptionsLax,
+                ...(this.hasOtherOrigins()) ? this.CookieOptionsUnrestricted : this.CookieOptionsLax,
                 expires: new Date(+new Date() + this._config.authCookieTimeout),
             }
         });
@@ -425,7 +426,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return redirectUriObj.toString();
     }
 
-    private validateSameOriginOrThrow = (req: ConnectorRequest) => {
+    private validateOriginOrThrow = (req: ConnectorRequest) => {
 
         // Check for dev and the server has a "localhost" origin
         const hostname = (URL.canParse(this._config.serverOrigin)) ? (new URL(this._config.serverOrigin))?.hostname : undefined;
@@ -441,7 +442,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         if (req.origin && validRedirectOrigins.includes(req.origin)) return;
 
         // Log this error (possibly detect attacks)
-        this._config.pinoLogger?.warn(`POST request came from different origin. Expected: ${this._config.serverOrigin}, Got: ${req.origin}`);
+        this._config.pinoLogger?.warn(`POST request came from different origin. Server origin: ${this._config.serverOrigin}, Got: ${req.origin}. Add to valid origins configuration if required.`);
 
         throw new LoginError(ErrorHints.CODE_400);
     }
@@ -621,7 +622,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private handleLogoutPost = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
         // Ensure the request comes from our origin
-        this.validateSameOriginOrThrow(req);
+        this.validateOriginOrThrow(req);
 
         // This nonce will ensure authorization cookies are cleared automatically when KC returns
         const authFlowNonce = generators.nonce();
@@ -848,7 +849,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
                     name: cookieName,
                     value: "",
                     options: {
-                        ...this.CookieOptions,
+                        ...(this.hasOtherOrigins()) ? this.CookieOptionsUnrestricted : this.CookieOptions,
                         expires: new Date(0),
                     }
                 })
@@ -939,6 +940,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
     }
 
     public getUserData = async (connectorRequest: ConnectorRequest): Promise<UserDataResponse<Server>> => {
+
+        // Check the origin of the request
+        this.validateOriginOrThrow(connectorRequest);
 
         // Start with a user who has no data, no authentication
         const userDataResponse: UserDataResponse<Server> = {
@@ -1151,6 +1155,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return undefined;
     }
 
+    private hasOtherOrigins = () => !!this._config.validOrigins?.length;
+
     /**
      * @throws OPError
      * @param tokenSet
@@ -1184,7 +1190,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             name: Cookies.ACCESS_TOKEN,
             value: tokenSet.access_token,
             options: {
-                ...this.CookieOptions,
+                ...(this.hasOtherOrigins()) ? this.CookieOptionsUnrestricted : this.CookieOptions,
                 expires: new Date(tokenSet.expires_at * 1000),
             }
         });
@@ -1194,7 +1200,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             name: Cookies.REFRESH_TOKEN,
             value: tokenSet.refresh_token,
             options: {
-                ...this.CookieOptions,
+                ...(this.hasOtherOrigins()) ? this.CookieOptionsUnrestricted : this.CookieOptions,
                 expires: new Date(refreshTokenExpiration * 1000),
             }
         });
@@ -1204,7 +1210,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             name: Cookies.REFRESH_TOKEN_EXPIRATION,
             value: refreshTokenExpiration.toString(),
             options: {
-                ...this.CookieOptions,
+                ...(this.hasOtherOrigins()) ? this.CookieOptionsUnrestricted : this.CookieOptions,
                 httpOnly: false,
                 expires: new Date(refreshTokenExpiration * 1000),
             }
@@ -1215,7 +1221,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             name: Cookies.ID_TOKEN,
             value: tokenSet.id_token,
             options: {
-                ...this.CookieOptions,
+                ...(this.hasOtherOrigins()) ? this.CookieOptionsUnrestricted : this.CookieOptions,
                 expires: new Date(refreshTokenExpiration * 1000), // Intentionally use refresh token expiration
             }
         });

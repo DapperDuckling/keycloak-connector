@@ -64,6 +64,15 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             // Set any cookies
             connectorResponse.cookies?.forEach(cookieParam => res.cookie(cookieParam.name, cookieParam.value, cookieParam.options));
 
+            /** Test code for partitioned cookies if required to handle cross-origin requests **/
+            // const responseCookies = res.getHeaders()['set-cookie'] ?? [];
+            // const responseCookiesArray = Array.isArray(responseCookies) ? responseCookies : [responseCookies];
+            // res.removeHeader('set-cookie'); // test, does this remove all cookies?
+            // responseCookiesArray.forEach(cookie=> {
+            //     cookie = (!cookie.includes('Partitioned')) ? `${cookie}; Partitioned` : cookie;
+            //     res.append('set-cookie', cookie)
+            // });
+
             // Set the response code
             if (connectorResponse.statusCode !== undefined) res.status(connectorResponse.statusCode);
 
