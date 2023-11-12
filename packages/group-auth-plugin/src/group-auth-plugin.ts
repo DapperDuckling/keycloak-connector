@@ -416,6 +416,10 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
     }
 
     private hasPermission(userPermissions: UserGroupPermissions | undefined, requiredPermission: string, mappedInheritanceTree: MappedInheritanceTree) {
+
+        // Check if the required permission is a wildcard (i.e. you can have any permission... even no permission)
+        if (requiredPermission === "*") return true;
+
         // Check for no user permissions
         if (userPermissions === undefined || userPermissions.size === 0) return false;
 
@@ -426,7 +430,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             //  set with this permission in it.
             const mappedPermissions = mappedInheritanceTree[userPermission] ?? new Set([userPermission]);
 
-            // Check for a wildcard permission
+            // Check if the user has a wildcard permission
             if (mappedPermissions === "*") return true;
 
             // Check if the required permission is within the mapped permissions
