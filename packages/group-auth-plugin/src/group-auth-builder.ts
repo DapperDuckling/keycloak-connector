@@ -1,8 +1,7 @@
 import type {GroupAuth, GroupAuthConfig, GroupAuthRouteConfig} from "./types.js";
 
-type GroupAuthConfigPartial = Partial<GroupAuthConfig>;
-
-type GroupAuthsArray = Array<string | GroupAuth>;
+export type GroupAuthConfigPartial = Partial<GroupAuthConfig>;
+export type GroupAuthsArray = Array<string | GroupAuth>;
 
 export function groupAuth(groupAuths: GroupAuthsArray): GroupAuthRouteConfig;
 export function groupAuth(groupAuthConfig: GroupAuthConfigPartial): GroupAuthRouteConfig;

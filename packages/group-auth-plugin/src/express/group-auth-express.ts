@@ -5,8 +5,7 @@ import type {RequestHandler} from "express-serve-static-core";
 import {groupAuth as groupAuthOriginal} from "../group-auth-builder.js";
 import type {Express} from "express";
 
-export const groupAuth = (...args: Parameters<typeof groupAuthOriginal>): RequestHandler => {
-    // const {group, groupAuthConfig} = groupAuthOriginal(...args);
+export function groupAuth(...args: Parameters<typeof groupAuthOriginal>): RequestHandler {
     const groupAuthRouteConfig = groupAuthOriginal(...args);
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
