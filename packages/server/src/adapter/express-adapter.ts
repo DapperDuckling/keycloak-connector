@@ -1,19 +1,19 @@
-import type {ConnectorCallback, RouteRegistrationOptions} from "../abstract-adapter.js";
-import {AbstractAdapter} from "../abstract-adapter.js";
+import type {ConnectorCallback, RouteRegistrationOptions} from "./abstract-adapter.js";
+import {AbstractAdapter} from "./abstract-adapter.js";
 import type {
     ConnectorRequest,
     ConnectorResponse, ReqCookies,
     KeycloakConnectorConfigCustom,
     KeycloakRouteConfig, KeycloakRouteConfigOrRoles,
     SupportedServers
-} from "../../types.js";
+} from "../types.js";
 import type {Express, NextFunction, Request, RequestHandler, Response} from "express-serve-static-core";
-import {RouteConfigDefault} from "../../helpers/defaults.js";
+import {RouteConfigDefault} from "../helpers/defaults.js";
 import type {Logger} from "pino";
-import {KeycloakConnector} from "../../keycloak-connector.js";
+import {KeycloakConnector} from "../keycloak-connector.js";
 import bodyParser from "body-parser";
-import {isObject} from "../../helpers/utils.js";
-import {TokenCache} from "../../cache-adapters/index.js";
+import {isObject} from "../helpers/utils.js";
+import {TokenCache} from "../cache-adapters/index.js";
 import express from "express";
 
 export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {

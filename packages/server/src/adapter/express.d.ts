@@ -1,5 +1,5 @@
 import pino from "pino";
-import type {UserData} from "../../types.js";
+import type {UserData} from "../types.js";
 import type {ExpressAdapter} from "./express-adapter.js";
 
 declare module "http" {

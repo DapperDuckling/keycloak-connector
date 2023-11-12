@@ -30,11 +30,6 @@
   "files": [
     "./dist"
   ],
-  "exports": {
-    ".": "./dist/*",
-    "./express": "./dist/adapters/express/index.js",
-    "./fastify": "./dist/adapters/fastify/index.js"
-  },
   "devDependencies": {
     "@jest/globals": "^29.5.0",
     "@types/cookie-parser": "^1.4.3",

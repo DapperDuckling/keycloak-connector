@@ -1,10 +1,10 @@
-import {AbstractAdapter, type ConnectorCallback, type RouteRegistrationOptions} from "../abstract-adapter.js";
+import {AbstractAdapter, type ConnectorCallback, type RouteRegistrationOptions} from "./abstract-adapter.js";
 import type {
     ConnectorRequest,
     ConnectorResponse,
     KeycloakConnectorConfigCustom,
     SupportedServers,
-} from "../../types.js";
+} from "../types.js";
 import type {
     FastifyInstance,
     FastifyReply,
@@ -13,8 +13,8 @@ import type {
 import {
     fastifyStatic
 } from "@fastify/static";
-import {RouteConfigDefault} from "../../helpers/defaults.js";
-import {isObject} from "../../helpers/utils.js";
+import {RouteConfigDefault} from "../helpers/defaults.js";
+import {isObject} from "../helpers/utils.js";
 import { dirname } from "path";
 import { basename } from "path";
 import type {KeycloakRouteConfigFastify} from "./fastify.js";

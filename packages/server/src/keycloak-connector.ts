@@ -22,7 +22,7 @@ import {
     type UserStatus,
     VerifiableJwtTokenTypes
 } from "./types.js";
-import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapters/abstract-adapter.js";
+import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapter/abstract-adapter.js";
 import type {JWK} from "jose";
 import * as jose from 'jose';
 import {ConnectorErrorRedirect, ErrorHints, LoginError} from "./helpers/errors.js";
