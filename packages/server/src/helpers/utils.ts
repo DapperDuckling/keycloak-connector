@@ -8,7 +8,7 @@ export const epoch = (date: Date = new Date()) => Math.floor(date.getTime() / 10
  * @param waitUntilMs
  * @throws Error
  */
-export const promiseWait = <T>(promise: Promise<T>, waitUntilMs: number) => {
+export const promiseWait = async <T>(promise: Promise<T>, waitUntilMs: number): Promise<T> => {
     let nodeTimeout: NodeJS.Timeout | null = null;
 
     // Construct sleep promise
@@ -20,7 +20,7 @@ export const promiseWait = <T>(promise: Promise<T>, waitUntilMs: number) => {
         throw new WaitTimeoutError();
     };
 
-    const result = Promise.race<T>([promise, sleepPromise()]);
+    const result = await Promise.race<T>([promise, sleepPromise()]);
 
     // Clear the timeout since the original promise was successful
     if (nodeTimeout) clearTimeout(nodeTimeout);
