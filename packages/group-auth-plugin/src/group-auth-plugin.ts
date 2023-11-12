@@ -41,7 +41,11 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
         this.groupAuthConfig = {
             ...GroupAuthConfigDefaults,
-            ...config
+            ...config,
+            adminGroups: {
+                ...GroupAuthConfigDefaults.adminGroups,
+                ...config.adminGroups,
+            }
         };
 
         // Validate the inheritance tree
