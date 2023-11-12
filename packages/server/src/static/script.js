@@ -54,8 +54,8 @@ document.addEventListener("DOMContentLoaded", function () {
         const distanceY = mouseY - containerY;
 
         // Adjust the box-shadow based on the cursor position to be on the opposite side
-        const offsetX = (distanceX / 10) * -0.5;
-        const offsetY = (distanceY / 10) * -0.5;
+        const offsetX = (distanceX / 10) * -0.3;
+        const offsetY = (distanceY / 10) * -0.3;
 
         container.style.boxShadow = `${offsetX}px ${offsetY}px 40px rgba(0, 0, 0, 0.3)`;
     });

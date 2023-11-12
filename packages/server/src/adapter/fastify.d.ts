@@ -1,6 +1,7 @@
-import {FastifyRegister} from 'fastify';
-import type {UserData} from "../types.js";
-import {KeycloakConnectorExposedProperties} from "../types.js";
+import {FastifyPluginAsync as OriginalFastifyPluginAsync, FastifyRegister as OriginalFastifyRegister} from 'fastify';
+import type {KeycloakConnectorExposedProperties, UserData} from "../types.js";
+import {KeycloakRouteConfig} from "../types.js";
+
 
 declare module 'fastify' {
 
@@ -16,11 +17,21 @@ declare module 'fastify' {
     interface RouteShorthandOptions {
         // routeConfig?: KeycloakRouteConfigOrRoles;
     }
+
+    // interface FastifyRegister extends OriginalFastifyRegister<UserData> {}
+
+    // // type ContextConfigDefault = KeycloakRouteConfig;
+    // interface FastifyRequestContext {
+    //     sup: boolean;
+    // }
+    // interface ContextConfigDefault extends KeycloakRouteConfig {}
 }
 
-// fastify-plugin automatically adds named export, so be sure to add also this type
-// the variable name is derived from `options.name` property if `module.exports.myPlugin` is missing
-export const keycloakConnectorFastifyPlugin: FastifyRegister<UserData>;
-
-// fastify-plugin automatically adds `.default` property to the exported plugin. See the note below
-export default keycloakConnectorFastifyPlugin;
+// interface KeycloakConnectorFastifyPlugin extends OriginalFastifyPluginAsync<KeycloakConnectorConfigCustom> {}
+//
+// // fastify-plugin automatically adds named export, so be sure to add also this type
+// // the variable name is derived from `options.name` property if `module.exports.myPlugin` is missing
+// export const keycloakConnectorFastifyPlugin: FastifyRegister<UserData>;
+//
+// // fastify-plugin automatically adds `.default` property to the exported plugin. See the note below
+// export default keycloakConnectorFastifyPlugin;

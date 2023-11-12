@@ -1,11 +1,8 @@
 import './dot-env.js'; // Must be the first import
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
-import {fastifyStatic} from "@fastify/static";
-import * as path from "path";
-
-import {keycloakConnectorFastify} from "@dapperduckling/keycloak-connector-server";
 import {routes} from "./routes.js";
+import {keycloakConnectorFastify} from "@dapperduckling/keycloak-connector-server";
 
 // Configure fastify
 const fastify = Fastify({
@@ -48,10 +45,10 @@ await fastify.register(cookie, {
     prefix: "keycloak-connector_",
 });
 
-await fastify.register(fastifyStatic, {
-    root: path.join(path.resolve(), 'public'),
-    prefix: '/public/', // optional: default '/'
-});
+// await fastify.register(fastifyStatic, {
+//     root: path.join(path.resolve(), 'public'),
+//     prefix: '/static/', // optional: default '/'
+// });
 
 // // Create our cluster provider
 // const clusterProvider = await redisClusterProvider({
@@ -76,7 +73,7 @@ await fastify.register(fastifyStatic, {
 // console.log('done');
 
 // Initialize the keycloak-connector
-await fastify.register(keycloakConnectorFastify, {
+await fastify.register(keycloakConnectorFastify(), {
     serverOrigin: 'http://localhost:3005',
     authServerUrl: 'http://localhost:8080/',
     realm: 'local-dev',
@@ -84,6 +81,7 @@ await fastify.register(keycloakConnectorFastify, {
     // clusterProvider: clusterProvider,
     // keyProvider: clusterKeyProvider,
 });
+
 
 // // Set and receive a cluster message
 // await awsRedisClusterProvider.store("my-token", `the one to rule them all ${Date.now()}`, null);

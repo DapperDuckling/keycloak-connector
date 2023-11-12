@@ -113,6 +113,7 @@ button:active {
     /* vertical-align: bottom; */
     display: flex;
     align-items: flex-end;
+    min-width: max-content;
 }
 
 @media (max-width: 300px) {

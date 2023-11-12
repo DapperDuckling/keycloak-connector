@@ -214,7 +214,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
             url: this.getRoutePath(RouteEnum.PUBLIC_DIR),
             method: "GET",
             isUnlocked: true,
-        }, this.handleServePublic);
+            serveStaticOptions: {
+                root: [this.getDirectory(), 'static'].join(path.sep),
+                // index: 'login-start.html',
+            },
+        }, this.handleFailedStaticServe);
     }
 
     private registerRoute(adapter: AbstractAdapter<Server>,
@@ -238,6 +242,13 @@ export class KeycloakConnector<Server extends SupportedServers> {
     }
 
     private getDirectory = () => dirname(fileURLToPath(import.meta.url));
+
+    private handleFailedStaticServe = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
+        this._config.pinoLogger?.error("Failed to serve static file");
+        return {
+            statusCode: 500,
+        }
+    }
 
     private handleLoginGet = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
         // Check if the user is already logged in
@@ -1162,7 +1173,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
         } catch (e) {
             // Log if only to detect attacks
             if (e instanceof jose.errors.JWTExpired) {
-                this._config.pinoLogger?.warn(e);
                 this._config.pinoLogger?.warn('Expired access token used');
             } else {
                 this._config.pinoLogger?.warn(e);

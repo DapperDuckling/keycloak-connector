@@ -4,21 +4,22 @@ import type {
     ConnectorResponse,
     KeycloakConnectorConfigCustom,
     KeycloakRouteConfig,
-    SupportedServers
+    SupportedServers,
+    UserDataResponse
 } from "../types.js";
 import type {
     FastifyInstance,
     FastifyReply,
     FastifyRequest
 } from "fastify";
-import type {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+import {
     fastifyStatic
 } from "@fastify/static";
 import {RouteConfigDefault} from "../helpers/defaults.js";
 import {isObject} from "../helpers/utils.js";
 import { dirname } from "path";
 import { basename } from "path";
+import path from "path";
 
 export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
 
@@ -79,16 +80,29 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
             reply.header("Content-Type", "text/html");
         }
 
-        //todo: debug remove *** security risk if not
-        reply.header("Access-Control-Allow-Origin", "http://localhost:3005");
-        reply.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
-        reply.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-        reply.header("Access-Control-Allow-Credentials", true);
-
         return reply.send(connectorResponse.responseHtml ?? connectorResponse.responseText ?? "");
     }
 
     registerRoute(options: RouteRegistrationOptions, connectorCallback: ConnectorCallback<SupportedServers.fastify>): void {
+
+        // Handle static routes separately
+        if (options.serveStaticOptions) {
+            this.fastify.register(fastifyStatic, {
+                root: options.serveStaticOptions.root,
+                // prefix: options.url,
+                index: false,
+                serveDotFiles: false,
+                serve: false,
+                // index: options.serveStaticOptions.index ?? "/",
+            });
+
+            this.fastify.all(`${options.url}/*`, {config: {public: true}}, function (req, reply) {
+                // @ts-ignore
+                const requestedFile = req.params["*"] ?? "login-start.html";
+                reply.sendFile(requestedFile);
+            })
+            return;
+        }
 
         // Build the route handler
         async function routeHandler(this: FastifyAdapter, request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {

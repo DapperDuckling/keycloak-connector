@@ -1,11 +1,23 @@
 import type {ConnectorRequest, ConnectorResponse, HTTPMethod, SupportedServers} from "../types.js";
 
 export type ConnectorCallback<Server extends SupportedServers> = (connectorReq: ConnectorRequest) => Promise<ConnectorResponse<Server>>;
-export interface RouteRegistrationOptions {
+type BaseRouteRegistrationOptions = {
     method: HTTPMethod,
     url: string,
-    isUnlocked: boolean,
 }
+type DynamicRouteRegistrationOptions = BaseRouteRegistrationOptions & {
+    isUnlocked: boolean,
+    serveStaticOptions?: undefined,
+}
+type StaticRouteRegistrationOptions = BaseRouteRegistrationOptions & {
+    isUnlocked: true,
+    serveStaticOptions: {
+        root: string,
+        index?: string | false | undefined,
+    },
+}
+export type RouteRegistrationOptions = DynamicRouteRegistrationOptions | StaticRouteRegistrationOptions;
+
 export abstract class AbstractAdapter<Server extends SupportedServers> {
 
     public abstract buildConnectorRequest(request: never, ...args: never): Promise<ConnectorRequest>;

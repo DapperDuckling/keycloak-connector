@@ -41,6 +41,9 @@ const keycloakConnectorFastifyPlugin: FastifyPluginAsync<KeycloakConnectorConfig
         // Ignore 404 routes
         if (request.is404) return;
 
+        // Ignore public routes
+        if (request.routeOptions.config.public) return;
+
         // Grab user data
         const connectorReq = await adapter.buildConnectorRequest(request);
         const userDataResponse = await kcc.getUserData(connectorReq);
@@ -62,11 +65,14 @@ const keycloakConnectorFastifyPlugin: FastifyPluginAsync<KeycloakConnectorConfig
 
 }
 
-export const keycloakConnectorFastify = fastifyPlugin(keycloakConnectorFastifyPlugin, {
-    fastify: '4.x',
-    name: 'keycloak-connector-server',
-    decorators: {
-        request: ['cookies'],
-    },
-    dependencies: ['@fastify/cookie'],
-});
+export const keycloakConnectorFastify = (encapsulate: boolean = false) => {
+    return fastifyPlugin(keycloakConnectorFastifyPlugin, {
+        fastify: '4.x',
+        name: 'keycloak-connector-server',
+        decorators: {
+            request: ['cookies'],
+        },
+        dependencies: ['@fastify/cookie'],
+        encapsulate: encapsulate,
+    });
+};

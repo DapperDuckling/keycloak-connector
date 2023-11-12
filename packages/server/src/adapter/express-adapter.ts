@@ -14,6 +14,7 @@ import {KeycloakConnector} from "../keycloak-connector.js";
 import bodyParser from "body-parser";
 import {isObject} from "../helpers/utils.js";
 import {TokenCache} from "../cache-adapters/index.js";
+import express from "express";
 
 export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 
@@ -110,6 +111,18 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
     };
 
     registerRoute = (options: RouteRegistrationOptions, connectorCallback: ConnectorCallback<SupportedServers.express>): void => {
+
+        // Handle static routes separately
+        if (options.serveStaticOptions) {
+            const staticRoute = express.static(
+                options.serveStaticOptions.root,
+                {
+                    index: options.serveStaticOptions.index
+                }
+            );
+            this.app.use(options.url, staticRoute);
+            return;
+        }
 
         // Get the associated express HTTP method function
         const routerMethod = this.getRouterMethod(options);

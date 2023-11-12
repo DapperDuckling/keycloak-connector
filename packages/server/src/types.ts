@@ -267,6 +267,7 @@ type RouteConfigRoles<Roles extends KeycloakRole> = {
 }
 
 type RouteConfigBase = {
+    bypassAllChecks?: boolean;
     autoRedirect?: boolean;
     verifyAccessTokenWithServer?: boolean;
     verifyUserInfoWithServer?: boolean;
