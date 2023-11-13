@@ -44,7 +44,6 @@ Once complete, navigate to any client's settings page and hit `save`. Fix any sa
 
 Final step: Disable mTLS via `OAuth 2.0 Mutual TLS Certificate Bound Access Tokens Enabled` option on the `Advanced` tab.
 
-
 ## Getting started with Fastify
 ### Required packages
 [//]: # (todo)
