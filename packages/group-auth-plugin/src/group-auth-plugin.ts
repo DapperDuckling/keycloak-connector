@@ -241,6 +241,8 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         if (groupAuthConfig.adminGroups?.systemAdmin !== undefined && allUserGroups.includes(groupAuthConfig.adminGroups.systemAdmin)) {
             connectorRequest.kccUserGroupAuthData.systemAdmin = true;
             return true;
+        } else if (groupAuthConfig.requireAdmin === "SYSTEM_ADMIN") {
+            return false;
         }
 
         // Not a super admin
@@ -361,7 +363,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             }
 
             // Check if we require an admin
-            if (groupAuthConfig.requireAdmin === true) {
+            if (groupAuthConfig.requireAdmin === true || groupAuthConfig.requireAdmin === "APP_ADMIN_ONLY") {
                 this.logger?.debug(`Route requires admin, but user is not an application admin`);
                 return false;
             }
@@ -413,7 +415,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             return false;
         }
 
-        if (constraints.app !== undefined) {
+        if (constraints.app !== undefined && groupAuthConfig.requireAdmin !== "ORG_ADMIN_ONLY") {
             // Regular check of app permission and (possibly) org permission
             return hasAppPermission(requiredPermission, constraints.app, constraints.org);
 
@@ -432,7 +434,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             }
 
             // Check if we require an admin
-            if (groupAuthConfig.requireAdmin === true) return false;
+            if (groupAuthConfig.requireAdmin === true || groupAuthConfig.requireAdmin === "ORG_ADMIN_ONLY") return false;
 
             // Check for an organization permission
             const hasOrgPermission = this.hasPermission(userGroups.organizations[constraints.org], requiredPermission, mappedOrgInheritanceTree);
