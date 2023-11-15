@@ -21,6 +21,14 @@ export type GroupAuth = {
     config?: Omit<Partial<GroupAuthConfig>, 'adminGroups'>,
 }
 
+export type GroupAuthDebug = {
+    error?: string,
+    matchingGroups?: {
+        orgRequirements: Set<string | undefined>,
+        appRequirements: Set<string | undefined>
+    },
+}
+
 export type GroupAuthUserStatus = UserGroups & {
     isAppAdmin: boolean,
     isOrgAdmin: boolean,
@@ -53,7 +61,10 @@ export type GroupAuthData = {
     orgId: string | null,
     standalone: boolean | null,
     systemAdmin: boolean | null,
-    debugInfo: Record<string, any>
+    debugInfo: {
+        [key: string]: any,
+        // "matching-groups": Set<string | undefined>,
+    }
 }
 
 export type UserGroupPermissions<T = undefined> = T extends "array" ? string[] : Set<string>;
