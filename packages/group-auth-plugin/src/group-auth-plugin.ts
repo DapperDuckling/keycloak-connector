@@ -34,7 +34,6 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
     static DEBUG_ANY_ORG = "<ANY-ORG>";
     static DEBUG_MATCHING_ORG = "<MATCHING-ORG>";
     static DEBUG_ANY_APP = "<ANY-APP>";
-    static DEBUG_SPECIFIED_APP = "<SPECIFIC-APP>";
 
     constructor(config: GroupAuthConfig) {
         super();
