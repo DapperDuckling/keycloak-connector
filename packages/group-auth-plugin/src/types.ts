@@ -6,6 +6,7 @@ export type MappedInheritanceTree = Record<string, Set<string> | "*">;
 
 export interface ConnectorRequest extends ConnectorRequestOriginal<GroupAuthRouteConfig, KcGroupClaims> {
     kccUserGroupAuthData?: GroupAuthData
+    kccUserGroupAuthDebug?: GroupAuthDebug[],
 }
 
 export interface KcGroupClaims {
@@ -24,6 +25,7 @@ export type GroupAuth = {
 export type GroupAuthDebug = {
     error?: string,
     matchingGroups?: {
+        systemAdmin?: string,
         orgRequirements: Set<string | undefined>,
         appRequirements: Set<string | undefined>
     },
@@ -41,6 +43,7 @@ export type GroupAuthConfig = {
     app: string,
     orgParam?: string | undefined,
     appParam?: string | undefined,
+    appIsStandalone?: boolean,
     requireAdmin?: boolean | "APP_ADMIN_ONLY" | "ORG_ADMIN_ONLY" | "SYSTEM_ADMIN",
     adminGroups?: {
         systemAdmin?: string,
