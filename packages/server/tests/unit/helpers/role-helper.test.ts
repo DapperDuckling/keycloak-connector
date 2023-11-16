@@ -1,4 +1,4 @@
-import {beforeEach, describe, expect, test} from '@jest/globals';
+import { expect, test, beforeEach, describe } from 'vitest';
 import {RoleHelper} from "../../../src/helpers/role-helper.js";
 import type {ClientRole, KeycloakClient, RequiredRoles, RoleLocation, RoleRules} from "./../../../src/types.js";
 import {RoleConfigurationStyle, RoleLocations} from "./../../../src/types.js";

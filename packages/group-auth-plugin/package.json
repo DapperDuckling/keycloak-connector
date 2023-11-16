@@ -4,7 +4,12 @@
   "description": "A plugin enabling Keycloak group permission management via Keycloak groups",
   "keywords": [
     "keycloak group permissions",
-    "node keycloak group authorization"
+    "keycloak",
+    "sso",
+    "express",
+    "fastify",
+    "authentication",
+    "oidc"
   ],
   "author": "DapperDuckling Dev LLC",
   "license": "AGPL-3.0-only",
@@ -21,9 +26,8 @@
     "prepublishOnly": "npm run build",
     "test:start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts",
     "test:start:express": "npm run build && cd ./tests/integration/express/ && nodemon ./express-server.ts",
-    "test": "node --experimental-vm-modules --require ../../suppress-experimental-vm-warnings.cjs ../../node_modules/jest/bin/jest.js --verbose --selectProjects keycloak-connector-group-auth-plugin",
-    "test:vitest": "vitest",
-    "test:watch": "node --experimental-vm-modules --require ../../suppress-experimental-vm-warnings.cjs ../../node_modules/jest/bin/jest.js --verbose --runInBand --watch --coverage=false --no-cache --selectProjects keycloak-connector-group-auth-plugin"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

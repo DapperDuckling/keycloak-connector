@@ -27,8 +27,8 @@
     "prepublishOnly": "npm run build",
     "test:start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts",
     "test:start:express": "npm run build && cd ./tests/integration/express/ && nodemon ./express-server.ts",
-    "test:server": "node --experimental-vm-modules --require ../../suppress-experimental-vm-warnings.cjs ../../node_modules/jest/bin/jest.js --verbose --selectProjects keycloak-connector-server",
-    "test:server:watch": "node --experimental-vm-modules --require ../../suppress-experimental-vm-warnings.cjs ../../node_modules/jest/bin/jest.js --verbose --runInBand --watch --coverage=false --no-cache --selectProjects keycloak-connector-server"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
