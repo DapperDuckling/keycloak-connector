@@ -182,14 +182,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
                 }
 
                 // Convert the sets to a printable type (array)
-                const printableGroupAuthDebug: GroupAuthDebugPrintable = {
-                    ...groupAuthDebug,
-                    matchingGroups: {
-                        ...groupAuthDebug.matchingGroups,
-                        orgRequirements: [...groupAuthDebug.matchingGroups?.orgRequirements ?? []],
-                        appRequirements: [...groupAuthDebug.matchingGroups?.appRequirements ?? []],
-                    }
-                };
+                const printableGroupAuthDebug = GroupAuthPlugin.groupAuthDebugToPrintable(groupAuthDebug);
                 this.logger?.debug(`Group auth input`);
                 this.logger?.debug(groupAuth);
                 this.logger?.debug(`Group auth output`);
@@ -432,7 +425,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             // Add org debug info
             if (groupAuthConfig.orgParam) {
                 matchingGroups.orgRequirements.add(groupAuthConfig.adminGroups?.allOrgAdmin);
-                matchingGroups.orgRequirements.add(`organizations/<${groupAuthConfig.orgParam}>/<*>`);
+                matchingGroups.orgRequirements.add(`/organizations/<${groupAuthConfig.orgParam}>/*`);
             }
 
             // Scan through the user's app permission organizations
@@ -490,7 +483,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
             // Add debug info
             if (groupAuthConfig.adminGroups?.orgAdmin) {
-                matchingGroups.orgRequirements.add(`organizations/${groupAuthConfig.orgParam}/${groupAuthConfig.adminGroups.orgAdmin}`);
+                matchingGroups.orgRequirements.add(`/organizations/${groupAuthConfig.orgParam}/${groupAuthConfig.adminGroups.orgAdmin}`);
             }
 
             // Check for an org admin permission
@@ -504,10 +497,10 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             if (groupAuthConfig.requireAdmin === true || groupAuthConfig.requireAdmin === "ORG_ADMIN_ONLY") return false;
 
             // Add debug info
-            matchingGroups.appRequirements.add(`organizations/${constraints.org}/${requiredPermission}`);
+            matchingGroups.appRequirements.add(`/organizations/${constraints.org}/${requiredPermission}`);
             for (const [allowedPermission, inheritedPermissions] of Object.entries(mappedOrgInheritanceTree)) {
                 if (inheritedPermissions === "*" || inheritedPermissions.has(requiredPermission)) {
-                    matchingGroups.orgRequirements.add(`organizations/${constraints.org}/${allowedPermission}`);
+                    matchingGroups.orgRequirements.add(`/organizations/${constraints.org}/${allowedPermission}`);
                 }
             }
 
@@ -583,6 +576,17 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
     groupCheck = () => {
 
+    }
+
+    static groupAuthDebugToPrintable = (groupAuthDebug: GroupAuthDebug): GroupAuthDebugPrintable => {
+        return {
+            ...groupAuthDebug,
+            matchingGroups: {
+                ...groupAuthDebug.matchingGroups,
+                orgRequirements: [...groupAuthDebug.matchingGroups?.orgRequirements ?? []],
+                appRequirements: [...groupAuthDebug.matchingGroups?.appRequirements ?? []],
+            }
+        };
     }
 
 }

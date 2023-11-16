@@ -3,7 +3,7 @@
     "../tsconfig.json"
   ],
   "compilerOptions": {
-    "noUnusedLocals": true,
+    "noUnusedLocals": false,
     "noEmitOnError": false,
     "sourceMap": true
   },

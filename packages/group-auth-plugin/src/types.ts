@@ -19,7 +19,7 @@ export interface GroupAuthRouteConfig {
 
 export type GroupAuth = {
     permission?: string,
-    config?: Omit<Partial<GroupAuthConfig>, 'adminGroups'>,
+    config?: Omit<Partial<GroupAuthConfig>, 'adminGroups|appInheritanceTree|orgInheritanceTree'>,
 }
 
 type GroupAuthDebugBase = {
@@ -30,7 +30,7 @@ type GroupAuthDebugBase = {
 }
 
 export type GroupAuthDebugPrintable = GroupAuthDebugBase & {
-    matchingGroups?: {
+    matchingGroups: {
         orgRequirements: Array<string | undefined>,
         appRequirements: Array<string | undefined>,
     }
