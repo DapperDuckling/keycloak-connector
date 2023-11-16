@@ -38,33 +38,37 @@ export class GroupPathBuilder {
         this.orgParam = `<${this.groupAuthConfig?.orgParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>`;
     }
 
-    app = (permission: string, includeOrgParam = true) => {
+    app = (permission?: string, includeOrgParam = true) => {
         return this.appHandler(false, false, permission, includeOrgParam);
     }
 
-    anyApp = (permission: string, includeOrgParam = true) => {
+    anyApp = (permission?: string, includeOrgParam = true) => {
         return this.appHandler(false, true, permission, includeOrgParam);
     }
 
-    standalone = (permission: string) => {
+    standalone = (permission?: string) => {
         return this.appHandler(true, false, permission, false);
     }
 
-    anyStandalone = (permission: string) => {
+    anyStandalone = (permission?: string) => {
         return this.appHandler(true, true, permission, false);
     }
 
-    private appHandler = (isStandalone: boolean, anyApp: boolean, permission: string, includeOrgParam = true) => {
+    private appHandler = (isStandalone: boolean, anyApp: boolean, permission?: string, includeOrgParam = true) => {
 
         const appSection = (anyApp) ? GroupAuthPlugin.DEBUG_ANY_APP : this.appParam;
         const orgSection = (anyApp) ? GroupAuthPlugin.DEBUG_ANY_ORG : this.orgParam;
+        const prefix = (isStandalone) ? "standalone" : "applications";
 
-        this.matchingGroups.appRequirements.push(`/applications/${appSection}/${permission}`);
-        this.matchingGroups.appRequirements.push(`/applications/${appSection}/${this.groupAuthConfig?.adminGroups?.appAdmin ?? ""}`);
+        this.matchingGroups.appRequirements.push(`/${prefix}/${appSection}/${this.groupAuthConfig?.adminGroups?.appAdmin ?? ""}`);
 
-        if (includeOrgParam) {
-            this.matchingGroups.appRequirements.push(`/applications/${appSection}/${orgSection}/${permission}`);
-            this.matchingGroups.orgRequirements.push(`/organizations/${orgSection}/*`);
+        if (permission) {
+            this.matchingGroups.appRequirements.push(`/${prefix}/${appSection}/${permission}`);
+
+            if (includeOrgParam) {
+                this.matchingGroups.appRequirements.push(`/${prefix}/${appSection}/${orgSection}/${permission}`);
+                this.matchingGroups.orgRequirements.push(`/organizations/${orgSection}/*`);
+            }
         }
 
         return this;
