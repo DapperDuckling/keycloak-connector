@@ -1,16 +1,15 @@
 // noinspection CommaExpressionJS
 
-import {GroupAuthConfig, type GroupAuthDebugPrintable, GroupAuthPlugin} from "../../src/index.js";
+import {type GroupAuthConfig, type GroupAuthDebugPrintable, GroupAuthPlugin} from "../../src/index.js";
 
 export class GroupPathBuilder {
 
     private groupAuthPlugin: GroupAuthPlugin;
+    private groupAuthConfig: GroupAuthConfig | undefined = undefined;
     private config = {
         systemAdmin: false,
         allAppAdmin: false,
         allOrgAdmin: false,
-        appAdmin: false,
-        orgAdmin: false,
     }
     private matchingGroups: GroupAuthDebugPrintable['matchingGroups'] = {
         appRequirements: [],
@@ -23,46 +22,58 @@ export class GroupPathBuilder {
         this.groupAuthPlugin = groupAuthPlugin;
     }
 
-    app = (permission: string) => {
-        this.matchingGroups.appRequirements.push(`/application`);
+    setGroupAuthConfig = (groupAuthConfig: GroupAuthConfig) => (this.groupAuthConfig = groupAuthConfig, this);
+
+    app = (permission: string, includeOrgParam = true) => {
+        this.matchingGroups.appRequirements.push(`/applications/<${this.groupAuthConfig?.appParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>/${permission}`);
+        this.matchingGroups.appRequirements.push(`/applications/<${this.groupAuthConfig?.appParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>/${this.groupAuthConfig?.adminGroups?.appAdmin ?? ""}`);
+
+        if (includeOrgParam) {
+            this.matchingGroups.appRequirements.push(`/applications/<${this.groupAuthConfig?.appParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>/<${this.groupAuthConfig?.orgParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>/${permission}`);
+            this.matchingGroups.orgRequirements.push(`/organizations/<${this.groupAuthConfig?.orgParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>/*`);
+        }
+
+        return this;
     }
 
     standalone = (permission: string) => {
-        this.matchingGroups.appRequirements.push(`/application`);
+        this.matchingGroups.appRequirements.push(`/applications`);
+        return this;
     }
 
-    default = () => this.systemAdmin().allAppAdmin().allOrgAdmin().appAdmin().orgAdmin();
+    org = (permission?: string) => {
+        this.matchingGroups.orgRequirements.push(`/organizations/<${this.groupAuthConfig?.orgParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>/${this.groupAuthConfig?.adminGroups?.orgAdmin ?? ""}`);
+
+        if (permission) {
+            this.matchingGroups.orgRequirements.push(`/organizations/<${this.groupAuthConfig?.orgParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>/${permission}`);
+        }
+        return this;
+    }
+
+    defaultAdmins = () => this.systemAdmin().allAppAdmin().allOrgAdmin();
     systemAdmin = () => (this.config.systemAdmin = true, this);
     allAppAdmin = () => (this.config.allAppAdmin = true, this);
     allOrgAdmin = () => (this.config.allOrgAdmin = true, this);
-    appAdmin = () => (this.config.appAdmin = true, this);
-    orgAdmin = () => (this.config.orgAdmin = true, this);
 
-    output = (groupAuthConfig: GroupAuthConfig) => {
+    output = () => {
         // Prepare to output the list of groups
         const config = this.config;
         const appRequirements = this.matchingGroups.appRequirements;
         const orgRequirements = this.matchingGroups.orgRequirements;
 
-        // Add the admin groups
-        for (const [groupName, activated] of Object.entries(config)) {
-            // Little bit jank way of checking for this, but it's only for our test suite...
-            const target = (/org/i.test(groupName)) ? orgRequirements : appRequirements;
-            // @ts-ignore - Ignore keys not matching
-            if (activated) target.push(groupAuthConfig.adminGroups?.[groupName] ?? GroupPathBuilder.MISSING_PARAM_CONFIG);
-        }
+        // Add the global admin groups
+        if (config.systemAdmin && this.groupAuthConfig?.adminGroups?.systemAdmin) this.matchingGroups.systemAdmin = this.groupAuthConfig?.adminGroups?.systemAdmin;
+        if (config.allAppAdmin) this.matchingGroups.appRequirements.push(this.groupAuthConfig?.adminGroups?.allAppAdmin);
+        if (config.allOrgAdmin) this.matchingGroups.orgRequirements.push(this.groupAuthConfig?.adminGroups?.allOrgAdmin);
 
-        // Add default app and org requirements
-        if (!groupAuthConfig.noImplicitApp) {
+        // Remove duplicates
+        Object.entries(this.matchingGroups).forEach(([key, value]) => {
+            // Skip non-arrays
+            if (!Array.isArray(value)) return;
 
-            //todo: ******** THIS ENTIRE SECTION
-            if (groupAuthConfig.defaultRequiredPermission) {
-                appRequirements.push(`/application`);
-            }
-
-            appRequirements.push(`/application`);
-            orgRequirements.push(`/organization`);
-        }
+            // @ts-ignore
+            this.matchingGroups[key] = [...new Set(value)];
+        })
 
         return this.matchingGroups;
 
