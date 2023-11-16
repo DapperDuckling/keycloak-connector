@@ -56,7 +56,7 @@ export type GroupAuthConfig = {
     orgParam?: string | undefined,
     appParam?: string | undefined,
     appIsStandalone?: boolean,
-    requireAdmin?: boolean | "APP_ADMINS_ONLY" | "ORG_ADMINS_ONLY" | "SYSTEM_ADMIN",
+    requireAdmin?: boolean | "APP_ADMINS_ONLY" | "ALL_APP_ADMIN_ONLY" | "ORG_ADMINS_ONLY" | "ALL_ORG_ADMIN_ONLY" | "SYSTEM_ADMIN",
     adminGroups?: {
         systemAdmin?: string,
         allOrgAdmin?: string,

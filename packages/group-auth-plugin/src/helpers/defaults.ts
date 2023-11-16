@@ -14,6 +14,6 @@ export const GroupAuthConfigDefaults: Partial<GroupAuthConfig> = {
     },
     defaultRequiredPermission: "user",
     appInheritanceTree: { "admin": "*" },
-    orgInheritanceTree: { "admin": "*" },
+    orgInheritanceTree: {},
     noImplicitApp: false
 }

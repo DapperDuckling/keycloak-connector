@@ -322,8 +322,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
         // Check if no valid constraints and the "require admin" flag is not set to an explicit org or app admin
         if (Object.values(constraints).every((constraint: unknown) => typeof constraint !== "string" || constraint.length === 0) &&
-            groupAuthConfig.requireAdmin !== "APP_ADMINS_ONLY" &&
-            groupAuthConfig.requireAdmin !== "ORG_ADMINS_ONLY"
+            (typeof groupAuthConfig.requireAdmin === "boolean" || groupAuthConfig.requireAdmin === undefined)
         ) {
 
             // No valid constraints assumes we must require a super admin only
@@ -485,6 +484,12 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             // Regular check of app permission and (possibly) org permission
             return hasAppPermission(requiredPermission, constraints.app, constraints.org);
 
+        } else if (groupAuthConfig.requireAdmin === "ALL_APP_ADMIN_ONLY") {
+            // Add debug info
+            matchingGroups.appRequirements.add(groupAuthConfig.adminGroups?.allAppAdmin ?? "");
+
+            return userStatus.isAllAppAdmin;
+
         } else if (groupAuthConfig.requireAdmin === "APP_ADMINS_ONLY") {
             // Add debug info
             matchingGroups.appRequirements.add(groupAuthConfig.adminGroups?.allAppAdmin ?? "");
@@ -519,10 +524,10 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             if (groupAuthConfig.requireAdmin === true || groupAuthConfig.requireAdmin === "ORG_ADMINS_ONLY") return false;
 
             // Add debug info
-            matchingGroups.orgRequirements.add(`/organizations/<${constraints.org}>/${requiredPermission}`);
+            matchingGroups.orgRequirements.add(`/organizations/<${groupAuthConfig.orgParam}>/${requiredPermission}`);
             for (const [allowedPermission, inheritedPermissions] of Object.entries(mappedOrgInheritanceTree)) {
                 if (inheritedPermissions === "*" || inheritedPermissions.has(requiredPermission)) {
-                    matchingGroups.orgRequirements.add(`/organizations/<${constraints.org}>/${allowedPermission}`);
+                    matchingGroups.orgRequirements.add(`/organizations/<${groupAuthConfig.orgParam}>/${allowedPermission}`);
                 }
             }
 
@@ -532,6 +537,11 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
                 kccUserGroupAuthData.orgId = constraints.org;
                 return true;
             }
+        } else if (groupAuthConfig.requireAdmin === "ALL_ORG_ADMIN_ONLY") {
+            // Add debug info
+            matchingGroups.orgRequirements.add(groupAuthConfig.adminGroups?.allOrgAdmin ?? "");
+            return userStatus.isAllOrgAdmin;
+
         } else if (groupAuthConfig.requireAdmin === "ORG_ADMINS_ONLY") {
             // Add debug info
             matchingGroups.orgRequirements.add(groupAuthConfig.adminGroups?.allOrgAdmin ?? "");

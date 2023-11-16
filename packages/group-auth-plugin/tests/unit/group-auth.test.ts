@@ -73,7 +73,7 @@ describe('Validate GroupAuth configuration to actual permission group requiremen
         matchingGroups.appRequirements.sort();
         matchingGroups.orgRequirements.sort();
         expectedMatchingGroups.appRequirements.sort();
-        matchingGroups.orgRequirements.sort();
+        expectedMatchingGroups.orgRequirements.sort();
 
         console.log(`Expected`, expectedMatchingGroups);
         console.log(`Actual`, matchingGroups);
@@ -89,11 +89,13 @@ describe('Validate GroupAuth configuration to actual permission group requiremen
         matchingGroups.appRequirements.forEach(app => matchingGroups.orgRequirements.forEach(org => addCombination(app, org)))
         matchingGroups.orgRequirements.forEach(org => matchingGroups.appRequirements.forEach(app => addCombination(app, org)))
 
+        // Expect a failure first
+        const authResult = await groupAuthPlugin['isAuthorizedGroup'](connectorRequest, userData, groupAuthSetup);
+        expect(authResult).toBe(false);
+
         // Loop through the matching groups and check the authorization actually passes
         for (let {app, org} of combinations) {
             const groups: string[] = [];
-
-            //todo: handle any app/any org & matching org
 
             // Replace the app param values
             if (groupAuthConfig.appParam) {
@@ -314,64 +316,6 @@ describe('Validate GroupAuth configuration to actual permission group requiremen
                 // Compare
                 await compare(matchingGroups, expectedMatchingGroups);
             });
-
-            // test('Org param included - All org admin & org admin for org specified', async () => {
-            //     enableOrgParam();
-            //
-            //     // Grab the matching groups
-            //     await groupAuthPlugin['isAuthorizedGroup'](connectorRequest, userData, groupAuthSetup, groupAuthDebug);
-            //     const matchingGroups = GroupAuthPlugin.groupAuthDebugToPrintable(groupAuthDebug).matchingGroups;
-            //
-            //     // Build the expected groups
-            //     const expectedMatchingGroups = groupPathBuilder
-            //         .setGroupAuthConfig(groupAuthConfig)
-            //         .systemAdmin()
-            //         .allOrgAdmin()
-            //         .org()
-            //         .output();
-            //
-            //     // Compare
-            //     await compare(matchingGroups, expectedMatchingGroups);
-            // });
-            //
-            // test('App param included - Any org admin can access', async () => {
-            //     enableAppParam();
-            //
-            //     // Grab the matching groups
-            //     await groupAuthPlugin['isAuthorizedGroup'](connectorRequest, userData, groupAuthSetup, groupAuthDebug);
-            //     const matchingGroups = GroupAuthPlugin.groupAuthDebugToPrintable(groupAuthDebug).matchingGroups;
-            //
-            //     // Build the expected groups
-            //     const expectedMatchingGroups = groupPathBuilder
-            //         .setGroupAuthConfig(groupAuthConfig)
-            //         .systemAdmin()
-            //         .allOrgAdmin()
-            //         .anyOrg()
-            //         .output();
-            //
-            //     // Compare
-            //     await compare(matchingGroups, expectedMatchingGroups);
-            // });
-            //
-            // test('App & org param included - All org admin & org admin for org specified', async () => { //todo:
-            //     enableAppParam();
-            //     enableOrgParam();
-            //
-            //     // Grab the matching groups
-            //     await groupAuthPlugin['isAuthorizedGroup'](connectorRequest, userData, groupAuthSetup, groupAuthDebug);
-            //     const matchingGroups = GroupAuthPlugin.groupAuthDebugToPrintable(groupAuthDebug).matchingGroups;
-            //
-            //     // Build the expected groups
-            //     const expectedMatchingGroups = groupPathBuilder
-            //         .setGroupAuthConfig(groupAuthConfig)
-            //         .systemAdmin()
-            //         .allOrgAdmin()
-            //         .org()
-            //         .output();
-            //
-            //     // Compare
-            //     await compare(matchingGroups, expectedMatchingGroups);
-            // });
         });
         describe('ORG_ADMINS_ONLY set with noImplicitApp', async () => {
             let groupAuthConfig: GroupAuthConfig;
@@ -634,6 +578,52 @@ describe('Validate GroupAuth configuration to actual permission group requiremen
                 // Compare
                 await compare(matchingGroups, expectedMatchingGroups);
             });
+        });
+
+        test('Allow access if org param is set and has any matching org permission', async () => {
+            // Build the necessary input parameters
+            [groupAuthConfig, groupAuthSetup] = groupAuthSingle("*",{
+                noImplicitApp: true,
+            });
+
+            enableOrgParam();
+
+            // Grab the matching groups
+            await groupAuthPlugin['isAuthorizedGroup'](connectorRequest, userData, groupAuthSetup, groupAuthDebug);
+            const matchingGroups = GroupAuthPlugin.groupAuthDebugToPrintable(groupAuthDebug).matchingGroups;
+
+            // Build the expected groups
+            const expectedMatchingGroups = groupPathBuilder
+                .setGroupAuthConfig(groupAuthConfig)
+                .systemAdmin()
+                .allOrgAdmin()
+                .org("*")
+                .output();
+
+            // Compare
+            await compare(matchingGroups, expectedMatchingGroups);
+        });
+
+        test('Allow access to all org admins only when org param is not set', async () => {
+            // Build the necessary input parameters
+            [groupAuthConfig, groupAuthSetup] = groupAuthSingle({
+                noImplicitApp: true,
+                requireAdmin: "ALL_ORG_ADMIN_ONLY",
+            });
+
+            // Grab the matching groups
+            await groupAuthPlugin['isAuthorizedGroup'](connectorRequest, userData, groupAuthSetup, groupAuthDebug);
+            const matchingGroups = GroupAuthPlugin.groupAuthDebugToPrintable(groupAuthDebug).matchingGroups;
+
+            // Build the expected groups
+            const expectedMatchingGroups = groupPathBuilder
+                .setGroupAuthConfig(groupAuthConfig)
+                .systemAdmin()
+                .allOrgAdmin()
+                .output();
+
+            // Compare
+            await compare(matchingGroups, expectedMatchingGroups);
         });
 
         test('Requires org admin through url inference', async () => {
