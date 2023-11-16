@@ -7,7 +7,7 @@ export interface GroupAuthFunc {
     (groupAuths: GroupAuthsArray): GroupAuthRouteConfig;
     (groupAuthConfig: GroupAuthConfigPartial): GroupAuthRouteConfig;
     (permission: string, groupAuthConfig?: GroupAuthConfigPartial): GroupAuthRouteConfig;
-    (permissionOrConfigOrGroupAuths: GroupAuthsArray | GroupAuthConfigPartial | string, groupAuthConfigOrNothing?: GroupAuthConfigPartial): GroupAuthRouteConfig
+    (permissionOrConfigOrGroupAuths?: GroupAuthsArray | GroupAuthConfigPartial | string, groupAuthConfigOrNothing?: GroupAuthConfigPartial): GroupAuthRouteConfig
 }
 
 // export function groupAuth(groupAuths: GroupAuthsArray): GroupAuthRouteConfig;
@@ -17,6 +17,9 @@ export const groupAuth: GroupAuthFunc = (permissionOrConfigOrGroupAuths, groupAu
 
     let permission;
     let groupAuthConfig: Partial<GroupAuthConfig> | undefined;
+
+    // Check for undefined inputs
+    if (permissionOrConfigOrGroupAuths === undefined) return {};
 
     // Handle arrays separately
     if (Array.isArray(permissionOrConfigOrGroupAuths)) {

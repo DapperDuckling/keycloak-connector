@@ -12,7 +12,7 @@ import type {
     InheritanceTree,
     KcGroupClaims,
     MappedInheritanceTree, UserGroupPermissions, UserGroupsInternal,
-    ConnectorRequest, GroupAuthUserStatus, UserGroups, GroupAuth, GroupAuthDebug
+    ConnectorRequest, GroupAuthUserStatus, UserGroups, GroupAuth, GroupAuthDebug, GroupAuthDebugPrintable
 } from "./types.js";
 import {getUserGroups} from "./group-regex-helpers.js";
 import {UserGroupPermissionKey} from "./types.js";
@@ -173,7 +173,23 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         if (isDev()) {
             for (const groupAuth of groupAuths) {
                 const groupAuthDebug: GroupAuthDebug = {}
-                this.isAuthorizedGroup(connectorRequest, userData, groupAuth, groupAuthDebug);
+
+                try {
+                    // Execute a test only, is authorized call to retrieve all possible routes
+                    this.isAuthorizedGroup(connectorRequest, userData, groupAuth, groupAuthDebug);
+                } catch (e) {
+                    if (e instanceof Error) groupAuthDebug.error = e.message;
+                }
+
+                // Convert the sets to a printable type (array)
+                const printableGroupAuthDebug: GroupAuthDebugPrintable = {
+                    ...groupAuthDebug,
+                    matchingGroups: {
+                        ...groupAuthDebug.matchingGroups,
+                        orgRequirements: [...groupAuthDebug.matchingGroups?.orgRequirements ?? []],
+                        appRequirements: [...groupAuthDebug.matchingGroups?.appRequirements ?? []],
+                    }
+                };
                 this.logger?.debug(`Group auth input`);
                 this.logger?.debug(groupAuth);
                 this.logger?.debug(`Group auth output`);
@@ -416,7 +432,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             // Add org debug info
             if (groupAuthConfig.orgParam) {
                 matchingGroups.orgRequirements.add(groupAuthConfig.adminGroups?.allOrgAdmin);
-                matchingGroups.orgRequirements.add(`organizations/<${groupAuthConfig.orgParam}>/<ANY PERMISSION>`);
+                matchingGroups.orgRequirements.add(`organizations/<${groupAuthConfig.orgParam}>/<*>`);
             }
 
             // Scan through the user's app permission organizations

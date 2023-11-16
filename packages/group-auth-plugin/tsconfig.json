@@ -29,7 +29,6 @@
     "preserveConstEnums": true,
     "moduleResolution": "nodenext",
     "target": "es2022",
-    "rootDir": "./src/",
     "paths": {
       "keycloak-connector-server": ["../server"],
     }
@@ -40,5 +39,6 @@
   "exclude": [
     "./tests/**/*",
     "./dist/**/*"
-  ]
+  ],
+  "baseUrl": "./src"
 }

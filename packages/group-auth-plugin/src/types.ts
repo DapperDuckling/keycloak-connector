@@ -22,13 +22,25 @@ export type GroupAuth = {
     config?: Omit<Partial<GroupAuthConfig>, 'adminGroups'>,
 }
 
-export type GroupAuthDebug = {
+type GroupAuthDebugBase = {
     error?: string,
     matchingGroups?: {
         systemAdmin?: string,
-        orgRequirements: Set<string | undefined>,
-        appRequirements: Set<string | undefined>
     },
+}
+
+export type GroupAuthDebugPrintable = GroupAuthDebugBase & {
+    matchingGroups?: {
+        orgRequirements: Array<string | undefined>,
+        appRequirements: Array<string | undefined>,
+    }
+}
+
+export type GroupAuthDebug = GroupAuthDebugBase & {
+    matchingGroups?: {
+        orgRequirements: Set<string | undefined>,
+        appRequirements: Set<string | undefined>,
+    }
 }
 
 export type GroupAuthUserStatus = UserGroups & {

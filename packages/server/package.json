@@ -3,9 +3,12 @@
   "version": "0.0.30",
   "description": "Opinionated middleware connecting Node.js Express or Fastify servers to Keycloak",
   "keywords": [
-    "express keycloak",
-    "fastify keycloak",
-    "node server keycloak"
+    "keycloak",
+    "sso",
+    "express",
+    "fastify",
+    "authentication",
+    "oidc"
   ],
   "author": "DapperDuckling Dev LLC",
   "license": "AGPL-3.0-only",
@@ -23,7 +26,9 @@
     "build": "npm run clean && tsc && cpy ./src/**/*.d.ts ./dist && cpy ./src/static/* ./dist/static && cpy --flat ./../../node_modules/trianglify/dist/trianglify.bundle.js ./dist/static",
     "prepublishOnly": "npm run build",
     "test:start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts",
-    "test:start:express": "npm run build && cd ./tests/integration/express/ && nodemon ./express-server.ts"
+    "test:start:express": "npm run build && cd ./tests/integration/express/ && nodemon ./express-server.ts",
+    "test:server": "node --experimental-vm-modules --require ../../suppress-experimental-vm-warnings.cjs ../../node_modules/jest/bin/jest.js --verbose --selectProjects keycloak-connector-server",
+    "test:server:watch": "node --experimental-vm-modules --require ../../suppress-experimental-vm-warnings.cjs ../../node_modules/jest/bin/jest.js --verbose --runInBand --watch --coverage=false --no-cache --selectProjects keycloak-connector-server"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
