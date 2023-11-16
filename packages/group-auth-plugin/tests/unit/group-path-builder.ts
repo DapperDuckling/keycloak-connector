@@ -4,6 +4,8 @@ import {type GroupAuthConfig, type GroupAuthDebugPrintable, GroupAuthPlugin} fro
 
 export class GroupPathBuilder {
 
+    static MISSING_PARAM_CONFIG = "MISSING_PARAM_CONFIG";
+
     private groupAuthPlugin: GroupAuthPlugin;
     private groupAuthConfig: GroupAuthConfig | undefined = undefined;
     private config = {
@@ -16,36 +18,73 @@ export class GroupPathBuilder {
         orgRequirements: [],
     }
 
-    static MISSING_PARAM_CONFIG = "MISSING_PARAM_CONFIG";
+    private appParam: string = GroupPathBuilder.MISSING_PARAM_CONFIG;
+    private orgParam: string = GroupPathBuilder.MISSING_PARAM_CONFIG;
+
 
     constructor(groupAuthPlugin: GroupAuthPlugin) {
         this.groupAuthPlugin = groupAuthPlugin;
+        this.updateParams();
     }
 
-    setGroupAuthConfig = (groupAuthConfig: GroupAuthConfig) => (this.groupAuthConfig = groupAuthConfig, this);
+    setGroupAuthConfig = (groupAuthConfig: GroupAuthConfig) => {
+        this.groupAuthConfig = groupAuthConfig;
+        this.updateParams();
+        return this;
+    };
+
+    private updateParams = () => {
+        this.appParam = `<${this.groupAuthConfig?.appParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>`;
+        this.orgParam = `<${this.groupAuthConfig?.orgParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>`;
+    }
 
     app = (permission: string, includeOrgParam = true) => {
-        this.matchingGroups.appRequirements.push(`/applications/<${this.groupAuthConfig?.appParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>/${permission}`);
-        this.matchingGroups.appRequirements.push(`/applications/<${this.groupAuthConfig?.appParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>/${this.groupAuthConfig?.adminGroups?.appAdmin ?? ""}`);
+        return this.appHandler(false, false, permission, includeOrgParam);
+    }
+
+    anyApp = (permission: string, includeOrgParam = true) => {
+        return this.appHandler(false, true, permission, includeOrgParam);
+    }
+
+    standalone = (permission: string) => {
+        return this.appHandler(true, false, permission, false);
+    }
+
+    anyStandalone = (permission: string) => {
+        return this.appHandler(true, true, permission, false);
+    }
+
+    private appHandler = (isStandalone: boolean, anyApp: boolean, permission: string, includeOrgParam = true) => {
+
+        const appSection = (anyApp) ? GroupAuthPlugin.DEBUG_ANY_APP : this.appParam;
+        const orgSection = (anyApp) ? GroupAuthPlugin.DEBUG_ANY_ORG : this.orgParam;
+
+        this.matchingGroups.appRequirements.push(`/applications/${appSection}/${permission}`);
+        this.matchingGroups.appRequirements.push(`/applications/${appSection}/${this.groupAuthConfig?.adminGroups?.appAdmin ?? ""}`);
 
         if (includeOrgParam) {
-            this.matchingGroups.appRequirements.push(`/applications/<${this.groupAuthConfig?.appParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>/<${this.groupAuthConfig?.orgParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>/${permission}`);
-            this.matchingGroups.orgRequirements.push(`/organizations/<${this.groupAuthConfig?.orgParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>/*`);
+            this.matchingGroups.appRequirements.push(`/applications/${appSection}/${orgSection}/${permission}`);
+            this.matchingGroups.orgRequirements.push(`/organizations/${orgSection}/*`);
         }
 
         return this;
     }
 
-    standalone = (permission: string) => {
-        this.matchingGroups.appRequirements.push(`/applications`);
-        return this;
+    org = (permission?: string) => {
+        return this.orgHandler(false, permission);
     }
 
-    org = (permission?: string) => {
-        this.matchingGroups.orgRequirements.push(`/organizations/<${this.groupAuthConfig?.orgParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>/${this.groupAuthConfig?.adminGroups?.orgAdmin ?? ""}`);
+    anyOrg = (permission?: string) => {
+        return this.orgHandler(true, permission);
+    }
 
+    private orgHandler = (anyOrg: boolean, permission?: string) => {
+
+        const orgSection = (anyOrg) ? GroupAuthPlugin.DEBUG_ANY_ORG : this.orgParam;
+
+        this.matchingGroups.orgRequirements.push(`/organizations/${orgSection}/${this.groupAuthConfig?.adminGroups?.orgAdmin ?? ""}`);
         if (permission) {
-            this.matchingGroups.orgRequirements.push(`/organizations/<${this.groupAuthConfig?.orgParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>/${permission}`);
+            this.matchingGroups.orgRequirements.push(`/organizations/${orgSection}/${permission}`);
         }
         return this;
     }

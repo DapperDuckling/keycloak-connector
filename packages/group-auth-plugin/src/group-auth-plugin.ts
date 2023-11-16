@@ -31,6 +31,9 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
     private readonly appTreePermissions: MappedInheritanceTree | undefined = undefined;
     private readonly orgTreePermissions: MappedInheritanceTree | undefined = undefined;
 
+    static DEBUG_ANY_ORG = "<ANY ORG>";
+    static DEBUG_ANY_APP = "<ANY APP>";
+
     constructor(config: GroupAuthConfig) {
         super();
 
@@ -474,12 +477,16 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             return false;
         }
 
-        if (constraints.app !== undefined) {
+        if (constraints.app !== undefined && groupAuthConfig.requireAdmin !== "ORG_ADMIN_ONLY") {
 
             // Regular check of app permission and (possibly) org permission
             return hasAppPermission(requiredPermission, constraints.app, constraints.org);
 
         } else if (groupAuthConfig.requireAdmin === "APP_ADMIN_ONLY") {
+            // Add debug info
+            matchingGroups.orgRequirements.add(groupAuthConfig.adminGroups?.allAppAdmin ?? "");
+            matchingGroups.orgRequirements.add(`/applications/${GroupAuthPlugin.DEBUG_ANY_ORG}/${groupAuthConfig.adminGroups?.appAdmin ?? ""}`);
+            matchingGroups.orgRequirements.add(`/standalone/${GroupAuthPlugin.DEBUG_ANY_APP}/${groupAuthConfig.adminGroups?.appAdmin ?? ""}`);
 
             return userStatus.isAppAdmin;
 
@@ -524,6 +531,10 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
                 return true;
             }
         } else if (groupAuthConfig.requireAdmin === "ORG_ADMIN_ONLY") {
+            // Add debug info
+            matchingGroups.orgRequirements.add(groupAuthConfig.adminGroups?.allOrgAdmin ?? "");
+            matchingGroups.orgRequirements.add(`/organizations/${GroupAuthPlugin.DEBUG_ANY_ORG}/${groupAuthConfig.adminGroups?.orgAdmin ?? ""}`);
+
             return userStatus.isOrgAdmin;
         }
 

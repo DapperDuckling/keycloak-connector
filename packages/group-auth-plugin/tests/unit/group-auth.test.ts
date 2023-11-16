@@ -137,7 +137,7 @@ describe('Validate GroupAuth configuration to actual permission group requiremen
                 });
             });
 
-            test('No org param - Only all org admin can access', async () => {//todo:
+            test('No org param - Only all org admin can access', async () => {
                 // Grab the matching groups
                 await groupAuthPlugin['isAuthorizedGroup'](connectorRequest, userData, groupAuthSetup, groupAuthDebug);
                 const matchingGroups = GroupAuthPlugin.groupAuthDebugToPrintable(groupAuthDebug).matchingGroups;
@@ -147,13 +147,14 @@ describe('Validate GroupAuth configuration to actual permission group requiremen
                     .setGroupAuthConfig(groupAuthConfig)
                     .systemAdmin()
                     .allOrgAdmin()
+                    .anyOrg()
                     .output();
 
                 // Compare
                 compare(matchingGroups, expectedMatchingGroups);
             });
 
-            test('Org param included - Any org admin can access', async () => {//todo:
+            test('Org param included - Any org admin can access', async () => {
                 enableOrgParam(groupAuthConfig);
 
                 // Grab the matching groups
@@ -172,7 +173,7 @@ describe('Validate GroupAuth configuration to actual permission group requiremen
                 compare(matchingGroups, expectedMatchingGroups);
             });
 
-            test('App param included - Just all org admin can access', async () => { //todo:
+            test('App param included - Just all org admin can access', async () => {
                 enableAppParam(groupAuthConfig);
 
                 // Grab the matching groups
@@ -184,7 +185,7 @@ describe('Validate GroupAuth configuration to actual permission group requiremen
                     .setGroupAuthConfig(groupAuthConfig)
                     .systemAdmin()
                     .allOrgAdmin()
-                    .org()
+                    .anyOrg()
                     .output();
 
                 // Compare
