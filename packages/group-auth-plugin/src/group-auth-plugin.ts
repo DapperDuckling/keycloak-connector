@@ -31,8 +31,10 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
     private readonly appTreePermissions: MappedInheritanceTree | undefined = undefined;
     private readonly orgTreePermissions: MappedInheritanceTree | undefined = undefined;
 
-    static DEBUG_ANY_ORG = "<ANY ORG>";
-    static DEBUG_ANY_APP = "<ANY APP>";
+    static DEBUG_ANY_ORG = "<ANY-ORG>";
+    static DEBUG_MATCHING_ORG = "<MATCHING-ORG>";
+    static DEBUG_ANY_APP = "<ANY-APP>";
+    static DEBUG_SPECIFIED_APP = "<SPECIFIC-APP>";
 
     constructor(config: GroupAuthConfig) {
         super();
@@ -427,17 +429,19 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             Narrow<UserGroupsInternal["applications"][string]>(appGroups);
 
             // Add debug info
-            matchingGroups.appRequirements.add(`${appPrefix}/<${groupAuthConfig.orgParam ?? "ANY ORG"}>/${permission}`);
+            const orgSection = (orgConstraint && groupAuthConfig.orgParam) ? `<${groupAuthConfig.orgParam}>` : GroupAuthPlugin.DEBUG_ANY_ORG;
+            matchingGroups.appRequirements.add(`${appPrefix}/${orgSection}/${permission}`);
             for (const [allowedPermission, inheritedPermissions] of Object.entries(mappedAppInheritanceTree)) {
                 if (inheritedPermissions === "*" || inheritedPermissions.has(permission)) {
-                    matchingGroups.appRequirements.add(`${appPrefix}/<${groupAuthConfig.orgParam ?? "ANY ORG"}>/${allowedPermission}`);
+                    matchingGroups.appRequirements.add(`${appPrefix}/${orgSection}/${allowedPermission}`);
                 }
             }
 
             // Add org debug info
             if (groupAuthConfig.orgParam) {
+                const orgSection = (orgConstraint) ? `<${groupAuthConfig.orgParam}>` : GroupAuthPlugin.DEBUG_MATCHING_ORG;
                 matchingGroups.orgRequirements.add(groupAuthConfig.adminGroups?.allOrgAdmin);
-                matchingGroups.orgRequirements.add(`/organizations/<${groupAuthConfig.orgParam}>/*`);
+                matchingGroups.orgRequirements.add(`/organizations/${orgSection}/*`);
             }
 
             // Scan through the user's app permission organizations

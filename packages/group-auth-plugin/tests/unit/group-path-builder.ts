@@ -2,6 +2,7 @@
 
 import {type GroupAuthConfig, type GroupAuthDebugPrintable, GroupAuthPlugin} from "../../src/index.js";
 
+type orgParamOptions = true | "MATCHING" | false;
 export class GroupPathBuilder {
 
     static MISSING_PARAM_CONFIG = "MISSING_PARAM_CONFIG";
@@ -20,6 +21,7 @@ export class GroupPathBuilder {
 
     private appParam: string = GroupPathBuilder.MISSING_PARAM_CONFIG;
     private orgParam: string = GroupPathBuilder.MISSING_PARAM_CONFIG;
+    private appParamValueSet: boolean = false;
 
 
     constructor(groupAuthPlugin: GroupAuthPlugin) {
@@ -33,17 +35,22 @@ export class GroupPathBuilder {
         return this;
     };
 
+    appParamValueIsSet = () => {
+        this.appParamValueSet = true;
+        return this;
+    }
+
     private updateParams = () => {
         this.appParam = `<${this.groupAuthConfig?.appParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>`;
         this.orgParam = `<${this.groupAuthConfig?.orgParam ?? GroupPathBuilder.MISSING_PARAM_CONFIG}>`;
     }
 
-    app = (permission?: string, includeOrgParam = true) => {
-        return this.appHandler(false, false, permission, includeOrgParam);
+    app = (permission?: string, orgParam: orgParamOptions = true) => {
+        return this.appHandler(false, false, permission, orgParam);
     }
 
-    anyApp = (permission?: string, includeOrgParam = true) => {
-        return this.appHandler(false, true, permission, includeOrgParam);
+    anyApp = (permission?: string, orgParam: orgParamOptions = true) => {
+        return this.appHandler(false, true, permission, orgParam);
     }
 
     standalone = (permission?: string) => {
@@ -54,10 +61,27 @@ export class GroupPathBuilder {
         return this.appHandler(true, true, permission, false);
     }
 
-    private appHandler = (isStandalone: boolean, anyApp: boolean, permission?: string, includeOrgParam = true) => {
+    private appHandler = (isStandalone: boolean, anyApp: boolean, permission?: string, orgParam: orgParamOptions = true) => {
 
-        const appSection = (anyApp) ? GroupAuthPlugin.DEBUG_ANY_APP : this.appParam;
-        const orgSection = (anyApp) ? GroupAuthPlugin.DEBUG_ANY_ORG : this.orgParam;
+        let appSection: string;
+        if (anyApp) {
+            appSection = GroupAuthPlugin.DEBUG_ANY_APP;
+        // } else if (this.appParamValueSet) {
+        //     appSection = GroupAuthPlugin.DEBUG_SPECIFIED_APP;
+        } else {
+            appSection = this.appParam;
+        }
+        let orgSection: string;
+        let appOrgSection: string;
+        if (anyApp) {
+            orgSection = appOrgSection = GroupAuthPlugin.DEBUG_ANY_ORG;
+        } else if (orgParam === "MATCHING") {
+            appOrgSection = GroupAuthPlugin.DEBUG_ANY_ORG;
+            orgSection = GroupAuthPlugin.DEBUG_MATCHING_ORG;
+        } else {
+            orgSection = appOrgSection = this.orgParam;
+        }
+
         const prefix = (isStandalone) ? "standalone" : "applications";
 
         this.matchingGroups.appRequirements.push(`/${prefix}/${appSection}/${this.groupAuthConfig?.adminGroups?.appAdmin ?? ""}`);
@@ -65,8 +89,8 @@ export class GroupPathBuilder {
         if (permission) {
             this.matchingGroups.appRequirements.push(`/${prefix}/${appSection}/${permission}`);
 
-            if (includeOrgParam) {
-                this.matchingGroups.appRequirements.push(`/${prefix}/${appSection}/${orgSection}/${permission}`);
+            if (orgParam) {
+                this.matchingGroups.appRequirements.push(`/${prefix}/${appSection}/${appOrgSection}/${permission}`);
                 this.matchingGroups.orgRequirements.push(`/organizations/${orgSection}/*`);
             }
         }
@@ -75,16 +99,32 @@ export class GroupPathBuilder {
     }
 
     org = (permission?: string) => {
-        return this.orgHandler(false, permission);
+        return this.orgHandler("PARAM", permission);
     }
 
     anyOrg = (permission?: string) => {
-        return this.orgHandler(true, permission);
+        return this.orgHandler("ANY", permission);
     }
 
-    private orgHandler = (anyOrg: boolean, permission?: string) => {
+    matchingOrg = (permission?: string) => {
+        return this.orgHandler("MATCHING", permission);
+    }
 
-        const orgSection = (anyOrg) ? GroupAuthPlugin.DEBUG_ANY_ORG : this.orgParam;
+    private orgHandler = (org: "ANY" | "MATCHING" | "PARAM", permission?: string) => {
+
+        // Add a switch statement based on input org
+        let orgSection;
+        switch(org) {
+            case "ANY":
+                orgSection = GroupAuthPlugin.DEBUG_ANY_ORG;
+                break;
+            case "MATCHING":
+                orgSection = GroupAuthPlugin.DEBUG_MATCHING_ORG;
+                break;
+            case "PARAM":
+                orgSection = this.orgParam;
+                break;
+        }
 
         this.matchingGroups.orgRequirements.push(`/organizations/${orgSection}/${this.groupAuthConfig?.adminGroups?.orgAdmin ?? ""}`);
         if (permission) {
