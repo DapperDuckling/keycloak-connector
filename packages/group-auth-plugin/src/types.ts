@@ -71,11 +71,11 @@ export type GroupAuthConfig = {
 }
 
 export const RequireAdminStringOptions = [
-    "APP_ADMINS_ONLY",
+    "SYSTEM_ADMIN",
     "ALL_APP_ADMIN_ONLY",
-    "ORG_ADMINS_ONLY",
     "ALL_ORG_ADMIN_ONLY",
-    "SYSTEM_ADMIN"
+    "APP_ADMINS_ONLY",
+    "ORG_ADMINS_ONLY"
 ] as const;
 
 // export type GroupAuthData = ReturnType<GroupAuthPlugin['exposedEndpoints']> & {
