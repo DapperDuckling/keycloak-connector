@@ -284,6 +284,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
             return false;
         }
 
+        // Set flag to invalidate the user info (force a pull of the latest data if later required)
+        // Dev note: Doing this over forcibly invalidating the cache as some requests handled by this function may not be require it
+        req.routeConfig.verifyUserInfoWithServer = true;
+
         // Determine the silent login status
         const [silentRequestType, silentRequestToken] = this.silentRequestConfig(req);
 
