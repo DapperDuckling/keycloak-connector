@@ -1,4 +1,5 @@
 import type {GroupAuth, GroupAuthConfig, GroupAuthRouteConfig} from "./types.js";
+import {RequireAdminStringOptions} from "./types.js";
 
 export type GroupAuthConfigPartial = Partial<GroupAuthConfig>;
 export type GroupAuthsArray = Array<string | GroupAuth>;
@@ -41,10 +42,22 @@ export const groupAuth: GroupAuthFunc = (permissionOrConfigOrGroupAuths, groupAu
     }]);
 };
 
+const validateGroupAuthOrThrow = (groupAuth: GroupAuth): void => {
+    // Validate require admin option
+    if (typeof groupAuth.config?.requireAdmin === "string" && !RequireAdminStringOptions.includes(groupAuth.config?.requireAdmin)) {
+        throw new Error(`Invalid require admin option: ${groupAuth.config?.requireAdmin}`);
+    }
+}
+
 const buildGroupAuth = (groupAuthsArray: GroupAuthsArray): GroupAuthRouteConfig => {
     // Transform the group auths
     const groupAuths: GroupAuth[] = groupAuthsArray.map(groupAuth => {
-        return typeof groupAuth === "string" ? {permission: groupAuth} : groupAuth;
+        if (typeof groupAuth === "string") {
+            return {permission: groupAuth};
+        } else {
+            validateGroupAuthOrThrow(groupAuth);
+            return groupAuth;
+        }
     });
 
     return {

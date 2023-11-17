@@ -56,7 +56,7 @@ export type GroupAuthConfig = {
     orgParam?: string | undefined,
     appParam?: string | undefined,
     appIsStandalone?: boolean,
-    requireAdmin?: boolean | "APP_ADMINS_ONLY" | "ALL_APP_ADMIN_ONLY" | "ORG_ADMINS_ONLY" | "ALL_ORG_ADMIN_ONLY" | "SYSTEM_ADMIN",
+    requireAdmin?: boolean | typeof RequireAdminStringOptions[number],
     adminGroups?: {
         systemAdmin?: string,
         allOrgAdmin?: string,
@@ -69,6 +69,14 @@ export type GroupAuthConfig = {
     orgInheritanceTree?: InheritanceTree,
     noImplicitApp?: boolean,
 }
+
+export const RequireAdminStringOptions = [
+    "APP_ADMINS_ONLY",
+    "ALL_APP_ADMIN_ONLY",
+    "ORG_ADMINS_ONLY",
+    "ALL_ORG_ADMIN_ONLY",
+    "SYSTEM_ADMIN"
+] as const;
 
 // export type GroupAuthData = ReturnType<GroupAuthPlugin['exposedEndpoints']> & {
 export type GroupAuthData = {
