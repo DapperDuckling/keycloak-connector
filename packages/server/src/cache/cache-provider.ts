@@ -7,7 +7,7 @@ import {webcrypto} from "crypto";
 import * as jose from 'jose';
 import type {JWTPayload} from "jose/dist/types/types.js";
 
-export type CacheMissCallback<T, A extends any[] = any[]> = (...args: A) => Promise<T | undefined>;
+export type CacheMissCallback<T, A extends any[] = any[]> = (...args: A) => Promise<T>;
 
 export type CacheProviderConfig<T, A extends any[] = any[]> = {
     title: string,
@@ -19,12 +19,20 @@ export type CacheProviderConfig<T, A extends any[] = any[]> = {
     clusterProvider?: AbstractClusterProvider,
 }
 
-export type CacheResult<T> = undefined | {
+export type CacheResult<T> = CacheData<T> | CacheError;
+
+export type CacheData<T> = {
     data: T,
     dataGenerator?: true,
+    error?: undefined,
 }
 
-export type WrappedCacheMissCallback<T> = () => Promise<T | undefined>;
+export type CacheError = {
+    error: Error,
+}
+
+// export type WrappedCacheMissCallback<T> = () => Promise<T | undefined>;
+export type WrappedCacheMissCallback<T> = () => Promise<T>;
 
 export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any[]> {
 
@@ -115,7 +123,7 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         return { key, expiration };
     }
 
-    readonly getFromJwt = async (validatedJwt: string, targetKeyParam: keyof JWTPayload, callbackArgs: A) => {
+    readonly getFromJwt = async (validatedJwt: string, targetKeyParam: keyof JWTPayload, callbackArgs: A): Promise<CacheResult<T>> => {
 
         this.config.pinoLogger?.debug(`Validating jwt`);
 
@@ -124,8 +132,11 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
 
         // Check for no result
         if (jwtData === undefined) {
-            this.config.pinoLogger?.debug(`No valid jwt found on request`);
-            return;
+            const newError = new Error(`No valid jwt found on request`);
+            this.config.pinoLogger?.debug(newError.message);
+            return {
+                error: newError
+            };
         }
 
         this.config.pinoLogger?.debug(`Using validated jwt to grab data from cache`);
@@ -163,7 +174,7 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
 
         this.config.pinoLogger?.debug(`Calling cache miss callback`);
 
-        const result = await this.handleCacheMiss(key, wrappedCacheMissCallback, expiration);
+        const result = await this.handleCacheMiss(wrappedCacheMissCallback);
 
         this.config.pinoLogger?.debug(`Cache miss callback complete`);
 
@@ -178,13 +189,14 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
 
             // Emit the result
             this.config.pinoLogger?.debug(`Emitting result locally`);
-            this.updateEmitter.emit(key, result?.data);
+            this.updateEmitter.emit(key, result);
+            // this.updateEmitter.emit(key, result?.data);
 
             // Store valid result in local cache
-            if (result) {
+            if (!result.error) {
                 // Calculate ttl
                 const expirationTtl = ttlFromExpiration(expiration);
-                const ttl = (expirationTtl) ? expirationTtl * 1000 : this.cachedResult.ttl;
+                const ttl = (expirationTtl !== undefined && expirationTtl > 0) ? expirationTtl * 1000 : this.cachedResult.ttl;
 
                 this.config.pinoLogger?.debug(`Cache update result acquired, storing locally`);
                 this.cachedResult.set(key, result.data, {
@@ -198,15 +210,34 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         return result;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    protected async handleCacheMiss(key: string, wrappedCacheMissCallback: WrappedCacheMissCallback<T>, expiration?: number): Promise<CacheResult<T>> {
-        // Execute the wrapped cache miss callback
-        const data = await wrappedCacheMissCallback();
+    protected async handleCacheMiss(wrappedCacheMissCallback: WrappedCacheMissCallback<T>): Promise<CacheResult<T>> {
+        try {
+            // Execute the wrapped cache miss callback
+            const data = await wrappedCacheMissCallback();
 
-        return (data) ? {
-            data: data,
-            dataGenerator: true,
-        } : undefined;
+            return {
+                data: data,
+                dataGenerator: true,
+            };
+        } catch (e) {
+            // Check for non-error types
+            if (!(e instanceof Error)) {
+                const newError = new Error(`Cache miss callback returned error that is not instance of Error type`);
+                this.config.pinoLogger?.error(newError.message);
+                return {
+                    error: newError
+                }
+            }
+
+            if (e instanceof WaitTimeoutError) {
+                // Log this in order to inform the owner they may need to increase the wait timeout
+                this.config.pinoLogger?.warn(`Timed out while waiting for cache miss callback to execute. Waited ${e.waitedTimeSec} seconds`);
+            }
+
+            return {
+                error: e
+            }
+        }
     }
 
     private wrapCacheMissCallback(callbackArgs: A): WrappedCacheMissCallback<T> {
@@ -214,23 +245,11 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
             // Calculate the max cache miss wait time
             const maxCacheMissWaitSecs = this.config.cacheMissMaxWaitSecs ?? CacheProvider.CACHE_MISS_MAX_WAIT_SECS;
 
-            try {
-                // Grab the cache miss callback promise
-                const cacheMissPromise = this.config.cacheMissCallback(...callbackArgs);
+            // Grab the cache miss callback promise
+            const cacheMissPromise = this.config.cacheMissCallback(...callbackArgs);
 
-                // Wait for the cache miss callback to execute
-                return await promiseWaitTimeout(cacheMissPromise, maxCacheMissWaitSecs * 1000);
-            } catch (e) {
-                if (e instanceof WaitTimeoutError) {
-                    // Log this in order to inform the owner they may need to increase the wait timeout
-                    this.config.pinoLogger?.warn(`Timed out while waiting for cache miss callback to execute. Waited ${maxCacheMissWaitSecs} seconds`);
-                } else {
-                    this.config.pinoLogger?.error(e);
-                    this.config.pinoLogger?.error(`Unexpected unhandled error from cache miss callback`);
-                }
-            }
-
-            return undefined;
+            // Wait for the cache miss callback to execute
+            return await promiseWaitTimeout<T>(cacheMissPromise, maxCacheMissWaitSecs * 1000);
         }
     }
 
@@ -240,7 +259,8 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         const finalRetryTimeMs = Date.now() + (this.config.maxWaitSecs ?? CacheProvider.MAX_WAIT_SECS) * 1000;
 
         // Make typescript happy
-        type RefreshListener = (data: T | undefined) => void;
+        // type RefreshListener = (data: T | undefined) => void;
+        type RefreshListener = (result: CacheResult<T>) => void;
 
         // Store the update listener in a higher scope, so we can disable it later if need be
         let updateListener: RefreshListener | undefined = undefined;
@@ -248,12 +268,14 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         // Build the update promise wrapper
         const updatePromise = new Promise<CacheResult<T>>(resolve => {
             // Build a generic update listener
-            updateListener = (data: T | undefined) => {
-                // Build the response
-                const response = (data !== undefined) ? {data: data} : undefined;
-
-                // Resolve with the response
-                resolve(response);
+            // updateListener = (data: T | undefined) => {
+            updateListener = (result: CacheResult<T>) => {
+                // // Build the response
+                // const response = (data !== undefined) ? {data: data} : undefined;
+                //
+                // // Resolve with the response
+                // resolve(response);
+                resolve(result);
             };
 
             // Set event listener
@@ -265,12 +287,23 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
             // Stop listening
             if (updateListener) this.updateEmitter.removeListener(updateId, updateListener);
 
+            // Check for non-error types
+            if (!(e instanceof Error)) {
+                const newError = new Error(`Cache miss callback returned error that is not instance of Error type`);
+                this.config.pinoLogger?.error(newError.message);
+                return {
+                    error: newError
+                }
+            }
+
             if (e instanceof WaitTimeoutError) {
                 // Log this in order to inform the owner they may need to increase the wait timeout
                 this.config.pinoLogger?.warn(`Timed out waiting for cache update promise to complete. May consider increasing the wait time or investigating why the request is taking so long.`);
             }
 
-            return undefined;
+            return {
+                error: e
+            };
         });
     }
 }

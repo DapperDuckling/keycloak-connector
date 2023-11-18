@@ -35,11 +35,16 @@ export class UserInfoCache extends AbstractCacheAdapter<UserinfoResponse, [strin
         // Grab the user info from cache (or generate it into cache)
         const cacheResult = await this.cacheProvider.getFromJwt(validatedAccessJwt, 'jti', [validatedAccessJwt]);
 
-        // Return just the data
-        return cacheResult?.data;
+        // Log the error
+        if (cacheResult.error) {
+            this.config.pinoLogger?.debug(cacheResult.error);
+        }
+
+        // Return the data or undefined on error
+        return (!cacheResult.error) ? cacheResult.data : undefined;
     }
 
-    private fetchUserInfo = async (validatedAccessJwt: string): Promise<UserinfoResponse | undefined> => {
+    private fetchUserInfo = async (validatedAccessJwt: string): Promise<UserinfoResponse> => {
         try {
             return await this.config.oidcClient.userinfo(validatedAccessJwt);
         } catch (e) {
@@ -49,9 +54,7 @@ export class UserInfoCache extends AbstractCacheAdapter<UserinfoResponse, [strin
             }
 
             this.config.pinoLogger?.debug(e);
-            this.config.pinoLogger?.debug(`Failed to fetch user info from keycloak`);
+            throw new Error(`Failed to fetch user info from keycloak`);
         }
-
-        return Promise.resolve(undefined);
     }
 }

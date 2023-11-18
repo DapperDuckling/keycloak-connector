@@ -1,5 +1,13 @@
 import {epoch, isDev, sleep} from "./helpers/utils.js";
-import {type ClientMetadata, errors, generators, Issuer, type IssuerMetadata, TokenSet} from "openid-client";
+import {
+    type ClientMetadata,
+    errors,
+    generators,
+    Issuer,
+    type IssuerMetadata,
+    TokenSet,
+    type UserinfoResponse
+} from "openid-client";
 import {
     type ConnectorRequest,
     type ConnectorResponse,
@@ -289,7 +297,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         req.routeConfig.verifyUserInfoWithServer = true;
 
         // Determine the silent login status
-        const [silentRequestType, silentRequestToken] = this.silentRequestConfig(req);
+        const [silentRequestType] = this.silentRequestConfig(req);
 
         // Silent, return data via silent login response
         if (silentRequestType !== SilentLoginTypes.NONE) {
@@ -518,7 +526,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             return await this.handleCallback(req);
         } catch (e) {
             // Determine the silent login status
-            const [silentRequestType, silentRequestToken] = this.silentRequestConfig(req);
+            const [silentRequestType] = this.silentRequestConfig(req);
 
             // Silent, return data via silent login response
             if (silentRequestType !== SilentLoginTypes.NONE) {
@@ -1001,6 +1009,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     public getUserData = async (connectorRequest: ConnectorRequest): Promise<UserDataResponse<Server>> => {
 
+        // Todo: add the result of this call to the connector request with the key being the access token
+
         // Check the origin of the request
         this.validateOriginOrThrow(connectorRequest);
 
@@ -1012,34 +1022,51 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Extract the user data key
         const userData: UserData = userDataResponse.userData;
 
-        // Grab the access token from the request
-        const validatedAccessJwt = await this.populateTokensFromRequest(connectorRequest, userDataResponse);
+        // Execute the following loop at most twice
+        let numOfLoopExecutions = 0;
 
-        // Allow auth plugins to decorate the response
-        await this.authPluginManager.decorateResponse(connectorRequest, userData, this._config.pinoLogger);
+        let userInfo: UserinfoResponse | undefined;
 
-        // Check for no access token
-        if (userData.accessToken === undefined || validatedAccessJwt === undefined) return userDataResponse;
+        do {
+            // Grab the access token from the request
+            const validatedAccessJwt = await this.populateTokensFromRequest(connectorRequest, userDataResponse, numOfLoopExecutions > 0);
 
-        // Handle grabbing user info if required
-        if (this._config.fetchUserInfo) {
+            // Allow auth plugins to decorate the response
+            await this.authPluginManager.decorateResponse(connectorRequest, userData, this._config.pinoLogger);
 
-            // Check if this route wants to verify user info
-            if (connectorRequest.routeConfig.verifyUserInfoWithServer) {
-                // Invalidate user info cache
-                await this.components.userInfoCache.invalidateFromJwt(validatedAccessJwt);
+            // Check for no access token
+            if (userData.accessToken === undefined || validatedAccessJwt === undefined) return userDataResponse;
+
+            // Handle grabbing user info if required
+            if (this._config.fetchUserInfo) {
+
+                // Check if this route wants to verify user info
+                if (connectorRequest.routeConfig.verifyUserInfoWithServer) {
+                    // Invalidate user info cache
+                    await this.components.userInfoCache.invalidateFromJwt(validatedAccessJwt);
+                }
+
+                // Grab the user info
+                userInfo = await this.components.userInfoCache.getUserInfo(validatedAccessJwt);
+
+                // Check for no user data
+                if (userInfo === undefined) continue;
+
+                // Check if there is a custom transformation function to run
+                if (typeof this._config.fetchUserInfo !== "boolean") {
+                    userInfo = this._config.fetchUserInfo(userInfo);
+                }
+
+                // Save the results
+                userDataResponse.userData.userInfo = userInfo;
             }
+        } while (++numOfLoopExecutions < 2);
 
-            // Grab the user info
-            let userInfo = await this.components.userInfoCache.getUserInfo(validatedAccessJwt);
-
-            // Check if there is a custom transformation function to run
-            if (userInfo && typeof this._config.fetchUserInfo !== "boolean") {
-                userInfo = this._config.fetchUserInfo(userInfo);
-            }
-
-            // Save the results
-            userDataResponse.userData.userInfo = userInfo;
+        // Check for no user info data
+        if (userInfo === undefined) {
+            // Valid token, but not valid user info information. Could be a server error, but nevertheless, sync the responses and return no authentication
+            this._config.pinoLogger?.error("User has a valid token, but no user info data returned from the OP.");
+            return userDataResponse;
         }
 
         // User is authenticated since they have a valid access token
@@ -1078,10 +1105,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
      * if the access token is not valid, uses the refresh token to grab a new TokenSet, if possible.
      * @param connectorRequest
      * @param userDataResponse
+     * @param forceValidateWithServer
      * @return string|undefined Returns the validated accessJwt
      * @private
      */
-    private async populateTokensFromRequest(connectorRequest: ConnectorRequest, userDataResponse: UserDataResponse<Server>): Promise<string | undefined> {
+    private async populateTokensFromRequest(connectorRequest: ConnectorRequest, userDataResponse: UserDataResponse<Server>, forceValidateWithServer = false): Promise<string | undefined> {
 
         // Check the state configuration
         //todo: add support for stateful configurations
@@ -1092,9 +1120,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Determine if we need to verify the access token with keycloak
         const validateAccessTokenWithServer =
-            this._config.alwaysVerifyAccessTokenWithServer ??
-            connectorRequest.routeConfig.verifyAccessTokenWithServer ??
-            false;
+            forceValidateWithServer ||
+            this._config.alwaysVerifyAccessTokenWithServer ||
+            connectorRequest.routeConfig.verifyAccessTokenWithServer;
 
         // Grab the access token
         const accessToken = await this.accessTokenFromJwt(accessJwt, validateAccessTokenWithServer);
