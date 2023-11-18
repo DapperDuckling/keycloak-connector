@@ -540,6 +540,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     private handleCallback = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
+        // Ensure the request comes from our origin
+        this.validateOriginOrThrow(req);
+
         // Grab the auth flow nonce
         const authFlowNonce = this.getAuthFlowNonce(req);
 
@@ -852,8 +855,18 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Force grab a new user data response
         const userDataResponse = await this.getUserData(req);
 
+        // Downgrade success event if not authenticated after all
+        if (event === SilentLoginEvent.LOGIN_SUCCESS) {
+            if (!userDataResponse.userData.isAuthenticated) {
+                event = SilentLoginEvent.LOGIN_REQUIRED;
+            }
+        }
+
         // Combine the resultant cookies (browser should accept newer cookies over old ones)
         const finalCookies = [...cookies, ...userDataResponse.cookies ?? []];
+
+        // Update request decorator
+        req.kccUserData = userDataResponse.userData;
 
         // Grab the user status data
         const userStatus = await this.buildUserStatus(req);
@@ -879,6 +892,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             cookies: finalCookies,
             responseHtml: silentLoginResponseHTML(message, silentRequestToken, process.env['DEBUG_SILENT_IFRAME'] !== undefined)
         }
+
     }
 
     private removeAuthFlowCookies<Server extends SupportedServers>(reqCookies: unknown, authFlowNonce: string): CookieParams<Server>[] {
@@ -1014,20 +1028,22 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Check the origin of the request
         this.validateOriginOrThrow(connectorRequest);
 
-        // Start with a user who has no data, no authentication
-        const userDataResponse: UserDataResponse<Server> = {
-            userData: structuredClone(UserDataDefault),
-        }
-
-        // Extract the user data key
-        const userData: UserData = userDataResponse.userData;
-
         // Execute the following loop at most twice
         let numOfLoopExecutions = 0;
 
         let userInfo: UserinfoResponse | undefined;
+        let userDataResponse: UserDataResponse<Server>;
+        let userData: UserData;
 
         do {
+            // Start with a user who has no data, no authentication
+            userDataResponse = {
+                userData: structuredClone(UserDataDefault),
+            }
+
+            // Extract the user data key
+            userData = userDataResponse.userData;
+
             // Grab the access token from the request
             const validatedAccessJwt = await this.populateTokensFromRequest(connectorRequest, userDataResponse, numOfLoopExecutions > 0);
 
@@ -1037,21 +1053,20 @@ export class KeycloakConnector<Server extends SupportedServers> {
             // Check for no access token
             if (userData.accessToken === undefined || validatedAccessJwt === undefined) return userDataResponse;
 
-            // Handle grabbing user info if required
-            if (this._config.fetchUserInfo) {
+            // Skip handling grabbing user info if not required
+            if (!this._config.fetchUserInfo) break;
 
-                // Check if this route wants to verify user info
-                if (connectorRequest.routeConfig.verifyUserInfoWithServer) {
-                    // Invalidate user info cache
-                    await this.components.userInfoCache.invalidateFromJwt(validatedAccessJwt);
-                }
+            // Check if this route wants to verify user info
+            if (connectorRequest.routeConfig.verifyUserInfoWithServer) {
+                // Invalidate user info cache
+                await this.components.userInfoCache.invalidateFromJwt(validatedAccessJwt);
+            }
 
-                // Grab the user info
-                userInfo = await this.components.userInfoCache.getUserInfo(validatedAccessJwt);
+            // Grab the user info
+            userInfo = await this.components.userInfoCache.getUserInfo(validatedAccessJwt);
 
-                // Check for no user data
-                if (userInfo === undefined) continue;
-
+            // Check for user data
+            if (userInfo !== undefined) {
                 // Check if there is a custom transformation function to run
                 if (typeof this._config.fetchUserInfo !== "boolean") {
                     userInfo = this._config.fetchUserInfo(userInfo);
@@ -1059,11 +1074,15 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
                 // Save the results
                 userDataResponse.userData.userInfo = userInfo;
-            }
-        } while (++numOfLoopExecutions < 2);
 
-        // Check for no user info data
-        if (userInfo === undefined) {
+                // Exit the while loop
+                break;
+            }
+
+        } while(++numOfLoopExecutions < 2);
+
+        // Check for no user info data (still)
+        if (this._config.fetchUserInfo && userInfo === undefined) {
             // Valid token, but not valid user info information. Could be a server error, but nevertheless, sync the responses and return no authentication
             this._config.pinoLogger?.error("User has a valid token, but no user info data returned from the OP.");
             return userDataResponse;
@@ -1136,6 +1155,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
             return accessJwt;
         }
 
+        // Remove previously attached access token
+        delete userDataResponse.userData.accessToken;
+
         try {
             // Check for no refresh jwt
             if (refreshJwt === undefined) return;
@@ -1206,6 +1228,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
             // Log if only to detect attacks
             if (e instanceof jose.errors.JWTExpired) {
                 this._config.pinoLogger?.warn('Expired access token used');
+            } else if (e instanceof Error && e.message.includes(`unsupported`) && e.message.includes(`auth_method`)) {
+                this._config.pinoLogger?.warn('Invalid access token used'); // This occurs when an access token is revoked auto/manually at OP
             } else {
                 this._config.pinoLogger?.warn(e);
                 this._config.pinoLogger?.warn('Error validating access token');
