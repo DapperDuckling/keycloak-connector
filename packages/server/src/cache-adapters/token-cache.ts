@@ -40,18 +40,13 @@ export class TokenCache extends AbstractCacheAdapter<RefreshTokenSet, [string]> 
         // Grab the token set from cache (or generate it into cache)
         const cacheResult = await this.cacheProvider.getFromJwt(validatedRefreshJwt, 'jti', [validatedRefreshJwt]);
 
-        // Log the error
-        if (cacheResult.error) {
-            this.config.pinoLogger?.debug(cacheResult.error);
-        }
-
-        return (!cacheResult.error) ? {
+        return (cacheResult) ? {
             refreshTokenSet: cacheResult.data,
             shouldUpdateCookies: cacheResult.dataGenerator ?? false
-        } : undefined; // Ignore the error
+        } : undefined;
     }
 
-    protected performTokenRefresh = async (validatedRefreshJwt: string): Promise<RefreshTokenSet> => {
+    protected performTokenRefresh = async (validatedRefreshJwt: string): Promise<RefreshTokenSet | undefined> => {
 
         let tokenSet: TokenSet;
 
@@ -62,21 +57,25 @@ export class TokenCache extends AbstractCacheAdapter<RefreshTokenSet, [string]> 
             // Do not dump the error if the token is only not active
             if (e instanceof Error &&
                 e.message.includes('Token is not active')) {
-                throw new Error(`Refresh token is not active, cannot perform token refresh`);
+                this.config.pinoLogger?.debug(`Refresh token is not active, cannot perform token refresh`);
+                return;
             }
 
             this.config.pinoLogger?.debug(e);
-            throw new Error(`Failed to perform token refresh`);
+            this.config.pinoLogger?.debug(`Failed to perform token refresh`);
+            return;
         }
 
         // Check for an access token
         if (tokenSet.access_token === undefined) {
-            throw new Error(`Missing access token in refresh response`);
+            this.config.pinoLogger?.error(`Missing access token in refresh response`);
+            return undefined;
         }
 
         // Check for a refresh token
         if (tokenSet.refresh_token === undefined) {
-            throw new Error(`Missing refresh token in refresh response`);
+            this.config.pinoLogger?.error(`Missing refresh token in refresh response`);
+            return undefined;
         }
 
         return {
