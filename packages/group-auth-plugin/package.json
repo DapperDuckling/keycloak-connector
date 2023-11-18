@@ -45,11 +45,11 @@
     "cpy": "^10.1.0"
   },
   "dependencies": {
-    "@dapperduckling/keycloak-connector-server": "file:../server",
+    "@dapperduckling/keycloak-connector-server": "^0.0.33",
     "fastify-plugin": "^4.5.1"
   },
   "publishConfig": {
     "access": "public"
   },
-  "gitHead": "a0bb8267752d5cdb1f239e55c310b12f6ed9f062"
+  "gitHead": "b20628089fc4870cf0b758c6ff72930458540276"
 }
