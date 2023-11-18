@@ -626,6 +626,30 @@ describe('Validate GroupAuth configuration to actual permission group requiremen
             await compare(matchingGroups, expectedMatchingGroups);
         });
 
+        test('Requires system admin through url inference', async () => {
+            // Build the necessary input parameters
+            [groupAuthConfig, groupAuthSetup] = groupAuthSingle({
+                noImplicitApp: true,
+                requireAdmin: true,
+            });
+
+
+            // Grab the matching groups
+            await groupAuthPlugin['isAuthorizedGroup'](connectorRequest, userData, groupAuthSetup, groupAuthDebug);
+            const matchingGroups = GroupAuthPlugin.groupAuthDebugToPrintable(groupAuthDebug).matchingGroups;
+
+            // Build the expected groups
+            const expectedMatchingGroups = groupPathBuilder
+                .setGroupAuthConfig(groupAuthConfig)
+                .systemAdmin()
+                .allOrgAdmin()
+                .org()
+                .output();
+
+            // Compare
+            await compare(matchingGroups, expectedMatchingGroups);
+        });
+
         test('Requires org admin through url inference', async () => {
             // Build the necessary input parameters
             [groupAuthConfig, groupAuthSetup] = groupAuthSingle({
@@ -696,6 +720,33 @@ describe('Validate GroupAuth configuration to actual permission group requiremen
                 .systemAdmin()
                 .allAppAdmin()
                 .standalone()
+                .output();
+
+            // Compare
+            await compare(matchingGroups, expectedMatchingGroups);
+        });
+
+
+        test('Requires app admin through url inference (even though both params are set)', async () => {
+            // Build the necessary input parameters
+            [groupAuthConfig, groupAuthSetup] = groupAuthSingle({
+                noImplicitApp: true,
+                requireAdmin: true,
+            });
+
+            enableOrgParam();
+            enableAppParam();
+
+            // Grab the matching groups
+            await groupAuthPlugin['isAuthorizedGroup'](connectorRequest, userData, groupAuthSetup, groupAuthDebug);
+            const matchingGroups = GroupAuthPlugin.groupAuthDebugToPrintable(groupAuthDebug).matchingGroups;
+
+            // Build the expected groups
+            const expectedMatchingGroups = groupPathBuilder
+                .setGroupAuthConfig(groupAuthConfig)
+                .systemAdmin()
+                .allAppAdmin()
+                .app()
                 .output();
 
             // Compare
