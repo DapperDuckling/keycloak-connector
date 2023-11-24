@@ -1,7 +1,16 @@
-import { isDev } from "@dapperduckling/keycloak-connector-common";
-import { setImmediate } from "./utils";
+import {
+    ConnectorCookies,
+    Cookies,
+    isDev,
+    SilentLoginEvent,
+    type SilentLoginMessage,
+    TokenType,
+    type UserStatusWrapped
+} from "@dapperduckling/keycloak-connector-common";
+import {setImmediate} from "./utils";
 import JsCookie from "js-cookie";
-import { silentLoginIframeHTML } from "./silent-login-iframe.js";
+import {silentLoginIframeHTML} from "./silent-login-iframe.js";
+import {is} from "typia";
 
 const STORAGE_SECURE_PREFIX = isDev() ? "__DEV_ONLY__" : "__Host__";
 const STORAGE_KCC_PREFIX = "kcc-";
@@ -11,23 +20,16 @@ export const LocalStorage = Object.freeze({
     USER_STATUS: `${STORAGE_PREFIX_COMBINED}user-status`,
 });
 
-export const SilentLoginEvent = {
-    CHILD_ALIVE: "CHILD_ALIVE",
-    LOGIN_REQUIRED: "LOGIN_REQUIRED",
-    LOGIN_SUCCESS: "LOGIN_SUCCESS",
-    LOGIN_ERROR: "LOGIN_ERROR",
-};
-
 export class KCClient {
     private IFRAME_ID = "silent-login-iframe";
     private ENABLE_IFRAME_DEBUGGING = process?.env?.["DEBUG_SILENT_IFRAME"] !== undefined;
     private userStatusHash = undefined;
 
-    private static isPrivateConstructing = false; //why do I have to use this pure js garbage
-    private static kccClient = undefined;
-    private silentLoginTimer = null;
+    private static isPrivateConstructing = false;
+    private static kccClient: KCClient | null = null;
+    private silentLoginTimer: number | undefined = undefined;
 
-    constructor() {
+    private constructor() {
         if (!KCClient.isPrivateConstructing) {
             throw new Error("Use KCClient.instance(), do not use new KCClient()");
         }
@@ -42,7 +44,7 @@ export class KCClient {
         setImmediate(() => this.authCheck());
     }
 
-   private storeUserStatus = (data) => {
+   private storeUserStatus = (data: UserStatusWrapped | undefined) => {
         try {
             if (data === undefined) return;
 
@@ -74,7 +76,7 @@ export class KCClient {
    private silentLogin = () => {
         // Start timer to show the lengthy login message
         clearTimeout(this.silentLoginTimer);
-        this.silentLoginTimer = setTimeout(() => {
+        this.silentLoginTimer = window.setTimeout(() => {
             const keycloakState = store.getState().keycloak;
             if (keycloakState.showLoginOverlay) {
                 store.dispatch(updateKeycloakSlice({ lengthyLogin: true }));
@@ -110,7 +112,7 @@ export class KCClient {
         const acceptableOrigins = ["http://localhost:4000", window.origin];
 
         // Subscribe to messages from child
-        window.addEventListener("message", (event) => {
+        window.addEventListener("message", (event: MessageEvent<SilentLoginMessage>) => {
             // Ignore message not from our an allowed origin or does not have the correct token
             if (
                 !acceptableOrigins.includes(event.origin) ||
@@ -154,12 +156,12 @@ export class KCClient {
 
    private authCheck = () => {
         // Check for a valid access token
-        if (KCClient.isTokenCurrent("access")) return;
+        if (KCClient.isTokenCurrent(TokenType.ACCESS)) return;
 
         // todo: lock this function IOT prevent a stack of auth checks from occurring
 
         // Check for a valid refresh token
-        if (KCClient.isTokenCurrent("refresh")) {
+        if (KCClient.isTokenCurrent(TokenType.REFRESH)) {
             // Make a request to the user-status page in order to update the token
         }
 
@@ -180,6 +182,9 @@ export class KCClient {
         const userStatusWrapped = JSON.parse(
             localStorage.getItem(LocalStorage.USER_STATUS) ?? "{}"
         );
+
+        // Check the resultant object for the proper type
+       if (!is<UserStatusWrapped>(userStatusWrapped)) return;
 
         // Check to see if the hash is not different
         if (this.userStatusHash === userStatusWrapped["md5"]) return;
@@ -258,7 +263,7 @@ export class KCClient {
         }
     };
 
-   private handleStorageEvent = (event) => {
+   private handleStorageEvent = (event: StorageEvent) => {
         // Check for the user data update
         if (event.key !== LocalStorage.USER_STATUS) return;
 
@@ -273,22 +278,26 @@ export class KCClient {
         KCClient.instance().authCheck();
     };
 
-    static isTokenCurrent = (type) => {
+    static isTokenCurrent = (type: TokenType) => {
         let target;
         switch (type) {
-            case "access":
-                target = Cookies.PUBLIC_ACCESS_TOKEN_EXPIRATION;
+            case TokenType.ACCESS:
+                target = ConnectorCookies.PUBLIC_ACCESS_TOKEN_EXPIRATION;
                 break;
-            case "refresh":
-                target = Cookies.REFRESH_TOKEN_EXPIRATION;
+            case TokenType.REFRESH:
+                target = ConnectorCookies.REFRESH_TOKEN_EXPIRATION;
                 break;
             default:
                 throw new Error("Invalid token type");
         }
 
-        const expirationTimestamp = JsCookie.get(target);
+        const expirationTimestamp = Number.parseInt(JsCookie.get(target) ?? "0");
+
+        // Check for an invalid number
+        if (Number.isNaN(expirationTimestamp)) return false;
+
         return (
-            Number.isInteger(expirationTimestamp) && Date.now() < expirationTimestamp
+           Date.now() < expirationTimestamp
         );
     };
 
@@ -312,7 +321,7 @@ export class KCClient {
         document.body.removeChild(form);
     };
 
-    static instance = () => {
+    static instance = (): KCClient => {
         // Return the client if already initiated
         if (this.kccClient) return this.kccClient;
 
@@ -329,36 +338,19 @@ export class KCClient {
     };
 }
 
-// useEffect(() => {
-//   // Initiate the login check
-//   KCClient.init();
+// function openWindowWithPost(url: string) {
+//     // Create a new form element
+//     const form = document.createElement("form");
+//     form.method = "post";
+//     form.action = url;
+//     form.target = "_blank"; // Open in a new window/tab
 //
-//   // Grab the user's data
-//   fetch(`${appOrigin}/auth/user-status`)
-//     .then(res => res.json())
-//     .then(data => {
-//       if (data['loggedIn'] !== true) {
-//         dispatch(updateKeycloakSlice({initialized: true, showLoginOverlay: false}));
-//       } else {
-//         dispatch(updateKeycloakSlice({initialized: true, showLoginOverlay: false}));
-//       }
-//     })
-//     .catch(console.error);
-// }, []);
-
-function openWindowWithPost(url) {
-    // Create a new form element
-    const form = document.createElement("form");
-    form.method = "post";
-    form.action = url;
-    form.target = "_blank"; // Open in a new window/tab
-
-    // Append the form to the body
-    document.body.appendChild(form);
-
-    // Submit the form
-    form.submit();
-
-    // Remove the form from the body after submission
-    document.body.removeChild(form);
-}
+//     // Append the form to the body
+//     document.body.appendChild(form);
+//
+//     // Submit the form
+//     form.submit();
+//
+//     // Remove the form from the body after submission
+//     document.body.removeChild(form);
+// }

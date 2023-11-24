@@ -4,7 +4,7 @@ const STORAGE_SECURE_PREFIX = isDev() ? "__DEV_ONLY__" : "__Host__";
 const STORAGE_KCC_PREFIX = "kcc-";
 const STORAGE_PREFIX_COMBINED = `${STORAGE_SECURE_PREFIX}${STORAGE_KCC_PREFIX}`;
 
-export const Cookies = Object.freeze({
+export const ConnectorCookies = Object.freeze({
     CODE_VERIFIER: `${STORAGE_PREFIX_COMBINED}cv`,
     REDIRECT_URI_B64: `${STORAGE_PREFIX_COMBINED}redirect-uri`,
     LOGOUT_REDIRECT_URI_B64: `${STORAGE_PREFIX_COMBINED}logout-redirect-uri`,
@@ -15,15 +15,15 @@ export const Cookies = Object.freeze({
     ID_TOKEN: `${STORAGE_PREFIX_COMBINED}id`,
 });
 
-export const CookieNames: string[] = Object.values(Cookies);
+export const ConnectorCookieNames: string[] = Object.values(ConnectorCookies);
 
 /** Array of cookies to keep after login process is complete **/
-export const CookiesToKeep: string[] = [
-    Cookies.ACCESS_TOKEN,
-    Cookies.PUBLIC_ACCESS_TOKEN_EXPIRATION,
-    Cookies.REFRESH_TOKEN,
-    Cookies.REFRESH_TOKEN_EXPIRATION,
-    Cookies.ID_TOKEN,
+export const ConnectorCookiesToKeep: string[] = [
+    ConnectorCookies.ACCESS_TOKEN,
+    ConnectorCookies.PUBLIC_ACCESS_TOKEN_EXPIRATION,
+    ConnectorCookies.REFRESH_TOKEN,
+    ConnectorCookies.REFRESH_TOKEN_EXPIRATION,
+    ConnectorCookies.ID_TOKEN,
 ];
 
 export const LocalStorage = Object.freeze({

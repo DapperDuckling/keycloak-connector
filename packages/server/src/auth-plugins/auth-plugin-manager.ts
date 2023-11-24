@@ -1,6 +1,6 @@
 import type {DecorateResponse, IsUserAuthorized} from "./abstract-auth-plugin.js";
 import {AbstractAuthPlugin} from "./abstract-auth-plugin.js";
-import type {ConnectorRequest, KeycloakConnectorConfigBase, UserData, UserStatus} from "../types.js";
+import type {ConnectorRequest, KeycloakConnectorConfigBase, UserData} from "../types.js";
 import type {Logger} from "pino";
 
 export enum AuthPluginOverride {

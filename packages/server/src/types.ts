@@ -220,30 +220,6 @@ export interface CookieParams<Server extends SupportedServers> {
     options: CookieOptionsBase<Server>,
 }
 
-export enum SilentLoginEvent {
-    CHILD_ALIVE = "CHILD_ALIVE",
-    LOGIN_REQUIRED = "LOGIN_REQUIRED",
-    LOGIN_SUCCESS = "LOGIN_SUCCESS",
-    LOGIN_ERROR = "LOGIN_ERROR",
-}
-
-export enum SilentLoginTypes {
-    FULL = "FULL",
-    PARTIAL = "PARTIAL",
-    NONE = "NONE",
-}
-
-export type UserStatusWrapped = {
-    md5: string,
-    payload: UserStatus,
-    timestamp: number,
-}
-
-export type SilentLoginMessage = {
-    event: SilentLoginEvent,
-    data?: UserStatusWrapped,
-}
-
 // export interface ClearCookieParams<Server extends SupportedServers> {
 //     name: string,
 //     options: CookieOptionsBase<Server>,
@@ -512,10 +488,7 @@ interface OidcStandardClaims {
     updated_at?: number;
 }
 
-export type UserStatus<Data extends Record<string, any> = Record<string, any>> = Data & {
-    loggedIn: boolean;
-    userInfo: UserinfoResponse | undefined;
-}
+
 
 export interface UserData<KcClaims extends object = Record<string, unknown>> {
     isAuthenticated: boolean;

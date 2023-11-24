@@ -20,22 +20,18 @@ import {
     type RefreshTokenSetResult,
     type ReqCookies,
     RouteEnum,
-    SilentLoginEvent,
-    type SilentLoginMessage,
-    SilentLoginTypes,
     StateOptions,
     type SupportedServers,
     type UserData,
     type UserDataResponse,
-    type UserStatus,
     VerifiableJwtTokenTypes
 } from "./types.js";
 import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapter/abstract-adapter.js";
 import type {JWK} from "jose";
 import * as jose from 'jose';
 import {ConnectorErrorRedirect, ErrorHints, LoginError} from "./helpers/errors.js";
-import {CookieNames, Cookies, CookiesToKeep} from "@dapperduckling/keycloak-connector-common";
-import {isDev, epoch} from "@dapperduckling/keycloak-connector-common";
+import {ConnectorCookieNames, ConnectorCookies, ConnectorCookiesToKeep, SilentLoginEvent, type SilentLoginMessage, type UserStatus} from "@dapperduckling/keycloak-connector-common";
+import {isDev, epoch, SilentLoginTypes} from "@dapperduckling/keycloak-connector-common";
 import {RouteUrlDefaults, UserDataDefault} from "./helpers/defaults.js";
 import type {JWTPayload, JWTVerifyResult} from "jose/dist/types/types.js";
 import {RoleHelper} from "./helpers/role-helper.js";
@@ -359,7 +355,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Build the code verifier cookie
         cookies.push({
-            name: `${Cookies.CODE_VERIFIER}-${authFlowNonce}`,
+            name: `${ConnectorCookies.CODE_VERIFIER}-${authFlowNonce}`,
             value: cv,
             options: {
                 ...(this.hasOtherOrigins()) ? this.CookieOptionsUnrestricted : this.CookieOptionsLax,
@@ -450,7 +446,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             (isLogout && rawPostAuthRedirectUriObj.pathname === this.getRoutePath(RouteEnum.LOGOUT_PAGE))) return [];
 
         const postAuthRedirectUri = rawPostAuthRedirectUriObj.toString();
-        const baseCookieName = (!isLogout) ? Cookies.REDIRECT_URI_B64 : Cookies.LOGOUT_REDIRECT_URI_B64;
+        const baseCookieName = (!isLogout) ? ConnectorCookies.REDIRECT_URI_B64 : ConnectorCookies.LOGOUT_REDIRECT_URI_B64;
 
         return [{
             name: `${baseCookieName}-${authFlowNonce}`,
@@ -564,11 +560,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
         };
 
         try {
-            const redirectUri64 = req.cookies?.[`${Cookies.REDIRECT_URI_B64}-${authFlowNonce}`];
+            const redirectUri64 = req.cookies?.[`${ConnectorCookies.REDIRECT_URI_B64}-${authFlowNonce}`];
 
             // Grab the input cookies
             inputCookies = {
-                codeVerifier: req.cookies[`${Cookies.CODE_VERIFIER}-${authFlowNonce}`],
+                codeVerifier: req.cookies[`${ConnectorCookies.CODE_VERIFIER}-${authFlowNonce}`],
                 redirectUriRaw: (!!redirectUri64) ? Buffer.from(redirectUri64, 'base64').toString() : undefined,
             }
         } catch (e) {
@@ -703,7 +699,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const redirectUri = this.buildRedirectUriOrThrow({authFlowNonce: authFlowNonce, isLogout: true});
 
         // Grab the ID token
-        const idToken = req.cookies?.[Cookies.ID_TOKEN];
+        const idToken = req.cookies?.[ConnectorCookies.ID_TOKEN];
 
         // Generate the logout url
         const logoutUrl = this.components.oidcClient.endSessionUrl({
@@ -737,7 +733,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             cookies.push(...this.removeAuthFlowCookies(req.cookies, authFlowNonce));
 
             // Grab the base64 logout redirect uri
-            const logoutRedirectUri64 = req.cookies?.[`${Cookies.LOGOUT_REDIRECT_URI_B64}-${authFlowNonce}`];
+            const logoutRedirectUri64 = req.cookies?.[`${ConnectorCookies.LOGOUT_REDIRECT_URI_B64}-${authFlowNonce}`];
 
             // Decode the base64 uri
             postAuthRedirectUri = (!!logoutRedirectUri64) ? Buffer.from(logoutRedirectUri64, 'base64').toString() : null;
@@ -879,14 +875,15 @@ export class KeycloakConnector<Server extends SupportedServers> {
             timestamp: Date.now(),
         }
 
+        // Get the silent type configuration
+        const [, silentRequestToken] = this.silentRequestConfig(req);
+
         // Build the silent login response message
         const message: SilentLoginMessage = {
+            token: silentRequestToken,
             event: event,
             data: userStatsWrapped,
         }
-
-        // Get the silent type configuration
-        const [, silentRequestToken] = this.silentRequestConfig(req);
 
         return  {
             statusCode: 200,
@@ -904,7 +901,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Scan through request cookies to find ones to remove
         for (const cookieName of Object.keys(reqCookies)) {
-            if (CookieNames.some(name => `${name}-${authFlowNonce}` === cookieName) && !CookiesToKeep.includes(cookieName)) {
+            if (ConnectorCookieNames.some(name => `${name}-${authFlowNonce}` === cookieName) && !ConnectorCookiesToKeep.includes(cookieName)) {
                 cookies.push({
                     name: cookieName,
                     value: "",
@@ -927,7 +924,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Scan through request cookies to find ones to remove
         for (const cookieName of Object.keys(reqCookies)) {
-            if (CookiesToKeep.includes(cookieName)) {
+            if (ConnectorCookiesToKeep.includes(cookieName)) {
                 cookies.push({
                     name: cookieName,
                     value: "",
@@ -1135,8 +1132,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
         //todo: add support for stateful configurations
 
         // Handle stateless configuration
-        const accessJwt = connectorRequest.cookies?.[Cookies.ACCESS_TOKEN];
-        const refreshJwt = connectorRequest.cookies?.[Cookies.REFRESH_TOKEN];
+        const accessJwt = connectorRequest.cookies?.[ConnectorCookies.ACCESS_TOKEN];
+        const refreshJwt = connectorRequest.cookies?.[ConnectorCookies.REFRESH_TOKEN];
 
         // Determine if we need to verify the access token with keycloak
         const validateAccessTokenWithServer =
@@ -1299,7 +1296,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Store the access token
         cookies.push({
-            name: Cookies.ACCESS_TOKEN,
+            name: ConnectorCookies.ACCESS_TOKEN,
             value: tokenSet.access_token,
             options: {
                 ...(this.hasOtherOrigins()) ? this.CookieOptionsUnrestricted : this.CookieOptions,
@@ -1309,7 +1306,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Store the refresh token
         cookies.push({
-            name: Cookies.REFRESH_TOKEN,
+            name: ConnectorCookies.REFRESH_TOKEN,
             value: tokenSet.refresh_token,
             options: {
                 ...(this.hasOtherOrigins()) ? this.CookieOptionsUnrestricted : this.CookieOptions,
@@ -1319,7 +1316,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Store refresh token expiration date in a javascript accessible location
         cookies.push({
-            name: Cookies.REFRESH_TOKEN_EXPIRATION,
+            name: ConnectorCookies.REFRESH_TOKEN_EXPIRATION,
             value: refreshTokenExpiration.toString(),
             options: {
                 ...(this.hasOtherOrigins()) ? this.CookieOptionsUnrestricted : this.CookieOptions,
@@ -1330,7 +1327,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Store the id token
         cookies.push({
-            name: Cookies.ID_TOKEN,
+            name: ConnectorCookies.ID_TOKEN,
             value: tokenSet.id_token,
             options: {
                 ...(this.hasOtherOrigins()) ? this.CookieOptionsUnrestricted : this.CookieOptions,

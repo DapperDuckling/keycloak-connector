@@ -32,15 +32,7 @@
     "module": "es2022",
     "preserveConstEnums": true,
     "moduleResolution": "node",
-    "target": "es2022",
-    "types": [
-      "node"
-    ],
-    "plugins": [
-      {
-        "transform": "typia/lib/transform"
-      }
-    ]
+    "target": "es2022"
   },
   "include": [
     "./src/**/*"

@@ -1,4 +1,4 @@
-import {SilentLoginEvent as SilentLoginEventType, type SilentLoginMessage} from "../types.js";
+import {SilentLoginEvent as SilentLoginEventType, type SilentLoginMessage} from "@dapperduckling/keycloak-connector-common";
 
 const silentLoginResponse = (
     messageJson: string,
@@ -20,15 +20,16 @@ const silentLoginResponse = (
     const backToMainLink = document.querySelector<HTMLAnchorElement>("#back-to-main");
     if (backToMainLink) backToMainLink.href = window.location.origin;
 
+    const messageToParent: SilentLoginMessage = {
+        token: token,
+        event: SilentLoginEvent.LOGIN_ERROR,
+    }
+
     // Check for a message from the server
     if (messageJson === undefined) {
         console.error(`Missing message from auth server, cannot process silent login!`);
-        parent.postMessage({event: SilentLoginEvent.LOGIN_ERROR}, "*"); //todo: fix origin
+        parent.postMessage(messageToParent, "*"); //todo: fix origin
         return;
-    }
-
-    const messageToParent: SilentLoginMessage = {
-        event: SilentLoginEvent.LOGIN_ERROR,
     }
 
     try {
@@ -42,7 +43,9 @@ const silentLoginResponse = (
         switch (message.event) {
             case SilentLoginEvent.LOGIN_SUCCESS:
             case SilentLoginEvent.LOGIN_REQUIRED:
-                messageToParent.data = message.data;
+                if (message.data) {
+                    messageToParent.data = message.data;
+                }
                 break;
         }
 
@@ -53,11 +56,7 @@ const silentLoginResponse = (
 
     } finally {
         // Send the parent a message
-        parent.postMessage({
-            token: token,
-            event: messageToParent.event,
-            ...(messageToParent.data ?? false) && {data: messageToParent.data},
-        }, "*"); //todo: lock down with origin
+        parent.postMessage(messageToParent, "*"); //todo: lock down with origin
     }
 }
 

@@ -1,4 +1,4 @@
-import type {ConnectorRequest, KeycloakConnectorConfigBase, UserData, UserStatus} from "../types.js";
+import type {ConnectorRequest, KeycloakConnectorConfigBase, UserData} from "../types.js";
 import type {Logger} from "pino";
 import {AuthPluginOverride} from "./auth-plugin-manager.js";
 
