@@ -1,7 +1,6 @@
 import type {Logger} from "pino";
 import {AbstractClusterProvider} from "../cluster/index.js";
 import type {CacheProvider} from "../cache/cache-provider.js";
-import type {JWTPayload} from "jose/dist/types/types.js";
 
 export type CacheAdapterConfig = {
     pinoLogger?: Logger,

@@ -2,9 +2,12 @@ import type {Listener, LockOptions} from "@dapperduckling/keycloak-connector-ser
 import {
     AbstractClusterProvider,
     BaseClusterEvents,
-    deferredFactory,
-    isDev, promiseWaitTimeout
+    promiseWaitTimeout
 } from "@dapperduckling/keycloak-connector-server";
+import {
+    deferredFactory,
+    isDev,
+} from "@dapperduckling/keycloak-connector-common/dist/utils.js";
 import {webcrypto} from "crypto";
 import * as fs from "fs";
 import {fileURLToPath} from 'url';

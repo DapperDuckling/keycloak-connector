@@ -14,10 +14,10 @@ import {
     fastifyStatic
 } from "@fastify/static";
 import {RouteConfigDefault} from "../helpers/defaults.js";
-import {isObject} from "../helpers/utils.js";
 import { dirname } from "path";
 import { basename } from "path";
 import type {KeycloakRouteConfigFastify} from "./fastify.js";
+import { isObject } from "@dapperduckling/keycloak-connector-common/dist/utils.js";
 
 export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
 

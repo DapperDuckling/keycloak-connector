@@ -12,9 +12,8 @@ import {RouteConfigDefault} from "../helpers/defaults.js";
 import type {Logger} from "pino";
 import {KeycloakConnector} from "../keycloak-connector.js";
 import bodyParser from "body-parser";
-import {isObject} from "../helpers/utils.js";
-import {TokenCache} from "../cache-adapters/index.js";
 import express from "express";
+import {isObject} from "@dapperduckling/keycloak-connector-common/dist/utils.js";
 
 export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 

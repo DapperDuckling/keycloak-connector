@@ -4,7 +4,8 @@ import type {
     DecorateUserStatus,
     UserData
 } from "@dapperduckling/keycloak-connector-server";
-import {AbstractAuthPlugin, AuthPluginOverride, isDev} from "@dapperduckling/keycloak-connector-server";
+import {AbstractAuthPlugin, AuthPluginOverride} from "@dapperduckling/keycloak-connector-server";
+import {isDev} from "@dapperduckling/keycloak-connector-common/dist/utils.js";
 import type {Logger} from "pino";
 import type {
     GroupAuthConfig,

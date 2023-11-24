@@ -4,7 +4,7 @@ import type {Logger} from "pino";
 import type {Listener} from "../types.js";
 import {is} from "typia";
 import {webcrypto} from "crypto";
-import {isObject} from "../helpers/utils.js";
+import {isObject} from "@dapperduckling/keycloak-connector-common/dist/utils.js";
 
 export enum BaseClusterEvents {
     ERROR = "error",

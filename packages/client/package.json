@@ -20,7 +20,8 @@
   },
   "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
   "scripts": {
-    "build": "tsc",
+    "clean": "rimraf ./dist/",
+    "build": "npm run clean && tsc",
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
@@ -28,5 +29,8 @@
   },
   "files": [
     "./dist"
-  ]
+  ],
+  "dependencies": {
+    "@dapperduckling/keycloak-connector-common": "file:../common"
+  }
 }

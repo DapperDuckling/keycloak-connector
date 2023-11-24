@@ -7,8 +7,6 @@ import {
 import {AbstractClusterProvider} from "../cluster/index.js";
 import {LRUCache} from "lru-cache";
 import {
-    type Deferred,
-    deferredFactory,
     promiseWait,
     sleep,
     ttlFromExpiration,
@@ -16,6 +14,8 @@ import {
 } from "../helpers/utils.js";
 import {is} from "typia";
 import {setImmediate} from "timers";
+import type {Deferred} from "@dapperduckling/keycloak-connector-common/dist/utils.js";
+import {deferredFactory} from "@dapperduckling/keycloak-connector-common/dist/utils.js";
 
 type UpdateDataMessage<T> = {
     data: T,
