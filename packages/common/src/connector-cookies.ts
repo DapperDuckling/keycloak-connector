@@ -2,7 +2,7 @@ import {isDev} from "./utils.js";
 
 const STORAGE_SECURE_PREFIX = isDev() ? "__DEV_ONLY__" : "__Host__";
 const STORAGE_KCC_PREFIX = "kcc-";
-const STORAGE_PREFIX_COMBINED = `${STORAGE_SECURE_PREFIX}${STORAGE_KCC_PREFIX}`;
+export const STORAGE_PREFIX_COMBINED = `${STORAGE_SECURE_PREFIX}${STORAGE_KCC_PREFIX}`;
 
 export const ConnectorCookies = Object.freeze({
     CODE_VERIFIER: `${STORAGE_PREFIX_COMBINED}cv`,
@@ -15,17 +15,13 @@ export const ConnectorCookies = Object.freeze({
     ID_TOKEN: `${STORAGE_PREFIX_COMBINED}id`,
 });
 
-export const ConnectorCookieNames: string[] = Object.values(ConnectorCookies);
+export const ConnectorCookieNames: Readonly<string[]> = Object.values(ConnectorCookies);
 
 /** Array of cookies to keep after login process is complete **/
-export const ConnectorCookiesToKeep: string[] = [
+export const ConnectorCookiesToKeep: Readonly<string[]> = [
     ConnectorCookies.ACCESS_TOKEN,
     ConnectorCookies.PUBLIC_ACCESS_TOKEN_EXPIRATION,
     ConnectorCookies.REFRESH_TOKEN,
     ConnectorCookies.REFRESH_TOKEN_EXPIRATION,
     ConnectorCookies.ID_TOKEN,
 ];
-
-export const LocalStorage = Object.freeze({
-    USER_STATUS: `${STORAGE_PREFIX_COMBINED}user-status`,
-});

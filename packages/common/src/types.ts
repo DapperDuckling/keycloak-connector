@@ -23,6 +23,11 @@ export enum SilentLoginTypes {
     NONE = "NONE",
 }
 
+export enum SilentLogoutTypes {
+    FETCH = "FETCH",
+    NONE = "NONE",
+}
+
 export type UserStatusWrapped = {
     md5: string,
     payload: UserStatus,
@@ -35,3 +40,44 @@ export type SilentLoginMessage = {
     data?: UserStatusWrapped,
 }
 
+export type CustomRouteUrl = {
+    _prefix?: string;
+    loginPage?: string;
+    loginPost?: string;
+    logoutPage?: string;
+    logoutPost?: string;
+    callback?: string;
+    logoutCallback?: string;  // Todo: Is this used?
+    publicKeys?: string;
+    adminUrl?: string;
+    backChannelLogout?: string;
+    userStatus?: string;
+    publicDir?: string;
+}
+
+export enum RouteEnum {
+    // String enums MUST match key found in CustomRouteUrl type
+    LOGIN_PAGE = "loginPage",
+    LOGIN_POST = "loginPost",
+    LOGOUT_PAGE = "logoutPage",
+    LOGOUT_POST = "logoutPost",
+    CALLBACK = "callback",
+    LOGOUT_CALLBACK = "logoutCallback",  // Todo: Is this used?
+    PUBLIC_KEYS = "publicKeys",
+    ADMIN_URL = "adminUrl",
+    BACK_CHANNEL_LOGOUT = "backChannelLogout",
+    USER_STATUS = "userStatus",
+    PUBLIC_DIR = "publicDir",
+}
+
+type SuccessResponse = {
+    success: true;
+}
+
+type ErrorResponse = {
+    success: false;
+    error: string;
+    errorData?: unknown;
+}
+
+export type GeneralResponse = SuccessResponse | ErrorResponse;

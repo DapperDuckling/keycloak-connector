@@ -417,8 +417,15 @@ export type CustomRouteUrl = {
     _prefix?: string;
     loginPage?: string;
     loginPost?: string;
+    logoutPage?: string;
+    logoutPost?: string;
     callback?: string;
+    logoutCallback?: string;
     publicKeys?: string;
+    adminUrl?: string;
+    backChannelLogout?: string;
+    userStatus?: string;
+    publicDir?: string;
 }
 
 export type KeycloakRouteConfig = {

@@ -12,6 +12,7 @@ import type {TokenSetParameters} from "openid-client";
 import type {UserinfoResponse} from "openid-client";
 import {UserInfoCache} from "./cache-adapters/index.js";
 import type {KeycloakConnector} from "./keycloak-connector.js";
+import type {CustomRouteUrl} from "@dapperduckling/keycloak-connector-common";
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -150,35 +151,7 @@ export enum AzpOptions {
     IGNORE = 1,
 }
 
-export type CustomRouteUrl = {
-    _prefix?: string;
-    loginPage?: string;
-    loginPost?: string;
-    logoutPage?: string;
-    logoutPost?: string;
-    callback?: string;
-    logoutCallback?: string;  // Todo: Is this used?
-    publicKeys?: string;
-    adminUrl?: string;
-    backChannelLogout?: string;
-    userStatus?: string;
-    publicDir?: string;
-}
 
-export enum RouteEnum {
-    // String enums MUST match key found in CustomRouteUrl type
-    LOGIN_PAGE = "loginPage",
-    LOGIN_POST = "loginPost",
-    LOGOUT_PAGE = "logoutPage",
-    LOGOUT_POST = "logoutPost",
-    CALLBACK = "callback",
-    LOGOUT_CALLBACK = "logoutCallback",  // Todo: Is this used?
-    PUBLIC_KEYS = "publicKeys",
-    ADMIN_URL = "adminUrl",
-    BACK_CHANNEL_LOGOUT = "backChannelLogout",
-    USER_STATUS = "userStatus",
-    PUBLIC_DIR = "publicDir",
-}
 
 export type ReqCookies = { [cookieName: string]: string | undefined };
 

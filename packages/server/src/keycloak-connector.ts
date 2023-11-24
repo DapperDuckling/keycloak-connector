@@ -29,7 +29,15 @@ import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from 
 import type {JWK} from "jose";
 import * as jose from 'jose';
 import {ConnectorErrorRedirect, ErrorHints, LoginError} from "./helpers/errors.js";
-import {ConnectorCookieNames, ConnectorCookies, ConnectorCookiesToKeep, SilentLoginEvent, type SilentLoginMessage, type UserStatus} from "@dapperduckling/keycloak-connector-common";
+import {
+    ConnectorCookieNames,
+    ConnectorCookies,
+    ConnectorCookiesToKeep,
+    SilentLoginEvent,
+    type SilentLoginMessage,
+    type UserStatus,
+    UserStatusWrapped
+} from "@dapperduckling/keycloak-connector-common";
 import {isDev, epoch, SilentLoginTypes, RouteUrlDefaults, RouteEnum} from "@dapperduckling/keycloak-connector-common";
 import {UserDataDefault} from "./helpers/defaults.js";
 import type {JWTPayload, JWTVerifyResult} from "jose/dist/types/types.js";
@@ -45,6 +53,7 @@ import {fileURLToPath} from "url";
 import path, {dirname} from "path";
 import RPError = errors.RPError;
 import OPError = errors.OPError;
+import { getRoutePath } from "@dapperduckling/keycloak-connector-common";
 
 export class KeycloakConnector<Server extends SupportedServers> {
 
@@ -795,6 +804,17 @@ export class KeycloakConnector<Server extends SupportedServers> {
             statusCode: 200,
             // responseText: "TODO: finish2",
         };
+    }
+
+    private buildWrappedUserStatus = async (req: ConnectorRequest): Promise<UserStatusWrapped> => {
+        // Grab the user status data
+        const userStatus = await this.buildUserStatus(req);
+
+        return {
+            md5: hash(userStatus, {algorithm: "md5"}),
+            payload: userStatus,
+            timestamp: Date.now(),
+        };
     };
 
     private buildUserStatus = async (req: ConnectorRequest): Promise<UserStatus> => ({
@@ -805,7 +825,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     private handleUserStatus = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
         // Build user status with response
-        const userStatus = await this.buildUserStatus(req);
+        const userStatus = await this.buildWrappedUserStatus(req);
 
         return {
             statusCode: 200,
@@ -864,15 +884,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Update request decorator
         req.kccUserData = userDataResponse.userData;
 
-        // Grab the user status data
-        const userStatus = await this.buildUserStatus(req);
-
         // Wrap the user status data
-        const userStatsWrapped = {
-            md5: hash(userStatus, {algorithm: "md5"}),
-            payload: userStatus,
-            timestamp: Date.now(),
-        }
+        const userStatusWrapped = await this.buildWrappedUserStatus(req);
 
         // Get the silent type configuration
         const [, silentRequestToken] = this.silentRequestConfig(req);
@@ -881,7 +894,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const message: SilentLoginMessage = {
             token: silentRequestToken,
             event: event,
-            data: userStatsWrapped,
+            data: userStatusWrapped,
         }
 
         return  {
@@ -1708,14 +1721,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
     }
 
     private getRoutePath = (route: RouteEnum): string => {
-        return KeycloakConnector.getRoutePath(route, this._config);
-    }
-
-    static getRoutePath(route: RouteEnum, config?: KeycloakConnectorConfigCustom | KeycloakConnectorConfigBase) {
-        const prefix = config?.routePaths?._prefix ?? RouteUrlDefaults._prefix;
-        const routePath = config?.routePaths?.[route] ?? RouteUrlDefaults[route];
-
-        return `${prefix}${routePath}`;
+        return getRoutePath(route, this._config.routePaths);
     }
 
     private getRouteUri = (route: RouteEnum): string => {
@@ -1723,11 +1729,13 @@ export class KeycloakConnector<Server extends SupportedServers> {
     }
 
     static getRouteUri(route: RouteEnum, config: KeycloakConnectorConfigCustom | KeycloakConnectorConfigBase) {
-        return config.serverOrigin + KeycloakConnector.getRoutePath(route, config);
+        return config.serverOrigin + getRoutePath(route, config.routePaths);
     }
+
     get oidcConfig(): IssuerMetadata | null {
         return this.components.oidcConfig;
     }
+
     get config(): KeycloakConnectorConfigBase {
         return this._config;
     }

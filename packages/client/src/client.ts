@@ -1,37 +1,67 @@
 import {
     ConnectorCookies,
-    Cookies,
+    getRoutePath,
     isDev,
+    RouteEnum,
     SilentLoginEvent,
     type SilentLoginMessage,
     TokenType,
-    type UserStatusWrapped
+    type UserStatus,
+    type UserStatusWrapped,
+    type GeneralResponse,
+    SilentLoginTypes,
+    SilentLogoutTypes
 } from "@dapperduckling/keycloak-connector-common";
 import {setImmediate} from "./utils";
 import JsCookie from "js-cookie";
 import {silentLoginIframeHTML} from "./silent-login-iframe.js";
 import {is} from "typia";
+import {type ClientConfig, ClientEvent, LocalStorage} from "./types.js";
 
-const STORAGE_SECURE_PREFIX = isDev() ? "__DEV_ONLY__" : "__Host__";
-const STORAGE_KCC_PREFIX = "kcc-";
-const STORAGE_PREFIX_COMBINED = `${STORAGE_SECURE_PREFIX}${STORAGE_KCC_PREFIX}`;
 
-export const LocalStorage = Object.freeze({
-    USER_STATUS: `${STORAGE_PREFIX_COMBINED}user-status`,
-});
 
-export class KCClient {
-    private IFRAME_ID = "silent-login-iframe";
-    private ENABLE_IFRAME_DEBUGGING = process?.env?.["DEBUG_SILENT_IFRAME"] !== undefined;
-    private userStatusHash = undefined;
+class KCClient {
+    // Create a random token if in a secure context. If not in a secure context, just generate a non-cryptographically secure "random" token
+    // Dev note: This is merely a defense-in-depth approach that is paired with origin checking anyway. If this app is running in an unsecure
+    //            context already, the user has already lost to a MITM attack.
+    private token = self.isSecureContext
+        ? self.crypto.randomUUID()
+        : Math.floor(Math.random() * 100_000);
 
-    private static isPrivateConstructing = false;
-    private static kccClient: KCClient | null = null;
-    private silentLoginTimer: number | undefined = undefined;
 
-    private constructor() {
-        if (!KCClient.isPrivateConstructing) {
-            throw new Error("Use KCClient.instance(), do not use new KCClient()");
+    private userStatusHash: string | undefined = undefined;
+    private eventTarget = new EventTarget();
+    private config: ClientConfig;
+    private acceptableOrigins: string[];
+
+    private static kccClient: KCClient | undefined = undefined;
+    private static readonly IFRAME_ID = "silent-login-iframe";
+    private static readonly ENABLE_IFRAME_DEBUGGING = process?.env?.["DEBUG_SILENT_IFRAME"] !== undefined;
+
+    private constructor(config: ClientConfig) {
+        // Store the config
+        this.config = config;
+
+        // Build the list of acceptable origins
+        this.acceptableOrigins = [self.origin];
+
+        // Validate the api server origin input
+        if (config.apiServerOrigin !== undefined) {
+            // Check for a valid URL
+            if (!URL.canParse(config.apiServerOrigin)) {
+                throw new Error("Invalid apiServerOrigin specified, cannot parse with `URL`");
+            }
+
+            // Calculate the origin from the provided "origin"
+            const calculatedOrigin = new URL(config.apiServerOrigin).origin;
+
+            // Check if the api server origin is an actual origin
+            if (new URL(config.apiServerOrigin).origin !== config.apiServerOrigin) {
+                throw new Error(`Invalid apiServerOrigin specified, calculated origin ${calculatedOrigin} does not match input ${config.apiServerOrigin}.`);
+            }
+
+            // Add the api server origin to the acceptable origins
+            this.acceptableOrigins.push(config.apiServerOrigin);
         }
 
         // Listen for events from the storage api
@@ -40,11 +70,17 @@ export class KCClient {
         // Setup an on window focus listener
         window.addEventListener("focus", this.handleOnFocus);
 
+        // Setup the silent login message listener
+        window.addEventListener("message", this.handleWindowMessage);
+
         // Initiate the auth check
-        setImmediate(() => this.authCheck());
+        setImmediate(this.authCheck);
     }
 
-   private storeUserStatus = (data: UserStatusWrapped | undefined) => {
+    public addEventListener = (...args: Parameters<EventTarget['addEventListener']>) => this.eventTarget.addEventListener(...args);
+    public removeEventListener = (...args: Parameters<EventTarget['removeEventListener']>) => this.eventTarget.removeEventListener(...args);
+
+    private storeUserStatus = (data: UserStatusWrapped | undefined) => {
         try {
             if (data === undefined) return;
 
@@ -66,118 +102,150 @@ export class KCClient {
                 this.handleUpdatedUserStatus();
             }
         } catch (e) {
-            console.error(`Could not update localStorage with user data`, e);
+            this.config.logger?.error(`Could not update localStorage with user data`);
+            this.config.logger?.error(e);
         }
-    };
+    }
 
-   private removeSilentIframe = () =>
-        document.getElementById(this.IFRAME_ID)?.remove();
+    private handleWindowMessage = (event: MessageEvent<SilentLoginMessage>) => {
 
-   private silentLogin = () => {
-        // Start timer to show the lengthy login message
-        clearTimeout(this.silentLoginTimer);
-        this.silentLoginTimer = window.setTimeout(() => {
-            const keycloakState = store.getState().keycloak;
-            if (keycloakState.showLoginOverlay) {
-                store.dispatch(updateKeycloakSlice({ lengthyLogin: true }));
-            }
-        }, 7500);
+        // Ignore message not from our an allowed origin or does not have the correct token
+        if (!this.acceptableOrigins.includes(event.origin) || event.data.token !== this.token) return;
 
-        // Create a random token if in a secure context. If not in a secure context, just generate a non-cryptographically secure "random" token
-        // Dev note: This is merely a defense-in-depth approach that is paired with origin checking anyway. If this app is running in an unsecure
-        //            context already, the user has already lost to a MITM attack.
-        const token = window.isSecureContext
-            ? self.crypto.randomUUID()
-            : Math.floor(Math.random() * 100_000);
+        // Extract the silent login message
+        const silentLoginMessage = event.data;
+        this.config.logger?.debug(`KCC Parent received: ${silentLoginMessage.event}`);
+
+        // Handle the message
+        switch (silentLoginMessage.event) {
+            case SilentLoginEvent.CHILD_ALIVE:
+                // NO-OP
+                break;
+            case SilentLoginEvent.LOGIN_REQUIRED:
+            case SilentLoginEvent.LOGIN_SUCCESS:
+                // Update the user status and interface
+                this.storeUserStatus(silentLoginMessage.data);
+                this.removeSilentIframe();
+                break;
+            case SilentLoginEvent.LOGIN_ERROR:
+            default:
+                // Remove the iframe
+                this.removeSilentIframe();
+
+                // Check for a valid token at this point
+                if (KCClient.isTokenCurrent(TokenType.ACCESS)) return;
+
+                // Send the login error event
+                this.eventTarget.dispatchEvent(new Event(ClientEvent.LOGIN_ERROR));
+        }
+    }
+
+    private silentLogin = () => {
+
+        // Dispatch the start silent login event
+        this.eventTarget.dispatchEvent(new Event(ClientEvent.START_SILENT_LOGIN));
 
         // Make an iframe to make auth request
         const iframe = document.createElement("iframe");
-        iframe.id = this.IFRAME_ID;
-        //todo: fix up this line from the start
+        const authUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGIN_POST, this.config.routePaths)}?silent=${SilentLoginTypes.FULL}&silent-token=${this.token}`;
+        iframe.id = KCClient.IFRAME_ID;
         iframe.setAttribute(
             "srcDoc",
             silentLoginIframeHTML(
-                `http://localhost:4000/auth/login?silent=FULL&silent-token=${token}`,
-                token,
-                this.ENABLE_IFRAME_DEBUGGING
+                authUrl,
+                this.token,
+                KCClient.ENABLE_IFRAME_DEBUGGING
             )
         );
         iframe.setAttribute(
             "sandbox",
-            "allow-scripts allow-same-origin allow-forms"
+            "allow-scripts allow-same-origin allow-forms" //todo: may need to remove allow-same-origin here
         );
         iframe.style.display = "none";
 
-        //todo: move to somewhere else
-        const acceptableOrigins = ["http://localhost:4000", window.origin];
-
-        // Subscribe to messages from child
-        window.addEventListener("message", (event: MessageEvent<SilentLoginMessage>) => {
-            // Ignore message not from our an allowed origin or does not have the correct token
-            if (
-                !acceptableOrigins.includes(event.origin) ||
-                event.data.token !== token
-            )
-                return;
-
-            // Extract the silent login message
-            const silentLoginMessage = event.data;
-
-            //todo: change this to pino logger
-            console.debug(`KCC Parent received: ${silentLoginMessage.event}`);
-
-            // Handle the message
-            switch (silentLoginMessage.event) {
-                case SilentLoginEvent.CHILD_ALIVE:
-                    // NO-OP
-                    break;
-                case SilentLoginEvent.LOGIN_REQUIRED:
-                case SilentLoginEvent.LOGIN_SUCCESS:
-                    // Update the user status and interface
-                    this.storeUserStatus(silentLoginMessage.data);
-                    this.removeSilentIframe();
-                    break;
-                case SilentLoginEvent.LOGIN_ERROR:
-                default:
-                    // Direct the user to a login error page manually
-                    store.dispatch(
-                        updateKeycloakSlice({
-                            showMustLoginOverlay: true,
-                            lengthyLogin: false,
-                        })
-                    );
-                    this.removeSilentIframe();
-            }
-        });
-
         // Mount the iframe
         document.body.appendChild(iframe);
-    };
+    }
 
-   private authCheck = () => {
+    private removeSilentIframe = () => document.getElementById(KCClient.IFRAME_ID)?.remove();
+
+    private authCheckNoWait = () => {
         // Check for a valid access token
-        if (KCClient.isTokenCurrent(TokenType.ACCESS)) return;
+        if (KCClient.isTokenCurrent(TokenType.ACCESS)) return true;
+
+        // Check for a valid refresh token
+        const validRefreshToken = KCClient.isTokenCurrent(TokenType.REFRESH);
+
+        // Check for an invalid refresh token as well
+        if (!validRefreshToken) {
+            // Send an invalid tokens event
+            this.eventTarget.dispatchEvent(new Event(ClientEvent.INVALID_TOKENS));
+        }
+
+        return false;
+    }
+
+    private refreshAccessWithRefresh = async () => {
+        // Check for a valid refresh token
+        const validRefreshToken = KCClient.isTokenCurrent(TokenType.REFRESH);
+
+        // With a valid refresh token, attempt to update
+        if (!validRefreshToken) return false;
+
+        // Make a request to the user-status page in order to update the token
+        try {
+            const userStatusUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.USER_STATUS, this.config.routePaths)}`;
+
+            // Attempt to log out using a fetch
+            const userStatusFetch = await fetch(`${userStatusUrl}`, {
+                credentials: "include",
+            });
+
+            // Grab the result
+            const userStatusWrapped = await userStatusFetch.json();
+
+            // Check for a message we were not expecting
+            if (!is<UserStatusWrapped>(userStatusWrapped)) {
+                // noinspection ExceptionCaughtLocallyJS
+                throw new Error(`Invalid response from server`);
+            }
+
+            // Checked for not logged in
+            if (!userStatusWrapped.payload.loggedIn) return false;
+
+            // Update the user status
+            this.storeUserStatus(userStatusWrapped);
+
+            return true;
+
+        } catch (e) {
+            // Log the error
+            this.config.logger?.error(`Failed to refresh access token in the background`);
+            this.config.logger?.error(e);
+        }
+
+        return false;
+    }
+
+    private authCheck = async () => {
+
+        // Execute the synchronous auth check portion
+        if (this.authCheckNoWait()) return;
 
         // todo: lock this function IOT prevent a stack of auth checks from occurring
 
-        // Check for a valid refresh token
-        if (KCClient.isTokenCurrent(TokenType.REFRESH)) {
-            // Make a request to the user-status page in order to update the token
-        }
+        // Attempt to update the auth with the refresh token
+        if (await this.refreshAccessWithRefresh()) return;
 
         // Attempt to reauthenticate silently
         this.silentLogin();
+    }
 
-        // Show the login page
-        store.dispatch(updateKeycloakSlice({ showLoginOverlay: true }));
-    };
+    private handleOnFocus = () => {
+        this.authCheckNoWait();
+    }
 
-   private handleOnFocus = () => {
-        // todo: do an auth check
-    };
-
-    //todo: This ought to call a user provided handler in the future
-   private handleUpdatedUserStatus = () => {
+    private handleUpdatedUserStatus = () => {
         // Grab the user status from local storage
         const userStatusWrapped = JSON.parse(
             localStorage.getItem(LocalStorage.USER_STATUS) ?? "{}"
@@ -198,85 +266,69 @@ export class KCClient {
         // Update the user status hash
         this.userStatusHash = userStatusWrapped["md5"];
 
-        const showMustLoginOverlay = userStatus["loggedIn"] !== true;
+        this.eventTarget.dispatchEvent(new CustomEvent<UserStatus<any>>(ClientEvent.USER_STATUS_UPDATED, {
+            detail: userStatus
+        }));
+    }
 
-        // Update the redux store
-        store.dispatch(
-            updateKeycloakSlice({
-                initialized: !showMustLoginOverlay,
-                showMustLoginOverlay: showMustLoginOverlay,
-                showLoginOverlay: showMustLoginOverlay,
-                lengthyLogin: false,
-            })
-        );
-
-        const userInfo = userStatus["userInfo"];
-        const groupAuth = userStatus["groupAuth"];
-
-        // Restructure organizations
-        for (const [orgKey, orgRoles] of Object.entries(
-            groupAuth["organizations"] ?? {}
-        )) {
-            groupAuth["organizations"][orgKey] = {
-                orgRoles: orgRoles,
-                apps: {},
-            };
-        }
-
-        // Custom adapter to align application roles under org structure
-        // Loop through the applications
-        for (const [appName, appData] of Object.entries(
-            groupAuth["applications"] ?? {}
-        )) {
-            // Loop through the application orgs
-            for (const [appOrg, appOrgPermissions] of Object.entries(appData)) {
-                // Ignore app-wide permissions
-                if (appOrg === "_") continue;
-
-                // Initiate the organization if required
-                groupAuth["organizations"][appOrg] ??= {
-                    orgRoles: [],
-                    apps: {},
-                };
-
-                // Store the application permissions
-                groupAuth["organizations"][appOrg]["apps"][appName] = appOrgPermissions;
-            }
-        }
-
-        if (!showMustLoginOverlay && userInfo !== undefined) {
-            // Update the user assets
-            store.dispatch(
-                setUserAssets({
-                    populated: true,
-                    groups: groupAuth,
-                    profile: userInfo,
-                    username:
-                        `${userInfo["given_name"]} ${userInfo["family_name"]}`.trim(),
-                    uid: userInfo["sub"], //todo: figure out the difference between this and sub
-                    email: userInfo["email"],
-                    // token: "DO_NOT_USE_THIS_ANYMORE",
-                    selectedOrg: Object.keys(groupAuth["organizations"] ?? {})[0] ?? "",
-                    sub: userInfo["sub"],
-                })
-            );
-        }
-    };
-
-   private handleStorageEvent = (event: StorageEvent) => {
+    private handleStorageEvent = (event: StorageEvent) => {
         // Check for the user data update
         if (event.key !== LocalStorage.USER_STATUS) return;
 
         // Call helper function to handle any changes to the status
         this.handleUpdatedUserStatus();
-    };
+    }
 
-    static authCheckGlobal = () => {
-        //todo: ensure only one call to this function is running at a time
+    handleLogout = async () => {
 
-        // Initiate the auth check
-        KCClient.instance().authCheck();
-    };
+        // Build the logout url
+        const logoutUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGOUT_POST, this.config.routePaths)}`;
+
+        try {
+            // Attempt to log out using a fetch
+            const logoutFetch = await fetch(`${logoutUrl}?silent=${SilentLogoutTypes.FETCH}`, {
+                credentials: "include",
+            });
+
+            // Grab the result
+            const result = await logoutFetch.json();
+
+            // Ensure we received the expected response
+            if (is<GeneralResponse>(result)) {
+                // Check for a valid logout result
+                if (result.success) {
+                    // Send a logout event
+                    this.eventTarget.dispatchEvent(new Event(ClientEvent.LOGOUT_SUCCESS));
+                    return;
+                }
+
+                // noinspection ExceptionCaughtLocallyJS
+                throw new Error(result.error);
+            }
+
+            // noinspection ExceptionCaughtLocallyJS
+            throw new Error(`Invalid response from server`);
+
+        } catch (e) {
+            // Log the error
+            this.config.logger?.error(`Failed to logout in the background`);
+            this.config.logger?.error(e);
+        }
+
+        // Perform a form submit redirect to logout instead
+        const form = document.createElement("form");
+        form.method = "post";
+        form.action = logoutUrl;
+
+        // Append the form to the body
+        document.body.appendChild(form);
+
+        // Submit the form
+        form.submit();
+
+        // Remove the form from the body after submission
+        document.body.removeChild(form);
+    }
 
     static isTokenCurrent = (type: TokenType) => {
         let target;
@@ -296,47 +348,22 @@ export class KCClient {
         // Check for an invalid number
         if (Number.isNaN(expirationTimestamp)) return false;
 
-        return (
-           Date.now() < expirationTimestamp
-        );
-    };
+        return (Date.now() < expirationTimestamp);
+    }
 
-    static handleLogout = () => {
-        //todo: build out, possibly handle logout in the background?
-
-        // Redirect the user to the logout page
-        const form = document.createElement("form");
-        form.method = "post";
-        form.action = isDev()
-            ? "http://localhost:4000/auth/logout"
-            : "/auth/logout";
-
-        // Append the form to the body
-        document.body.appendChild(form);
-
-        // Submit the form
-        form.submit();
-
-        // Remove the form from the body after submission
-        document.body.removeChild(form);
-    };
-
-    static instance = (): KCClient => {
+    static instance = (config: ClientConfig): KCClient => {
         // Return the client if already initiated
         if (this.kccClient) return this.kccClient;
 
-        // Set the flag and initiate
-        this.isPrivateConstructing = true;
-        const client = new KCClient();
-        this.isPrivateConstructing = false;
-
-        // Store the singleton
-        this.kccClient = client;
+        // Initiate the singleton
+        this.kccClient = new KCClient(config);
 
         // Return the client
         return this.kccClient;
-    };
+    }
 }
+
+export const kCClient = (config: ClientConfig) => KCClient.instance(config);
 
 // function openWindowWithPost(url: string) {
 //     // Create a new form element
