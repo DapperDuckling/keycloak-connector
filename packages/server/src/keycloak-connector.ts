@@ -19,7 +19,6 @@ import {
     type RefreshTokenSet,
     type RefreshTokenSetResult,
     type ReqCookies,
-    RouteEnum,
     StateOptions,
     type SupportedServers,
     type UserData,
@@ -31,8 +30,8 @@ import type {JWK} from "jose";
 import * as jose from 'jose';
 import {ConnectorErrorRedirect, ErrorHints, LoginError} from "./helpers/errors.js";
 import {ConnectorCookieNames, ConnectorCookies, ConnectorCookiesToKeep, SilentLoginEvent, type SilentLoginMessage, type UserStatus} from "@dapperduckling/keycloak-connector-common";
-import {isDev, epoch, SilentLoginTypes} from "@dapperduckling/keycloak-connector-common";
-import {RouteUrlDefaults, UserDataDefault} from "./helpers/defaults.js";
+import {isDev, epoch, SilentLoginTypes, RouteUrlDefaults, RouteEnum} from "@dapperduckling/keycloak-connector-common";
+import {UserDataDefault} from "./helpers/defaults.js";
 import type {JWTPayload, JWTVerifyResult} from "jose/dist/types/types.js";
 import {RoleHelper} from "./helpers/role-helper.js";
 import type {KeyProviderConfig} from "./crypto/index.js";
@@ -1711,10 +1710,12 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private getRoutePath = (route: RouteEnum): string => {
         return KeycloakConnector.getRoutePath(route, this._config);
     }
-    static getRoutePath(route: RouteEnum, config: KeycloakConnectorConfigCustom | KeycloakConnectorConfigBase) {
-        const prefix = config.routePaths?._prefix ?? RouteUrlDefaults._prefix;
 
-        return `${prefix}${config.routePaths?.[route] ?? RouteUrlDefaults[route]}`;
+    static getRoutePath(route: RouteEnum, config?: KeycloakConnectorConfigCustom | KeycloakConnectorConfigBase) {
+        const prefix = config?.routePaths?._prefix ?? RouteUrlDefaults._prefix;
+        const routePath = config?.routePaths?.[route] ?? RouteUrlDefaults[route];
+
+        return `${prefix}${routePath}`;
     }
 
     private getRouteUri = (route: RouteEnum): string => {
