@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/common",
+    "packages/backend/*",
+    "packages/frontend/*"
   ],
   "repository": {
     "type": "git",

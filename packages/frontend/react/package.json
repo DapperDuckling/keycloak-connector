@@ -1,12 +1,11 @@
 {
-  "name": "@dapperduckling/keycloak-connector-client",
-  "version": "0.0.6",
-  "description": "An opinionated library securing frontend applications without all the fuss",
+  "name": "@dapperduckling/keycloak-connector-react",
+  "version": "0.0.1",
+  "description": "An opinionated library for securing react apps without all the fuss",
   "keywords": [
+    "react",
     "keycloak",
     "sso",
-    "express",
-    "fastify",
     "authentication",
     "oidc"
   ],
@@ -38,8 +37,7 @@
     ".": "./index.js"
   },
   "dependencies": {
-    "@dapperduckling/keycloak-connector-common": "file:../common",
-    "js-cookie": "^3.0.5",
-    "typia": "^5.2.6"
+    "@dapperduckling/keycloak-connector-common": "file:../../common",
+    "@dapperduckling/keycloak-connector-client": "file:../client"
   }
 }

@@ -1,0 +1,45 @@
+{
+  "name": "@dapperduckling/keycloak-connector-client",
+  "version": "0.0.6",
+  "description": "An opinionated library securing frontend applications without all the fuss",
+  "keywords": [
+    "keycloak",
+    "sso",
+    "express",
+    "fastify",
+    "authentication",
+    "oidc"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "author": "DapperDuckling Dev LLC",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/DapperDuckling/keycloak-connector/issues"
+  },
+  "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
+  "scripts": {
+    "prepare": "npm ls ts-patch || exit 0 && ts-patch install",
+    "clean": "rimraf ./dist/",
+    "build": "npm run clean && tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/js-cookie": "^3.0.6",
+    "ts-node": "^11.0.0-beta.1",
+    "ts-patch": "^3.0.2",
+    "typescript": "^5.3.2"
+  },
+  "files": [
+    "./dist"
+  ],
+  "exports": {
+    ".": "./index.js"
+  },
+  "dependencies": {
+    "@dapperduckling/keycloak-connector-common": "file:../../common",
+    "js-cookie": "^3.0.5",
+    "typia": "^5.2.6"
+  }
+}
