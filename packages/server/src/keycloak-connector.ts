@@ -34,8 +34,8 @@ import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from 
 import type {JWK} from "jose";
 import * as jose from 'jose';
 import {ConnectorErrorRedirect, ErrorHints, LoginError} from "./helpers/errors.js";
-import {CookieNames, Cookies, CookiesToKeep} from "@dapperduckling/keycloak-connector-common/dist/cookies.js";
-import {isDev, epoch} from "@dapperduckling/keycloak-connector-common/dist/utils.js";
+import {CookieNames, Cookies, CookiesToKeep} from "@dapperduckling/keycloak-connector-common";
+import {isDev, epoch} from "@dapperduckling/keycloak-connector-common";
 import {RouteUrlDefaults, UserDataDefault} from "./helpers/defaults.js";
 import type {JWTPayload, JWTVerifyResult} from "jose/dist/types/types.js";
 import {RoleHelper} from "./helpers/role-helper.js";

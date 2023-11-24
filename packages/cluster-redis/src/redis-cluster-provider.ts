@@ -7,7 +7,7 @@ import {
 import {
     deferredFactory,
     isDev,
-} from "@dapperduckling/keycloak-connector-common/dist/utils.js";
+} from "@dapperduckling/keycloak-connector-common";
 import {webcrypto} from "crypto";
 import * as fs from "fs";
 import {fileURLToPath} from 'url';

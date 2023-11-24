@@ -13,7 +13,7 @@ import type {Logger} from "pino";
 import {KeycloakConnector} from "../keycloak-connector.js";
 import bodyParser from "body-parser";
 import express from "express";
-import {isObject} from "@dapperduckling/keycloak-connector-common/dist/utils.js";
+import {isObject} from "@dapperduckling/keycloak-connector-common";
 
 export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 

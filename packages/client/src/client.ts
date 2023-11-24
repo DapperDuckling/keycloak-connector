@@ -1,9 +1,7 @@
-import { isDev, setImmediate } from "./utils";
+import { isDev } from "@dapperduckling/keycloak-connector-common";
+import { setImmediate } from "./utils";
 import JsCookie from "js-cookie";
-import { updateKeycloakSlice } from "./redux/keycloakSlice";
-import { store } from "./redux/store";
 import { silentLoginIframeHTML } from "./silent-login-iframe.js";
-import { setUserAssets } from "./redux/userSlice";
 
 const STORAGE_SECURE_PREFIX = isDev() ? "__DEV_ONLY__" : "__Host__";
 const STORAGE_KCC_PREFIX = "kcc-";
@@ -21,30 +19,30 @@ export const SilentLoginEvent = {
 };
 
 export class KCClient {
-    #IFRAME_ID = "silent-login-iframe";
-    #ENABLE_IFRAME_DEBUGGING = process.env["DEBUG_SILENT_IFRAME"] !== undefined;
-    #userStatusHash = undefined;
+    private IFRAME_ID = "silent-login-iframe";
+    private ENABLE_IFRAME_DEBUGGING = process?.env?.["DEBUG_SILENT_IFRAME"] !== undefined;
+    private userStatusHash = undefined;
 
-    static #isPrivateConstructing = false; //why do I have to use this pure js garbage
-    static #kccClient = undefined;
-    #silentLoginTimer = null;
+    private static isPrivateConstructing = false; //why do I have to use this pure js garbage
+    private static kccClient = undefined;
+    private silentLoginTimer = null;
 
     constructor() {
-        if (!KCClient.#isPrivateConstructing) {
+        if (!KCClient.isPrivateConstructing) {
             throw new Error("Use KCClient.instance(), do not use new KCClient()");
         }
 
         // Listen for events from the storage api
-        window.addEventListener("storage", this.#handleStorageEvent);
+        window.addEventListener("storage", this.handleStorageEvent);
 
         // Setup an on window focus listener
-        window.addEventListener("focus", this.#handleOnFocus);
+        window.addEventListener("focus", this.handleOnFocus);
 
         // Initiate the auth check
-        setImmediate(() => this.#authCheck());
+        setImmediate(() => this.authCheck());
     }
 
-    #storeUserStatus = (data) => {
+   private storeUserStatus = (data) => {
         try {
             if (data === undefined) return;
 
@@ -63,20 +61,20 @@ export class KCClient {
                 localStorage.setItem(LocalStorage.USER_STATUS, JSON.stringify(data));
 
                 // Call the local storage update for this instance
-                this.#handleUpdatedUserStatus();
+                this.handleUpdatedUserStatus();
             }
         } catch (e) {
             console.error(`Could not update localStorage with user data`, e);
         }
     };
 
-    #removeSilentIframe = () =>
-        document.getElementById(this.#IFRAME_ID)?.remove();
+   private removeSilentIframe = () =>
+        document.getElementById(this.IFRAME_ID)?.remove();
 
-    #silentLogin = () => {
+   private silentLogin = () => {
         // Start timer to show the lengthy login message
-        clearTimeout(this.#silentLoginTimer);
-        this.#silentLoginTimer = setTimeout(() => {
+        clearTimeout(this.silentLoginTimer);
+        this.silentLoginTimer = setTimeout(() => {
             const keycloakState = store.getState().keycloak;
             if (keycloakState.showLoginOverlay) {
                 store.dispatch(updateKeycloakSlice({ lengthyLogin: true }));
@@ -92,14 +90,14 @@ export class KCClient {
 
         // Make an iframe to make auth request
         const iframe = document.createElement("iframe");
-        iframe.id = this.#IFRAME_ID;
+        iframe.id = this.IFRAME_ID;
         //todo: fix up this line from the start
         iframe.setAttribute(
             "srcDoc",
             silentLoginIframeHTML(
                 `http://localhost:4000/auth/login?silent=FULL&silent-token=${token}`,
                 token,
-                this.#ENABLE_IFRAME_DEBUGGING
+                this.ENABLE_IFRAME_DEBUGGING
             )
         );
         iframe.setAttribute(
@@ -134,8 +132,8 @@ export class KCClient {
                 case SilentLoginEvent.LOGIN_REQUIRED:
                 case SilentLoginEvent.LOGIN_SUCCESS:
                     // Update the user status and interface
-                    this.#storeUserStatus(silentLoginMessage.data);
-                    this.#removeSilentIframe();
+                    this.storeUserStatus(silentLoginMessage.data);
+                    this.removeSilentIframe();
                     break;
                 case SilentLoginEvent.LOGIN_ERROR:
                 default:
@@ -146,7 +144,7 @@ export class KCClient {
                             lengthyLogin: false,
                         })
                     );
-                    this.#removeSilentIframe();
+                    this.removeSilentIframe();
             }
         });
 
@@ -154,7 +152,7 @@ export class KCClient {
         document.body.appendChild(iframe);
     };
 
-    #authCheck = () => {
+   private authCheck = () => {
         // Check for a valid access token
         if (KCClient.isTokenCurrent("access")) return;
 
@@ -166,25 +164,25 @@ export class KCClient {
         }
 
         // Attempt to reauthenticate silently
-        this.#silentLogin();
+        this.silentLogin();
 
         // Show the login page
         store.dispatch(updateKeycloakSlice({ showLoginOverlay: true }));
     };
 
-    #handleOnFocus = () => {
+   private handleOnFocus = () => {
         // todo: do an auth check
     };
 
     //todo: This ought to call a user provided handler in the future
-    #handleUpdatedUserStatus = () => {
+   private handleUpdatedUserStatus = () => {
         // Grab the user status from local storage
         const userStatusWrapped = JSON.parse(
             localStorage.getItem(LocalStorage.USER_STATUS) ?? "{}"
         );
 
         // Check to see if the hash is not different
-        if (this.#userStatusHash === userStatusWrapped["md5"]) return;
+        if (this.userStatusHash === userStatusWrapped["md5"]) return;
 
         // Grab the user status payload
         const userStatus = userStatusWrapped["payload"];
@@ -193,7 +191,7 @@ export class KCClient {
         if (userStatus === undefined) return;
 
         // Update the user status hash
-        this.#userStatusHash = userStatusWrapped["md5"];
+        this.userStatusHash = userStatusWrapped["md5"];
 
         const showMustLoginOverlay = userStatus["loggedIn"] !== true;
 
@@ -260,19 +258,19 @@ export class KCClient {
         }
     };
 
-    #handleStorageEvent = (event) => {
+   private handleStorageEvent = (event) => {
         // Check for the user data update
         if (event.key !== LocalStorage.USER_STATUS) return;
 
         // Call helper function to handle any changes to the status
-        this.#handleUpdatedUserStatus();
+        this.handleUpdatedUserStatus();
     };
 
     static authCheckGlobal = () => {
         //todo: ensure only one call to this function is running at a time
 
         // Initiate the auth check
-        KCClient.instance().#authCheck();
+        KCClient.instance().authCheck();
     };
 
     static isTokenCurrent = (type) => {
@@ -316,18 +314,18 @@ export class KCClient {
 
     static instance = () => {
         // Return the client if already initiated
-        if (this.#kccClient) return this.#kccClient;
+        if (this.kccClient) return this.kccClient;
 
         // Set the flag and initiate
-        this.#isPrivateConstructing = true;
+        this.isPrivateConstructing = true;
         const client = new KCClient();
-        this.#isPrivateConstructing = false;
+        this.isPrivateConstructing = false;
 
         // Store the singleton
-        this.#kccClient = client;
+        this.kccClient = client;
 
         // Return the client
-        return this.#kccClient;
+        return this.kccClient;
     };
 }
 
