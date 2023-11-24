@@ -4,17 +4,50 @@
     "@tsconfig/node18/tsconfig.json",
     "@tsconfig/esm/tsconfig.json"
   ],
+  "ts-node": {
+    "esm": true,
+    "files": true
+  },
   "compilerOptions": {
-    "lib": ["DOM", "ES6"],
-    "target": "es2016",
-    "module": "commonjs",
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "declaration": true,
     "outDir": "./dist/",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "noImplicitAny": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "sourceMap": true,
+    "strictNullChecks": true,
+    "removeComments": false,
+    "noEmitOnError": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "lib": [
+      "es2021",
+      "DOM"
+    ],
+    "module": "es2022",
+    "preserveConstEnums": true,
+    "moduleResolution": "node",
+    "target": "es2022",
+    "types": [
+      "node"
+    ],
+    "plugins": [
+      {
+        "transform": "typia/lib/transform"
+      }
+    ]
   },
-  "include": ["./src/**/*"]
+  "include": [
+    "./src/**/*"
+  ],
+  "exclude": [
+    "./tests/**/*",
+    "./dist/**/*"
+  ],
+  "baseUrl": "./src"
 }

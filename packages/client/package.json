@@ -1,13 +1,20 @@
 {
   "name": "@dapperduckling/keycloak-connector-client",
-  "private": true,
   "version": "0.0.6",
-  "description": "A utility library to integrate keycloak into frontend applications",
+  "description": "An opinionated library securing frontend applications without all the fuss",
+  "keywords": [
+    "keycloak",
+    "sso",
+    "express",
+    "fastify",
+    "authentication",
+    "oidc"
+  ],
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "author": "DapperDuckling Dev LLC",
   "license": "AGPL-3.0-only",
   "type": "module",
-  "types": "dist/index.d.ts",
   "bugs": {
     "url": "https://github.com/DapperDuckling/keycloak-connector/issues"
   },
@@ -20,10 +27,6 @@
     "typescript": "^5.0.4"
   },
   "files": [
-    "dist",
-    "src"
-  ],
-  "publishConfig": {
-    "access": "restricted"
-  }
+    "./dist"
+  ]
 }
