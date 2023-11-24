@@ -1,7 +1,6 @@
 import {
     ConnectorCookies,
     getRoutePath,
-    isDev,
     RouteEnum,
     SilentLoginEvent,
     type SilentLoginMessage,
@@ -33,6 +32,8 @@ class KCClient {
     private eventTarget = new EventTarget();
     private config: ClientConfig;
     private acceptableOrigins: string[];
+    private userStatusAbortController: AbortController | undefined = undefined;
+    private isAuthChecking = false;
 
     private static kccClient: KCClient | undefined = undefined;
     private static readonly IFRAME_ID = "silent-login-iframe";
@@ -125,12 +126,20 @@ class KCClient {
             case SilentLoginEvent.LOGIN_SUCCESS:
                 // Update the user status and interface
                 this.storeUserStatus(silentLoginMessage.data);
+
+                // Remove the iframe
                 this.removeSilentIframe();
+
+                // Reset the auth check flag
+                this.isAuthChecking = false;
                 break;
             case SilentLoginEvent.LOGIN_ERROR:
             default:
                 // Remove the iframe
                 this.removeSilentIframe();
+
+                // Reset the auth check flag
+                this.isAuthChecking = false;
 
                 // Check for a valid token at this point
                 if (KCClient.isTokenCurrent(TokenType.ACCESS)) return;
@@ -167,6 +176,12 @@ class KCClient {
         document.body.appendChild(iframe);
     }
 
+    private abortBackgroundLogins = () => {
+        this.isAuthChecking = false;
+        this.userStatusAbortController?.abort();
+        this.removeSilentIframe();
+    }
+
     private removeSilentIframe = () => document.getElementById(KCClient.IFRAME_ID)?.remove();
 
     private authCheckNoWait = () => {
@@ -192,14 +207,21 @@ class KCClient {
         // With a valid refresh token, attempt to update
         if (!validRefreshToken) return false;
 
-        // Make a request to the user-status page in order to update the token
+        // Create a new abort controller
+        this.userStatusAbortController = new AbortController();
+
         try {
+            // Make a request to the user-status page in order to update the token
             const userStatusUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.USER_STATUS, this.config.routePaths)}`;
 
             // Attempt to log out using a fetch
             const userStatusFetch = await fetch(`${userStatusUrl}`, {
                 credentials: "include",
+                signal: this.userStatusAbortController.signal,
             });
+
+            // Clear the abort controller
+            this.userStatusAbortController = undefined;
 
             // Grab the result
             const userStatusWrapped = await userStatusFetch.json();
@@ -219,9 +241,11 @@ class KCClient {
             return true;
 
         } catch (e) {
-            // Log the error
-            this.config.logger?.error(`Failed to refresh access token in the background`);
-            this.config.logger?.error(e);
+            if (!(e instanceof DOMException && e.name === 'AbortError')) {
+                // Log the error
+                this.config.logger?.error(`Failed to refresh access token in the background`);
+                this.config.logger?.error(e);
+            }
         }
 
         return false;
@@ -232,10 +256,17 @@ class KCClient {
         // Execute the synchronous auth check portion
         if (this.authCheckNoWait()) return;
 
-        // todo: lock this function IOT prevent a stack of auth checks from occurring
+        // Prevent multiple async auth checks from occurring
+        if (this.isAuthChecking) return;
+
+        // Set the flag
+        this.isAuthChecking = true;
 
         // Attempt to update the auth with the refresh token
-        if (await this.refreshAccessWithRefresh()) return;
+        if (await this.refreshAccessWithRefresh()) {
+            this.isAuthChecking = false;
+            return;
+        }
 
         // Attempt to reauthenticate silently
         this.silentLogin();
@@ -252,7 +283,10 @@ class KCClient {
         );
 
         // Check the resultant object for the proper type
-       if (!is<UserStatusWrapped>(userStatusWrapped)) return;
+        if (!is<UserStatusWrapped>(userStatusWrapped)) return;
+
+        // Cancel any background requests
+        this.abortBackgroundLogins();
 
         // Check to see if the hash is not different
         if (this.userStatusHash === userStatusWrapped["md5"]) return;
