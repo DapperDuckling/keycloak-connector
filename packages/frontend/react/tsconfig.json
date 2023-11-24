@@ -18,7 +18,6 @@
     "strict": true,
     "noImplicitAny": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
     "sourceMap": true,
     "strictNullChecks": true,
     "removeComments": false,
@@ -36,6 +35,7 @@
     "plugins": [
       { "transform": "typia/lib/transform" }
     ],
+    "jsx": "react"
   },
   "include": [
     "./src/**/*"
