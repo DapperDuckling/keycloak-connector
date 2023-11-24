@@ -1,0 +1,24 @@
+{
+  "name": "@dapperduckling/keycloak-connector-common",
+  "version": "0.0.6",
+  "description": "Common library code. Not intended for individual installation.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "author": "DapperDuckling Dev LLC",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/DapperDuckling/keycloak-connector/issues"
+  },
+  "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.4"
+  },
+  "files": [
+    "./dist"
+  ]
+}
