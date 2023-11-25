@@ -34,7 +34,7 @@ export class KeycloakConnectorClient {
     private isAuthChecking = false;
     private started = false;
 
-    private static kcc: KeycloakConnectorClient | undefined = undefined;
+    private static kccClient: KeycloakConnectorClient | undefined = undefined;
     private static readonly IFRAME_ID = "silent-login-iframe";
     private static readonly ENABLE_IFRAME_DEBUGGING = process?.env?.["DEBUG_SILENT_IFRAME"] !== undefined;
 
@@ -413,14 +413,22 @@ export class KeycloakConnectorClient {
     }
 
     static instance = (config: ClientConfig): KeycloakConnectorClient => {
-        // Return the client if already initiated
-        if (this.kcc) return this.kcc;
+        // Check if the client has already been instantiated
+        if (this.kccClient) {
+            // Ensure the config hasn't changed
+            if (this.kccClient.config !== config) {
+                throw new Error("KeycloakConnectorClient already instantiated, cannot re-instantiate with a different config.");
+            }
+
+            // Return the existing client
+            return this.kccClient;
+        }
 
         // Initiate the singleton
-        this.kcc = new KeycloakConnectorClient(config);
+        this.kccClient = new KeycloakConnectorClient(config);
 
         // Return the client
-        return this.kcc;
+        return this.kccClient;
     }
 }
 

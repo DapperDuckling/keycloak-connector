@@ -36,6 +36,7 @@
     "@dapperduckling/keycloak-connector-common": "file:../../common",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
-    "@mui/material": "^5.14.18"
+    "@mui/material": "^5.14.18",
+    "use-immer": "^0.9.0"
   }
 }
