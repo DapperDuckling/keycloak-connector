@@ -1,6 +1,6 @@
-import {SilentLoginEvent as SilentLoginEventType} from "./kcc-temp.js";
+import {SilentLoginEvent as SilentLoginEventType} from "@dapperduckling/keycloak-connector-common";
 
-const silentLoginIframe = (authUrl, token, silentLoginEventJson, enableDebugger) => {
+const silentLoginIframe = (authUrl: string, token: string, silentLoginEventJson: string, enableDebugger: unknown) => {
 
   // Dev helper
   if (enableDebugger === true) debugger;
@@ -11,8 +11,14 @@ const silentLoginIframe = (authUrl, token, silentLoginEventJson, enableDebugger)
   // Grab the reference to the parent
   const parent = window.parent;
 
-  // Update the error link
-  document.querySelector("#back-to-main").href = window.location.origin;
+  // Grab a reference to the error link
+  const backToMain = document.querySelector<HTMLLinkElement>("#back-to-main");
+
+  // Ensure the back to main link exists
+  if (backToMain !== null) {
+    // Update the error link
+    backToMain.href = window.location.origin;
+  }
 
   // Check if this page has not been loaded in an iframe
   if (window.frameElement === null) {
@@ -22,7 +28,7 @@ const silentLoginIframe = (authUrl, token, silentLoginEventJson, enableDebugger)
   }
 
   // Ensure the entire page's origins match (top and parent)
-  if (window.top.origin !== parent.origin) {
+  if (window.top?.origin !== parent.origin) {
     // Do nothing since the origins do not match
     console.error(`Origins do not match, will not process silent login!`);
     return;
@@ -49,7 +55,7 @@ const silentLoginIframe = (authUrl, token, silentLoginEventJson, enableDebugger)
   form.submit();
 }
 
-export const silentLoginIframeHTML = (authUrl, token, enableDebugger) => {
+export const silentLoginIframeHTML = (authUrl: string, token: string, enableDebugger: boolean) => {
   // Build the html for the silent login iframe
   const silentLoginFunction = silentLoginIframe.toString();
 

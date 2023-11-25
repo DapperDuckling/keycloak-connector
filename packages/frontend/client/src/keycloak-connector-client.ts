@@ -17,15 +17,13 @@ import {silentLoginIframeHTML} from "./silent-login-iframe.js";
 import {is} from "typia";
 import {type ClientConfig, ClientEvent, LocalStorage} from "./types.js";
 
-
-
-class KCClient {
+export class KeycloakConnectorClient {
     // Create a random token if in a secure context. If not in a secure context, just generate a non-cryptographically secure "random" token
     // Dev note: This is merely a defense-in-depth approach that is paired with origin checking anyway. If this app is running in an unsecure
     //            context already, the user has already lost to a MITM attack.
     private token = self.isSecureContext
         ? self.crypto.randomUUID()
-        : Math.floor(Math.random() * 100_000);
+        : Math.floor(Math.random() * 100_000).toString();
 
 
     private userStatusHash: string | undefined = undefined;
@@ -34,14 +32,20 @@ class KCClient {
     private acceptableOrigins: string[];
     private userStatusAbortController: AbortController | undefined = undefined;
     private isAuthChecking = false;
+    private started = false;
 
-    private static kccClient: KCClient | undefined = undefined;
+    private static kcc: KeycloakConnectorClient | undefined = undefined;
     private static readonly IFRAME_ID = "silent-login-iframe";
     private static readonly ENABLE_IFRAME_DEBUGGING = process?.env?.["DEBUG_SILENT_IFRAME"] !== undefined;
 
     private constructor(config: ClientConfig) {
         // Store the config
         this.config = config;
+
+        // Update the logger reference
+        if (this.config.logger) {
+            this.config.logger = this.config.logger.child({"Source": "KeycloakConnectorClient"})
+        }
 
         // Build the list of acceptable origins
         this.acceptableOrigins = [self.origin];
@@ -73,8 +77,14 @@ class KCClient {
 
         // Setup the silent login message listener
         window.addEventListener("message", this.handleWindowMessage);
+    }
 
-        // Initiate the auth check
+    public start = () => {
+        if (this.started) {
+            this.config.logger?.error(`Already started, cannot start again`);
+        }
+
+        // Set the auth to happen on the next tick
         setImmediate(this.authCheck);
     }
 
@@ -142,7 +152,7 @@ class KCClient {
                 this.isAuthChecking = false;
 
                 // Check for a valid token at this point
-                if (KCClient.isTokenCurrent(TokenType.ACCESS)) return;
+                if (KeycloakConnectorClient.isTokenCurrent(TokenType.ACCESS)) return;
 
                 // Send the login error event
                 this.eventTarget.dispatchEvent(new Event(ClientEvent.LOGIN_ERROR));
@@ -157,13 +167,13 @@ class KCClient {
         // Make an iframe to make auth request
         const iframe = document.createElement("iframe");
         const authUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGIN_POST, this.config.routePaths)}?silent=${SilentLoginTypes.FULL}&silent-token=${this.token}`;
-        iframe.id = KCClient.IFRAME_ID;
+        iframe.id = KeycloakConnectorClient.IFRAME_ID;
         iframe.setAttribute(
             "srcDoc",
             silentLoginIframeHTML(
                 authUrl,
                 this.token,
-                KCClient.ENABLE_IFRAME_DEBUGGING
+                KeycloakConnectorClient.ENABLE_IFRAME_DEBUGGING
             )
         );
         iframe.setAttribute(
@@ -182,14 +192,14 @@ class KCClient {
         this.removeSilentIframe();
     }
 
-    private removeSilentIframe = () => document.getElementById(KCClient.IFRAME_ID)?.remove();
+    private removeSilentIframe = () => document.getElementById(KeycloakConnectorClient.IFRAME_ID)?.remove();
 
     private authCheckNoWait = () => {
         // Check for a valid access token
-        if (KCClient.isTokenCurrent(TokenType.ACCESS)) return true;
+        if (KeycloakConnectorClient.isTokenCurrent(TokenType.ACCESS)) return true;
 
         // Check for a valid refresh token
-        const validRefreshToken = KCClient.isTokenCurrent(TokenType.REFRESH);
+        const validRefreshToken = KeycloakConnectorClient.isTokenCurrent(TokenType.REFRESH);
 
         // Check for an invalid refresh token as well
         if (!validRefreshToken) {
@@ -202,7 +212,7 @@ class KCClient {
 
     private refreshAccessWithRefresh = async () => {
         // Check for a valid refresh token
-        const validRefreshToken = KCClient.isTokenCurrent(TokenType.REFRESH);
+        const validRefreshToken = KeycloakConnectorClient.isTokenCurrent(TokenType.REFRESH);
 
         // With a valid refresh token, attempt to update
         if (!validRefreshToken) return false;
@@ -313,6 +323,23 @@ class KCClient {
         this.handleUpdatedUserStatus();
     }
 
+    handleLogin = (newWindow?: boolean) => {
+
+        // Build the login url
+        const loginUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGIN_POST, this.config.routePaths)}?post_auth_redirect_uri=${self.location.href}`;
+
+        // Form Settings
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = loginUrl;
+        form.target = (newWindow === true) ? "_blank" : "_self";
+        document.body.appendChild(form);
+        form.submit();
+
+        // Delete the new form
+        document.body.removeChild(form);
+    }
+
     handleLogout = async () => {
 
         // Build the logout url
@@ -385,33 +412,16 @@ class KCClient {
         return (Date.now() < expirationTimestamp);
     }
 
-    static instance = (config: ClientConfig): KCClient => {
+    static instance = (config: ClientConfig): KeycloakConnectorClient => {
         // Return the client if already initiated
-        if (this.kccClient) return this.kccClient;
+        if (this.kcc) return this.kcc;
 
         // Initiate the singleton
-        this.kccClient = new KCClient(config);
+        this.kcc = new KeycloakConnectorClient(config);
 
         // Return the client
-        return this.kccClient;
+        return this.kcc;
     }
 }
 
-export const kCClient = (config: ClientConfig) => KCClient.instance(config);
-
-// function openWindowWithPost(url: string) {
-//     // Create a new form element
-//     const form = document.createElement("form");
-//     form.method = "post";
-//     form.action = url;
-//     form.target = "_blank"; // Open in a new window/tab
-//
-//     // Append the form to the body
-//     document.body.appendChild(form);
-//
-//     // Submit the form
-//     form.submit();
-//
-//     // Remove the form from the body after submission
-//     document.body.removeChild(form);
-// }
+export const keycloakConnectorClient = (config: ClientConfig) => KeycloakConnectorClient.instance(config);

@@ -1,2 +1,2 @@
 
-export * from "./TestComponent.js";
+export * from "./KeycloakConnectorProvider.js";
