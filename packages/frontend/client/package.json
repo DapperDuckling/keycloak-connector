@@ -1,6 +1,6 @@
 {
   "name": "@dapperduckling/keycloak-connector-client",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "An opinionated library securing frontend applications without all the fuss",
   "keywords": [
     "keycloak",

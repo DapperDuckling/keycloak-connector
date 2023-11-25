@@ -1,6 +1,6 @@
 {
   "name": "@dapperduckling/keycloak-connector-common",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Common library code. Not intended for individual installation.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,8 +20,8 @@
     ".": "./index.js"
   },
   "devDependencies": {
-    "typescript": "^5.0.4",
-    "openid-client": "^5.6.1"
+    "openid-client": "^5.6.1",
+    "typescript": "^5.0.4"
   },
   "files": [
     "./dist"

@@ -1,6 +1,6 @@
 {
   "name": "@dapperduckling/keycloak-connector-server",
-  "version": "0.0.34",
+  "version": "0.0.35",
   "description": "Opinionated middleware connecting Node.js Express or Fastify servers to Keycloak",
   "keywords": [
     "keycloak",
