@@ -1,6 +1,6 @@
 {
   "name": "@dapperduckling/keycloak-connector-group-auth-plugin",
-  "version": "0.0.40",
+  "version": "0.0.41",
   "description": "A plugin enabling Keycloak group permission management via Keycloak groups",
   "keywords": [
     "keycloak group permissions",
@@ -47,7 +47,7 @@
   },
   "dependencies": {
     "@dapperduckling/keycloak-connector-common": "file:../../common",
-    "@dapperduckling/keycloak-connector-server": "^0.0.36",
+    "@dapperduckling/keycloak-connector-server": "^0.0.37",
     "fastify-plugin": "^4.5.1"
   },
   "publishConfig": {
