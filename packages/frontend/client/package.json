@@ -20,9 +20,11 @@
   },
   "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
   "scripts": {
-    "prepare": "npm ls ts-patch || exit 0 && ts-patch install",
+    "prepare": "npm ls ts-patch || exit 0 && ts-patch install && typia patch",
     "clean": "rimraf ./dist/",
     "build": "npm run clean && tsc",
+    "yalc:publish": "yalc publish --push",
+    "yalc:watch": "yalc-watch",
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
@@ -32,7 +34,10 @@
     "typescript": "^5.3.2"
   },
   "files": [
-    "./dist"
+    "dist",
+    "src",
+    "COPYING",
+    "README.md"
   ],
   "publishConfig": {
     "access": "public"
@@ -41,6 +46,11 @@
     "@dapperduckling/keycloak-connector-common": "^0.0.10",
     "js-cookie": "^3.0.5",
     "typia": "^5.2.6"
+  },
+  "yalcWatch": {
+    "watchFolder": "dist",
+    "buildWatchCommand": "tsc --watch",
+    "extensions": "js,ts"
   },
   "gitHead": "59aee98d0b1e78baf2a8692f55314cc711818ddc"
 }

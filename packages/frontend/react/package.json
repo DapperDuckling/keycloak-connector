@@ -29,7 +29,7 @@
     "build:yarn": "npm run clean && yarn build:esm && yarn build:cjs",
     "build:esm": "tsc",
     "build:cjs": "tsc --module commonjs --outDir dist/cjs",
-    "yalc:publish": "yalc publish",
+    "yalc:publish": "yalc publish --push",
     "yalc:watch": "yalc-watch",
     "prepublishOnly": "npm run build"
   },
@@ -39,16 +39,20 @@
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@mui/material": "^5.14.18",
+    "immer": "^10.0.3",
     "use-immer": "^0.9.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.38",
     "@types/react-dom": "^18.2.17",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "typescript": "~5.2.0",
     "yalc-watch": "^0.0.6"
   },
   "files": [
     "dist",
+    "src",
     "COPYING",
     "README.md"
   ],
@@ -57,8 +61,8 @@
   },
   "gitHead": "59aee98d0b1e78baf2a8692f55314cc711818ddc",
   "peerDependencies": {
-    "react": ">=16",
-    "react-dom": ">=16"
+    "react": ">=18",
+    "react-dom": ">=18"
   },
   "yalcWatch": {
     "watchFolder": "dist",

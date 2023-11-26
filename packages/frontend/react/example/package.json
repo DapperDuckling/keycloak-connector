@@ -1,0 +1,22 @@
+{
+  "name": "example",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "parcel src/index.html",
+    "yalc:add": "npm run yalc:add:react && npm run yalc:add:client && npm i",
+    "yalc:add:react": "yalc add --dev @dapperduckling/keycloak-connector-react",
+    "yalc:add:client": "yalc add --dev @dapperduckling/keycloak-connector-client"
+  },
+  "devDependencies": {
+    "@dapperduckling/keycloak-connector-client": "file:.yalc/@dapperduckling/keycloak-connector-client",
+    "@dapperduckling/keycloak-connector-react": "file:.yalc/@dapperduckling/keycloak-connector-react",
+    "@types/react": "^18.0.13",
+    "@types/react-dom": "^18.0.5",
+    "parcel": "^2.6.0",
+    "process": "^0.11.10",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "dependencies": {}
+}

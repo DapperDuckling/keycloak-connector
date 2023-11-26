@@ -2,24 +2,23 @@ import type { ImmerReducer } from "use-immer";
 import type {KeycloakConnectorContextProps} from "./keycloak-connector-context.js";
 import type {UserStatus} from "@dapperduckling/keycloak-connector-common";
 import {ClientEvent, KeycloakConnectorClient} from "@dapperduckling/keycloak-connector-client";
-// import {initialContext} from "./keycloak-connector-context.js";
 
-export enum KccDispatch {
-    SET_KCC_CLIENT,
-    KCC_CLIENT_EVENT,
-    LENGTHY_LOGIN,
+export enum KccDispatchType {
+    SET_KCC_CLIENT = "SET_KCC_CLIENT",
+    KCC_CLIENT_EVENT = "KCC_CLIENT_EVENT",
+    LENGTHY_LOGIN = "LENGTHY_LOGIN",
 }
 
 export type KeycloakConnectorStateActions =
-    | { type: KccDispatch.SET_KCC_CLIENT; payload: KeycloakConnectorClient; }
-    | { type: KccDispatch.KCC_CLIENT_EVENT; payload: Event | CustomEvent<UserStatus>; }
-    | { type: KccDispatch.LENGTHY_LOGIN; }
+    | { type: KccDispatchType.SET_KCC_CLIENT; payload: KeycloakConnectorClient; }
+    | { type: KccDispatchType.KCC_CLIENT_EVENT; payload: Event | CustomEvent<UserStatus>; }
+    | { type: KccDispatchType.LENGTHY_LOGIN; }
 
 type ImmerReducerType = ImmerReducer<KeycloakConnectorContextProps, KeycloakConnectorStateActions>;
 
 const keycloakConnectorClientEventHandler: ImmerReducerType = (draft, action) => {
     // Ensure the correct payload was passed
-    if (action.type !== KccDispatch.KCC_CLIENT_EVENT) return;
+    if (action.type !== KccDispatchType.KCC_CLIENT_EVENT) return;
 
     //todo: need to create a function here to provide a "reset" login window state for the below events
 
@@ -47,17 +46,15 @@ const keycloakConnectorClientEventHandler: ImmerReducerType = (draft, action) =>
     return undefined;
 }
 
-// export const reducer: ImmerReducerType = (draft, action) => {
-// @ts-ignore
-export const reducer = (draft, action) => {
+export const reducer: ImmerReducerType = (draft, action) => {
     switch (action.type) {
-        case KccDispatch.KCC_CLIENT_EVENT:
+        case KccDispatchType.KCC_CLIENT_EVENT:
             keycloakConnectorClientEventHandler(draft, action);
             break;
-        case KccDispatch.SET_KCC_CLIENT:
+        case KccDispatchType.SET_KCC_CLIENT:
             draft.kccClient = action.payload;
             break;
-        case KccDispatch.LENGTHY_LOGIN:
+        case KccDispatchType.LENGTHY_LOGIN:
             draft.lengthyLogin = true;
             break;
     }

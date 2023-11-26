@@ -14,7 +14,7 @@ import {
 import {setImmediate} from "./utils.js";
 import JsCookie from "js-cookie";
 import {silentLoginIframeHTML} from "./silent-login-iframe.js";
-import {is} from "typia";
+import {is, validate} from "typia";
 import {type ClientConfig, ClientEvent, LocalStorage} from "./types.js";
 
 export class KeycloakConnectorClient {
@@ -422,6 +422,13 @@ export class KeycloakConnectorClient {
 
             // Return the existing client
             return this.kccClient;
+        }
+
+        // Ensure the config is valid
+        const configValidation = validate<ClientConfig>(config);
+        if (!configValidation.success) {
+            console.error(configValidation.errors);
+            throw new Error("Invalid config provided to KeycloakConnectorClient. See console for more details.");
         }
 
         // Initiate the singleton
