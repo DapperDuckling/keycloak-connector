@@ -16,9 +16,6 @@
     "build": "npm run clean && tsc",
     "prepublishOnly": "npm run build"
   },
-  "exports": {
-    ".": "./index.js"
-  },
   "devDependencies": {
     "openid-client": "^5.6.1",
     "typescript": "^5.0.4"
@@ -26,5 +23,5 @@
   "files": [
     "./dist"
   ],
-  "gitHead": "0b3b6c88e57a7b42d563680b34bda54fa855eb33"
+  "gitHead": "c1e267e410acedb606c2b60ac1e28d52d51516c4"
 }
