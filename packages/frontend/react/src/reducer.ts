@@ -2,7 +2,7 @@ import type { ImmerReducer } from "use-immer";
 import type {KeycloakConnectorContextProps} from "./keycloak-connector-context.js";
 import type {UserStatus} from "@dapperduckling/keycloak-connector-common";
 import {ClientEvent, KeycloakConnectorClient} from "@dapperduckling/keycloak-connector-client";
-import {initialContext} from "./keycloak-connector-context.js";
+// import {initialContext} from "./keycloak-connector-context.js";
 
 export enum KccDispatch {
     SET_KCC_CLIENT,
@@ -36,7 +36,7 @@ const keycloakConnectorClientEventHandler: ImmerReducerType = (draft, action) =>
             break;
         case ClientEvent.LOGOUT_SUCCESS:
             // Reset the state
-            return structuredClone(initialContext);
+            // return structuredClone(initialContext);
 
         case ClientEvent.USER_STATUS_UPDATED:
             const payload = action.payload as CustomEvent<UserStatus>;
@@ -47,7 +47,9 @@ const keycloakConnectorClientEventHandler: ImmerReducerType = (draft, action) =>
     return undefined;
 }
 
-export const reducer: ImmerReducerType = (draft, action) => {
+// export const reducer: ImmerReducerType = (draft, action) => {
+// @ts-ignore
+export const reducer = (draft, action) => {
     switch (action.type) {
         case KccDispatch.KCC_CLIENT_EVENT:
             keycloakConnectorClientEventHandler(draft, action);

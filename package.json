@@ -48,6 +48,7 @@
     "pino-pretty": "^9.4.0",
     "ts-node": "github:TypeStrong/ts-node#main",
     "typescript": "^5.2.2",
-    "vitest": "^0.34.6"
+    "vitest": "^0.34.6",
+    "yalc": "^1.0.0-pre.53"
   }
 }

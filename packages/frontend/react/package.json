@@ -9,18 +9,28 @@
     "authentication",
     "oidc"
   ],
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
   "author": "DapperDuckling Dev LLC",
   "license": "AGPL-3.0-only",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DapperDuckling/keycloak-connector.git"
+  },
   "bugs": {
     "url": "https://github.com/DapperDuckling/keycloak-connector/issues"
   },
   "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
   "scripts": {
     "clean": "rimraf ./dist/",
-    "build": "npm run clean && tsc",
+    "build": "npm run clean && npm run build:esm && npm run build:cjs",
+    "build:yarn": "npm run clean && yarn build:esm && yarn build:cjs",
+    "build:esm": "tsc",
+    "build:cjs": "tsc --module commonjs --outDir dist/cjs",
+    "yalc:publish": "yalc publish",
+    "yalc:watch": "yalc-watch",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
@@ -32,15 +42,27 @@
     "use-immer": "^0.9.0"
   },
   "devDependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "typescript": "^5.3.2"
+    "@types/react": "^18.2.38",
+    "@types/react-dom": "^18.2.17",
+    "typescript": "~5.2.0",
+    "yalc-watch": "^0.0.6"
   },
   "files": [
-    "./dist"
+    "dist",
+    "COPYING",
+    "README.md"
   ],
   "publishConfig": {
     "access": "public"
   },
-  "gitHead": "59aee98d0b1e78baf2a8692f55314cc711818ddc"
+  "gitHead": "59aee98d0b1e78baf2a8692f55314cc711818ddc",
+  "peerDependencies": {
+    "react": ">=16",
+    "react-dom": ">=16"
+  },
+  "yalcWatch": {
+    "watchFolder": "dist",
+    "buildWatchCommand": "tsc --watch",
+    "extensions": "js,jsx,ts,tsx"
+  }
 }

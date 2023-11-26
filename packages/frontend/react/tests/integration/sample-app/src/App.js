@@ -2,6 +2,7 @@ import logo from './logo.svg';
 import './App.css';
 import {KeycloakConnectorProvider} from "@dapperduckling/keycloak-connector-react";
 
+
 function App() {
   return (
       <KeycloakConnectorProvider>
