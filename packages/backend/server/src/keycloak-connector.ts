@@ -36,7 +36,7 @@ import {
     SilentLoginEvent,
     type SilentLoginMessage,
     type UserStatus,
-    UserStatusWrapped
+    type UserStatusWrapped
 } from "@dapperduckling/keycloak-connector-common";
 import {isDev, epoch, SilentLoginTypes, RouteUrlDefaults, RouteEnum} from "@dapperduckling/keycloak-connector-common";
 import {UserDataDefault} from "./helpers/defaults.js";

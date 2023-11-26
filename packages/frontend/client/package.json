@@ -38,8 +38,9 @@
     ".": "./index.js"
   },
   "dependencies": {
-    "@dapperduckling/keycloak-connector-common": "file:../../common",
+    "@dapperduckling/keycloak-connector-common": "^0.0.7",
     "js-cookie": "^3.0.5",
     "typia": "^5.2.6"
-  }
+  },
+  "gitHead": "0b3b6c88e57a7b42d563680b34bda54fa855eb33"
 }
