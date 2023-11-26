@@ -1,6 +1,6 @@
 {
   "name": "@dapperduckling/keycloak-connector-client",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "An opinionated library securing frontend applications without all the fuss",
   "keywords": [
     "keycloak",
@@ -38,7 +38,7 @@
     ".": "./index.js"
   },
   "dependencies": {
-    "@dapperduckling/keycloak-connector-common": "^0.0.7",
+    "@dapperduckling/keycloak-connector-common": "^0.0.8",
     "js-cookie": "^3.0.5",
     "typia": "^5.2.6"
   },
