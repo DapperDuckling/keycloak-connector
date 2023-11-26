@@ -34,9 +34,6 @@
   "files": [
     "./dist"
   ],
-  "exports": {
-    ".": "./index.js"
-  },
   "publishConfig": {
     "access": "public"
   },

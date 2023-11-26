@@ -11,7 +11,7 @@ import {
     SilentLoginTypes,
     SilentLogoutTypes
 } from "@dapperduckling/keycloak-connector-common";
-import {setImmediate} from "./utils";
+import {setImmediate} from "./utils.js";
 import JsCookie from "js-cookie";
 import {silentLoginIframeHTML} from "./silent-login-iframe.js";
 import {is} from "typia";

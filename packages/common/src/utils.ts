@@ -4,7 +4,7 @@ export const epoch = (date: Date = new Date()) => Math.floor(date.getTime() / 10
 
 
 export function isDev() {
-    return process && process.env?.["NODE_ENV"] === "development";
+    return typeof process !== 'undefined' && process.env?.["NODE_ENV"] === "development";
 }
 
 export const isObject = (obj: unknown): obj is Record<never, never> => obj === Object(obj);
