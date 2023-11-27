@@ -5,7 +5,9 @@ import {KeycloakConnectorProvider} from "@dapperduckling/keycloak-connector-reac
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 root.render(
   <React.StrictMode>
-  <KeycloakConnectorProvider config={{}}>
+  <KeycloakConnectorProvider config={{
+    apiServerOrigin: "http://localhost:3005",
+  }}>
     <div>
       <h2>Default counter</h2>
     </div>

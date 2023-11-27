@@ -30,3 +30,20 @@ export const deferredFactory = <T = unknown>(): Deferred<T> => {
     // @ts-ignore
     return result;
 };
+
+class URL_polyfill extends URL {
+    static override canParse = (str: string) => {
+        if (typeof URL.canParse === "function") {
+            return URL.canParse(str);
+        }
+
+        // Polyfill
+        try {
+            new URL(str);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+}
+export {URL_polyfill as URL};

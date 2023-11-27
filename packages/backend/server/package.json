@@ -21,14 +21,14 @@
   },
   "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
   "scripts": {
-    "prepare": "npm ls ts-patch || exit 0 && ts-patch install",
     "clean": "rimraf ./dist/",
     "build": "npm run clean && tsc && cpy ./src/**/*.d.ts ./dist && cpy ./src/static/* ./dist/static && cpy --flat ./../../../node_modules/trianglify/dist/trianglify.bundle.js ./dist/static",
     "prepublishOnly": "npm run build",
     "test:start:fastify": "npm run build && cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts",
     "test:start:express": "npm run build && cd ./tests/integration/express/ && nodemon ./express-server.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "postinstall": "ts-patch install"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -47,9 +47,9 @@
     "pino-http": "^8.4.0",
     "readline-sync": "^1.4.10",
     "trianglify": "^4.1.1",
-    "ts-node": "github:TypeStrong/ts-node#main",
+    "ts-node": "^10.9.1",
     "ts-patch": "^3.0.2",
-    "typescript": "^5.1.6"
+    "typescript": "^5.3.2"
   },
   "dependencies": {
     "@dapperduckling/keycloak-connector-common": "^0.0.10",

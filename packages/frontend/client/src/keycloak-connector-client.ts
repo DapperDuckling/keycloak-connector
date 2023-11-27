@@ -9,7 +9,8 @@ import {
     type UserStatusWrapped,
     type GeneralResponse,
     SilentLoginTypes,
-    SilentLogoutTypes
+    SilentLogoutTypes,
+    URL,
 } from "@dapperduckling/keycloak-connector-common";
 import {setImmediate} from "./utils.js";
 import JsCookie from "js-cookie";
@@ -424,12 +425,13 @@ export class KeycloakConnectorClient {
             return this.kccClient;
         }
 
-        // Ensure the config is valid
-        const configValidation = validate<ClientConfig>(config);
-        if (!configValidation.success) {
-            console.error(configValidation.errors);
-            throw new Error("Invalid config provided to KeycloakConnectorClient. See console for more details.");
-        }
+        //todo: Get typia working
+        // // Ensure the config is valid
+        // const configValidation = validate<ClientConfig>(config);
+        // if (!configValidation.success) {
+        //     console.error(configValidation.errors);
+        //     throw new Error("Invalid config provided to KeycloakConnectorClient. See console for more details.");
+        // }
 
         // Initiate the singleton
         this.kccClient = new KeycloakConnectorClient(config);
