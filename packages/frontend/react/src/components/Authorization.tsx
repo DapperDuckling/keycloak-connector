@@ -3,17 +3,33 @@ import {useKeycloakConnector} from "../use-keycloak-connector.js";
 import {
     Box,
     Button,
-    CircularProgress,
+    CircularProgress, createTheme,
     Dialog,
-    Stack,
+    Stack, ThemeProvider,
     Typography,
 } from "@mui/material";
+
+const theme = createTheme({
+    palette: {
+        mode: "dark",
+        primary: { main: "#ffffff" },
+        // @ts-ignore
+        grey: { main: "#7a7a7a" },
+        darkgrey: { main: "#313131" },
+        lightgrey: { main: "#B9B9B9" },
+        lightblue: { main: "#79b4c3" },
+        white: { main: "#fff" },
+        black: { main: "#000" },
+        red: { main: "#ff0000" },
+    },
+});
 
 
 export const Authorization = () => {
     const kccContext = useKeycloakConnector();
 
     return (
+        <ThemeProvider theme={theme}>
         <Dialog open={true}>
             <Stack
                 p={2}
@@ -85,6 +101,7 @@ export const Authorization = () => {
                 </Button>
             </Stack>
         </Dialog>
+        </ThemeProvider>
     );
 }
 

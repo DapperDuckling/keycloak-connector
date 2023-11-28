@@ -17,6 +17,7 @@ import JsCookie from "js-cookie";
 import {silentLoginIframeHTML} from "./silent-login-iframe.js";
 import {is, validate} from "typia";
 import {type ClientConfig, ClientEvent, LocalStorage} from "./types.js";
+import {EventListener} from "@dapperduckling/keycloak-connector-common";
 
 export class KeycloakConnectorClient {
     // Create a random token if in a secure context. If not in a secure context, just generate a non-cryptographically secure "random" token
@@ -28,7 +29,9 @@ export class KeycloakConnectorClient {
 
 
     private userStatusHash: string | undefined = undefined;
-    private eventTarget = new EventTarget();
+    // private eventTarget = new EventTarget();
+    private eventListener = new EventListener<ClientEvent>();
+
     private config: ClientConfig;
     private acceptableOrigins: string[];
     private userStatusAbortController: AbortController | undefined = undefined;
@@ -81,16 +84,22 @@ export class KeycloakConnectorClient {
     }
 
     public start = () => {
+        // Check to see if the client is already started
         if (this.started) {
             this.config.logger?.error(`Already started, cannot start again`);
         }
 
         // Set the auth to happen on the next tick
         setImmediate(this.authCheck);
+
+        // Set the started flag
+        this.started = true;
     }
 
-    public addEventListener = (...args: Parameters<EventTarget['addEventListener']>) => this.eventTarget.addEventListener(...args);
-    public removeEventListener = (...args: Parameters<EventTarget['removeEventListener']>) => this.eventTarget.removeEventListener(...args);
+    public isStarted = () => this.started;
+
+    public addEventListener = (...args: Parameters<EventListener<ClientEvent>['addEventListener']>) => this.eventListener.addEventListener(...args);
+    public removeEventListener = (...args: Parameters<EventListener<ClientEvent>['removeEventListener']>) => this.eventListener.removeEventListener(...args);
 
     private storeUserStatus = (data: UserStatusWrapped | undefined) => {
         try {
@@ -156,14 +165,14 @@ export class KeycloakConnectorClient {
                 if (KeycloakConnectorClient.isTokenCurrent(TokenType.ACCESS)) return;
 
                 // Send the login error event
-                this.eventTarget.dispatchEvent(new Event(ClientEvent.LOGIN_ERROR));
+                this.eventListener.dispatchEvent(ClientEvent.LOGIN_ERROR);
         }
     }
 
     private silentLogin = () => {
 
         // Dispatch the start silent login event
-        this.eventTarget.dispatchEvent(new Event(ClientEvent.START_SILENT_LOGIN));
+        this.eventListener.dispatchEvent(ClientEvent.START_SILENT_LOGIN);
 
         // Make an iframe to make auth request
         const iframe = document.createElement("iframe");
@@ -205,7 +214,7 @@ export class KeycloakConnectorClient {
         // Check for an invalid refresh token as well
         if (!validRefreshToken) {
             // Send an invalid tokens event
-            this.eventTarget.dispatchEvent(new Event(ClientEvent.INVALID_TOKENS));
+            this.eventListener.dispatchEvent(ClientEvent.INVALID_TOKENS);
         }
 
         return false;
@@ -311,9 +320,7 @@ export class KeycloakConnectorClient {
         // Update the user status hash
         this.userStatusHash = userStatusWrapped["md5"];
 
-        this.eventTarget.dispatchEvent(new CustomEvent<UserStatus<any>>(ClientEvent.USER_STATUS_UPDATED, {
-            detail: userStatus
-        }));
+        this.eventListener.dispatchEvent<UserStatus>(ClientEvent.USER_STATUS_UPDATED, userStatus);
     }
 
     private handleStorageEvent = (event: StorageEvent) => {
@@ -360,7 +367,7 @@ export class KeycloakConnectorClient {
                 // Check for a valid logout result
                 if (result.success) {
                     // Send a logout event
-                    this.eventTarget.dispatchEvent(new Event(ClientEvent.LOGOUT_SUCCESS));
+                    this.eventListener.dispatchEvent(ClientEvent.LOGOUT_SUCCESS);
                     return;
                 }
 

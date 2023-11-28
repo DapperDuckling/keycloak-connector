@@ -1,4 +1,4 @@
-import {type ReactNode, useReducer, useState} from 'react';
+import {type ReactNode, useLayoutEffect, useReducer, useState} from 'react';
 import React from "react";
 import {
     type ClientConfig, ClientEvent,
@@ -12,7 +12,6 @@ import {
 } from "../keycloak-connector-context.js";
 import {KccDispatchType, reducer} from "../reducer.js";
 import {useImmerReducer} from "use-immer";
-
 
 interface ConnectorProviderProps {
     children: ReactNode,
@@ -28,19 +27,34 @@ export const KeycloakConnectorProvider = ({ children, config, disableAuthCompone
         // Instantiate the keycloak connector client
         const kccClient = keycloakConnectorClient(config);
 
-        //todo: check if it is started already
-
-        //todo: add a private function in kccClient to dispatchEvents. Dispatch two events, one to the target event and one to a catch all "*"
-
         // Store the client in the context
         kccDispatch({type: KccDispatchType.SET_KCC_CLIENT, payload: kccClient});
+    });
+
+    useLayoutEffect(() => {
+
+        // Grab the client
+        const kccClient = kccContext.kccClient;
+
+        if (!kccClient) {
+            console.debug(`No client found`);
+            return;
+        }
+
+        // Check if the client has already started
+        if (kccClient.isStarted()) return;
 
         // Attach handler
         let lengthyLoginTimeout: undefined | number = undefined;
-        kccClient.addEventListener('START_SILENT_LOGIN', (event) => {
-            console.log('START_SILENT_LOGIN');
-        });
-        kccClient.addEventListener('*', (event) => {
+
+        kccClient.addEventListener('*', (clientEvent, payload) => {
+
+            console.debug(`KCP received event: ${clientEvent}`);
+
+            // Build a custom event
+            const event = new CustomEvent(clientEvent, {detail: payload});
+
+            // Dispatch the event
             kccDispatch({type: KccDispatchType.KCC_CLIENT_EVENT, payload: event});
 
             // Capture silent login events and set a timer to flag them as lengthy
@@ -54,7 +68,6 @@ export const KeycloakConnectorProvider = ({ children, config, disableAuthCompone
 
         // Initialize the connector
         kccClient.start();
-
     });
 
     return (
