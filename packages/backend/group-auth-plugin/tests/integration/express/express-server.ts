@@ -33,6 +33,7 @@ const clusterProvider = await redisClusterProvider({
 const {registerAuthPlugin} = await keycloakConnectorExpress(app, {
     serverOrigin: `http://localhost:3005`,
     authServerUrl: 'http://localhost:8080/',
+    validOrigins: ['http://localhost:3000'],
     realm: 'local-dev',
     refreshConfigMins: -1, // Disable for dev testing
     clusterProvider: clusterProvider,

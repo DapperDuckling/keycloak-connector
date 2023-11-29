@@ -418,7 +418,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             redirectUrlOrigin: redirectUriOrigin,
             serverOrigin: this._config.serverOrigin,
         });
-        this._config.pinoLogger?.warn(`Login redirect url origin does not match server origin!`);
+        this._config.pinoLogger?.error(`Login redirect url origin does not match server origin!`);
         throw new LoginError(ErrorHints.CODE_400);
     }
 
@@ -817,11 +817,22 @@ export class KeycloakConnector<Server extends SupportedServers> {
         };
     };
 
-    private buildUserStatus = async (req: ConnectorRequest): Promise<UserStatus> => ({
-        ...await this.authPluginManager.decorateUserStatus(req), // Grab additional decoration from plugins
-        loggedIn: req.kccUserData?.isAuthenticated ?? false,
-        userInfo: req.kccUserData?.userInfo,
-    });
+    private buildUserStatus = async (req: ConnectorRequest): Promise<UserStatus> => {
+
+        // Fetch the refresh token expiration from the user's cookies
+        const refreshTokenExpRaw = req.cookies?.[ConnectorCookies.REFRESH_TOKEN_EXPIRATION];
+
+        // Ensure the refresh token is a number
+        const refreshTokenExp = (!!refreshTokenExpRaw) ? parseInt(refreshTokenExpRaw) : null;
+
+        return ({
+            ...await this.authPluginManager.decorateUserStatus(req), // Grab additional decoration from plugins
+            loggedIn: req.kccUserData?.isAuthenticated ?? false,
+            userInfo: req.kccUserData?.userInfo,
+            accessExpires: req.kccUserData?.accessToken?.exp ?? -1,
+            refreshExpires: (refreshTokenExp && !isNaN(refreshTokenExp)) ? refreshTokenExp : -1,
+        });
+    };
 
     private handleUserStatus = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
         // Build user status with response
@@ -1332,7 +1343,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
             value: refreshTokenExpiration.toString(),
             options: {
                 ...(this.hasOtherOrigins()) ? this.CookieOptionsUnrestricted : this.CookieOptions,
-                httpOnly: false,
                 expires: new Date(refreshTokenExpiration * 1000),
             }
         });

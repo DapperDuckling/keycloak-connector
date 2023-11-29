@@ -161,8 +161,8 @@ export class KeycloakConnectorClient {
                 // Reset the auth check flag
                 this.isAuthChecking = false;
 
-                // Check for a valid token at this point
-                if (KeycloakConnectorClient.isTokenCurrent(TokenType.ACCESS)) return;
+                // // Check for a valid token at this point
+                // if (KeycloakConnectorClient.isTokenCurrent(TokenType.ACCESS)) return;
 
                 // Send the login error event
                 this.eventListener.dispatchEvent(ClientEvent.LOGIN_ERROR);
@@ -296,14 +296,23 @@ export class KeycloakConnectorClient {
         this.authCheckNoWait();
     }
 
-    private handleUpdatedUserStatus = () => {
+    private static getStoredUserStatusWrapped = () => {
         // Grab the user status from local storage
         const userStatusWrapped = JSON.parse(
             localStorage.getItem(LocalStorage.USER_STATUS) ?? "{}"
         );
 
         // Check the resultant object for the proper type
-        if (!is<UserStatusWrapped>(userStatusWrapped)) return;
+        return is<UserStatusWrapped>(userStatusWrapped) ? userStatusWrapped : undefined;
+    }
+
+    private handleUpdatedUserStatus = () => {
+
+        // Grab the user status from local storage
+        const userStatusWrapped = KeycloakConnectorClient.getStoredUserStatusWrapped();
+
+        // Check for no result
+        if (userStatusWrapped === undefined) return;
 
         // Cancel any background requests
         this.abortBackgroundLogins();
@@ -400,24 +409,30 @@ export class KeycloakConnectorClient {
     }
 
     static isTokenCurrent = (type: TokenType) => {
-        let target;
+
+        // Grab the user status from local storage
+        const userStatusWrapped = KeycloakConnectorClient.getStoredUserStatusWrapped();
+
+        // Check for no result
+        if (userStatusWrapped === undefined) return;
+
+        let expirationTimestamp;
+
         switch (type) {
             case TokenType.ACCESS:
-                target = ConnectorCookies.PUBLIC_ACCESS_TOKEN_EXPIRATION;
+                expirationTimestamp = userStatusWrapped.payload.accessExpires;
                 break;
             case TokenType.REFRESH:
-                target = ConnectorCookies.REFRESH_TOKEN_EXPIRATION;
+                expirationTimestamp = userStatusWrapped.payload.refreshExpires;
                 break;
             default:
                 throw new Error("Invalid token type");
         }
 
-        const expirationTimestamp = Number.parseInt(JsCookie.get(target) ?? "0");
-
         // Check for an invalid number
         if (Number.isNaN(expirationTimestamp)) return false;
 
-        return (Date.now() < expirationTimestamp);
+        return (Date.now() < expirationTimestamp * 1000);
     }
 
     static instance = (config: ClientConfig): KeycloakConnectorClient => {

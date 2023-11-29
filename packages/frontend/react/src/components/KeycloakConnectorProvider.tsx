@@ -8,7 +8,6 @@ import {Authorization} from "./Authorization.js";
 import {
     initialContext,
     KeycloakConnectorContext,
-    type KeycloakConnectorContextProps,
 } from "../keycloak-connector-context.js";
 import {KccDispatchType, reducer} from "../reducer.js";
 import {useImmerReducer} from "use-immer";
@@ -73,7 +72,7 @@ export const KeycloakConnectorProvider = ({ children, config, disableAuthCompone
     return (
         <KeycloakConnectorContext.Provider value={kccContext}>
             <>
-                {disableAuthComponent !== true && <Authorization />}
+                {disableAuthComponent !== true && kccContext.showLoginOverlay && <Authorization />}
                 <div>Wow5!</div>
                 {children}
             </>

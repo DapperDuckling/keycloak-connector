@@ -9,7 +9,6 @@ export const ConnectorCookies = Object.freeze({
     REDIRECT_URI_B64: `${STORAGE_PREFIX_COMBINED}redirect-uri`,
     LOGOUT_REDIRECT_URI_B64: `${STORAGE_PREFIX_COMBINED}logout-redirect-uri`,
     ACCESS_TOKEN: `${STORAGE_PREFIX_COMBINED}access`,
-    PUBLIC_ACCESS_TOKEN_EXPIRATION: `${STORAGE_KCC_PREFIX}access-expiration`,
     REFRESH_TOKEN: `${STORAGE_PREFIX_COMBINED}refresh`,
     REFRESH_TOKEN_EXPIRATION: `${STORAGE_PREFIX_COMBINED}refresh-expiration`,
     ID_TOKEN: `${STORAGE_PREFIX_COMBINED}id`,
@@ -20,7 +19,6 @@ export const ConnectorCookieNames: Readonly<string[]> = Object.values(ConnectorC
 /** Array of cookies to keep after login process is complete **/
 export const ConnectorCookiesToKeep: Readonly<string[]> = [
     ConnectorCookies.ACCESS_TOKEN,
-    ConnectorCookies.PUBLIC_ACCESS_TOKEN_EXPIRATION,
     ConnectorCookies.REFRESH_TOKEN,
     ConnectorCookies.REFRESH_TOKEN_EXPIRATION,
     ConnectorCookies.ID_TOKEN,

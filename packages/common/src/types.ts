@@ -3,6 +3,8 @@ import type {UserinfoResponse} from "openid-client";
 export type UserStatus<Data extends Record<string, any> = Record<string, any>> = Data & {
     loggedIn: boolean;
     userInfo: UserinfoResponse | undefined;
+    accessExpires: number;
+    refreshExpires: number;
 }
 
 export enum TokenType {
