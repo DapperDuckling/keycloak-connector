@@ -21,7 +21,8 @@ export const Authorization = () => {
                 sx={{ background: "#051827", color: "white" }}
             >
                 <Typography variant="h5">Dark Saber Authenticator</Typography>
-                <Box sx={{ position: "relative", height: 210, maxHeight: '20vh', minHeight: 120 }}>
+                {/*<Box sx={{ position: "relative", height: 210, maxHeight: '20vh', minHeight: 120 }}>*/}
+                <Box sx={{ position: "relative", height: 210, width: 210 }}>
                     <Box
                         component="img"
                         src={`https://s3-public.devilops.dso.mil/DarkSaberLogo300x300.webp`}
