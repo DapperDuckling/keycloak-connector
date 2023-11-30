@@ -9,28 +9,11 @@ import {
     Typography,
 } from "@mui/material";
 
-const theme = createTheme({
-    palette: {
-        mode: "dark",
-        primary: { main: "#ffffff" },
-        // @ts-ignore
-        grey: { main: "#7a7a7a" },
-        darkgrey: { main: "#313131" },
-        lightgrey: { main: "#B9B9B9" },
-        lightblue: { main: "#79b4c3" },
-        white: { main: "#fff" },
-        black: { main: "#000" },
-        red: { main: "#ff0000" },
-    },
-});
-
-
 export const Authorization = () => {
-    const kccContext = useKeycloakConnector();
+    const [kccContext] = useKeycloakConnector();
 
     return (
-        <ThemeProvider theme={theme}>
-        <Dialog open={true}>
+        <Dialog open={true} scroll={"body"}>
             <Stack
                 p={2}
                 spacing={3}
@@ -38,7 +21,7 @@ export const Authorization = () => {
                 sx={{ background: "#051827", color: "white" }}
             >
                 <Typography variant="h5">Dark Saber Authenticator</Typography>
-                <Box sx={{ position: "relative", height: 210, width: 210 }}>
+                <Box sx={{ position: "relative", height: 210, maxHeight: '20vh', minHeight: 120 }}>
                     <Box
                         component="img"
                         src={`https://s3-public.devilops.dso.mil/DarkSaberLogo300x300.webp`}
@@ -46,7 +29,7 @@ export const Authorization = () => {
                         width="100%"
                         alt="Dark Saber Logo"
                     />
-                    {kccContext.silentLoginInitiated && (
+                    {kccContext.silentLoginInitiated && !kccContext.showMustLoginOverlay && (
                         <>
                             <Box sx={center}>
                                 <CircularProgress
@@ -101,7 +84,6 @@ export const Authorization = () => {
                 </Button>
             </Stack>
         </Dialog>
-        </ThemeProvider>
     );
 }
 

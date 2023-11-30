@@ -56,6 +56,9 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
         // Set the response code
         if (connectorResponse.statusCode) void reply.code(connectorResponse.statusCode);
 
+        // Set the response headers
+        Object.entries(connectorResponse.headers ?? {}).forEach(([key, value]) => reply.header(key, value));
+
         // Handle exclusive parameters
         if (connectorResponse.redirectUrl) {
             // Redirect if needed

@@ -5,6 +5,8 @@ export interface KeycloakConnectorState {
     initiated: boolean;
     showLoginOverlay: boolean;
     showMustLoginOverlay: boolean;
+    showLogoutOverlay: boolean;
+    executingLogout: boolean;
     silentLoginInitiated: boolean;
     lengthyLogin: boolean;
     loginError: boolean;

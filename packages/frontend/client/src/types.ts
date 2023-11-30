@@ -15,16 +15,22 @@ export interface ClientConfig {
     /**
      * @description Set the API server's origin if different from the current page's origin
      * @example "http://localhost:4000"
+     * @default self.location.origin
      */
     apiServerOrigin?: string;
 
     /**
      * @description Used if the API server uses custom auth route paths
+     * @default {
+     *     _prefix: "/auth";
+     *     ...
+     * }
      */
     routePaths?: CustomRouteUrl;
 
     /**
      * @description Disables ability for the client to authenticate with Keycloak silently
+     * @default false
      */
     disableSilentLogin?: boolean;
 
@@ -37,6 +43,13 @@ export interface ClientConfig {
      * const client = new KCClient({logger});
      */
     logger?: Logger;
+
+    /**
+     * @desc    When true, the client will not perform a network request to confirm login status if the
+     *          user has a valid access token, resulting in an immediate login in some instances.
+     * @default false
+     */
+    fastInitialAuthCheck?: boolean;
 }
 
 export const LocalStorage = Object.freeze({

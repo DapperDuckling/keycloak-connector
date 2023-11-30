@@ -183,6 +183,7 @@ export interface ConnectorResponse<Server extends SupportedServers> {
     redirectUrl?: string,
     responseText?: string,
     responseHtml?: string,
+    headers?: Record<string, string>,
     statusCode?: number,
     cookies?: CookieParams<Server>[],
 }

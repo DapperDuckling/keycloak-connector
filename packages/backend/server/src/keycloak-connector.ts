@@ -62,6 +62,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private readonly components: KeycloakConnectorInternalConfiguration;
     private readonly roleHelper: RoleHelper;
     private readonly authPluginManager: AuthPluginManager;
+    private readonly validRedirectOrigins: string[];
     private oidcConfigTimer: ReturnType<typeof setTimeout> | null = null;
     private updateOidcConfig: Promise<boolean> | null = null;
     private updateOidcConfigPending: Promise<boolean> | null = null;
@@ -78,7 +79,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
         ...this.CookieOptions,
         sameSite: "lax",
     }
-
     private readonly CookieOptionsUnrestricted: CookieOptionsBase<Server> = {
         ...this.CookieOptions,
         sameSite: "none",
@@ -114,6 +114,12 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Register the routes using the connector adapter
         this.registerRoutes(adapter);
+
+        // Grab all the valid redirect origins
+        this.validRedirectOrigins = [
+            this._config.serverOrigin,
+            ...(this._config.validOrigins ?? []),
+        ]
 
         // Register the on key update listener
         this.components.keyProvider.registerCallbacks(
@@ -404,14 +410,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
             throw new LoginError(ErrorHints.CODE_400);
         }
 
-        // Grab all the valid redirect origins
-        const validRedirectOrigins = [
-            this._config.serverOrigin,
-            ...(this._config.validOrigins ?? []),
-        ]
-
         // Check for good origin
-        if (validRedirectOrigins.includes(redirectUriOrigin)) return true;
+        if (this.validRedirectOrigins.includes(redirectUriOrigin)) return true;
 
         // Log the potentially dangerous error
         this._config.pinoLogger?.warn({
@@ -420,6 +420,42 @@ export class KeycloakConnector<Server extends SupportedServers> {
         });
         this._config.pinoLogger?.error(`Login redirect url origin does not match server origin!`);
         throw new LoginError(ErrorHints.CODE_400);
+    }
+
+    private validateOriginOrThrow = (req: ConnectorRequest) => {
+
+        // Check for dev and the server has a "localhost" origin
+        const hostname = (URL.canParse(this._config.serverOrigin)) ? (new URL(this._config.serverOrigin))?.hostname : undefined;
+        if (isDev() && hostname === "localhost") return;
+
+        // Check for good origin
+        if (req.origin && this.validRedirectOrigins.includes(req.origin)) return;
+
+        // Log this error (possibly detect attacks)
+        this._config.pinoLogger?.warn(`Request came from different origin. Server origin: ${this._config.serverOrigin}, Got: ${req.origin}. Add to valid origins configuration if required.`);
+
+        throw new LoginError(ErrorHints.CODE_400);
+    }
+
+    public getCorsHeaders = (req: ConnectorRequest) => {
+
+        // Check for no origin header
+        if (req.origin === undefined) return;
+
+        // Ensure the origin is valid
+        try {
+            this.validateOriginOrThrow(req);
+        } catch (e) {
+            // No cors headers with an invalid origin
+            return;
+        }
+
+        return {
+            "Access-Control-Allow-Origin": req.origin,
+            "Access-Control-Allow-Methods": "GET, POST",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "3600" // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Max-Age#delta-seconds
+        }
     }
 
     private buildRedirectCookie = (opts: {
@@ -497,27 +533,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         return redirectUriObj.toString();
-    }
-
-    private validateOriginOrThrow = (req: ConnectorRequest) => {
-
-        // Check for dev and the server has a "localhost" origin
-        const hostname = (URL.canParse(this._config.serverOrigin)) ? (new URL(this._config.serverOrigin))?.hostname : undefined;
-        if (isDev() && hostname === "localhost") return;
-
-        // Grab all the valid redirect origins
-        const validRedirectOrigins = [
-            this._config.serverOrigin,
-            ...(this._config.validOrigins ?? []),
-        ]
-
-        // Check for good origin
-        if (req.origin && validRedirectOrigins.includes(req.origin)) return;
-
-        // Log this error (possibly detect attacks)
-        this._config.pinoLogger?.warn(`POST request came from different origin. Server origin: ${this._config.serverOrigin}, Got: ${req.origin}. Add to valid origins configuration if required.`);
-
-        throw new LoginError(ErrorHints.CODE_400);
     }
 
     private getAuthFlowNonce = (req: ConnectorRequest): string|null => {
@@ -706,6 +721,13 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Build the redirect uri
         const redirectUri = this.buildRedirectUriOrThrow({authFlowNonce: authFlowNonce, isLogout: true});
 
+        // Add the redirect cookie
+        const redirectCookie = this.buildRedirectCookie({
+            req: req,
+            authFlowNonce: authFlowNonce,
+            isLogout: true,
+        });
+
         // Grab the ID token
         const idToken = req.cookies?.[ConnectorCookies.ID_TOKEN];
 
@@ -715,9 +737,14 @@ export class KeycloakConnector<Server extends SupportedServers> {
             ...idToken && {id_token_hint: idToken},
         });
 
+        // Grab the cors headers
+        const corsHeaders = this.getCorsHeaders(req);
+
         return {
+            ...corsHeaders && {headers: corsHeaders},
             redirectUrl: logoutUrl,
             statusCode: 303,
+            cookies: redirectCookie,
         }
     }
 
@@ -838,7 +865,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Build user status with response
         const userStatus = await this.buildWrappedUserStatus(req);
 
+        // Grab the cors headers
+        const corsHeaders = this.getCorsHeaders(req);
+
         return {
+            ...corsHeaders && {headers: corsHeaders},
             statusCode: 200,
             responseText: JSON.stringify(userStatus),
         };

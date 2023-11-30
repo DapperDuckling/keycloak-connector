@@ -35,8 +35,9 @@ export class KeycloakConnectorClient {
     private config: ClientConfig;
     private acceptableOrigins: string[];
     private userStatusAbortController: AbortController | undefined = undefined;
-    private isAuthChecking = false;
     private started = false;
+    private isAuthCheckedWithServer = false;
+    private isAuthChecking = false;
 
     private static kccClient: KeycloakConnectorClient | undefined = undefined;
     private static readonly IFRAME_ID = "silent-login-iframe";
@@ -90,7 +91,9 @@ export class KeycloakConnectorClient {
         }
 
         // Set the auth to happen on the next tick
-        setImmediate(this.authCheck);
+        setImmediate(async () => {
+            await this.authCheck();
+        });
 
         // Set the started flag
         this.started = true;
@@ -144,6 +147,10 @@ export class KeycloakConnectorClient {
                 break;
             case SilentLoginEvent.LOGIN_REQUIRED:
             case SilentLoginEvent.LOGIN_SUCCESS:
+
+                // Update the auth checked with server flag
+                this.isAuthCheckedWithServer = true;
+
                 // Update the user status and interface
                 this.storeUserStatus(silentLoginMessage.data);
 
@@ -206,7 +213,14 @@ export class KeycloakConnectorClient {
 
     private authCheckNoWait = () => {
         // Check for a valid access token
-        if (KeycloakConnectorClient.isTokenCurrent(TokenType.ACCESS)) return true;
+        if (KeycloakConnectorClient.isTokenCurrent(TokenType.ACCESS)) {
+            // Initial check if the user status has not been populated
+            if (this.userStatusHash === undefined && this.config.fastInitialAuthCheck) {
+                this.handleUpdatedUserStatus();
+            }
+
+            return true;
+        }
 
         // Check for a valid refresh token
         const validRefreshToken = KeycloakConnectorClient.isTokenCurrent(TokenType.REFRESH);
@@ -274,10 +288,12 @@ export class KeycloakConnectorClient {
     private authCheck = async () => {
 
         // Execute the synchronous auth check portion
-        if (this.authCheckNoWait()) return;
+        if (this.authCheckNoWait() && (this.userStatusHash !== undefined || this.config.fastInitialAuthCheck)) return;
 
         // Prevent multiple async auth checks from occurring
-        if (this.isAuthChecking) return;
+        if (this.isAuthChecking) {
+            console.debug(`Is already auth checking, will not make another attempt`);
+        }
 
         // Set the flag
         this.isAuthChecking = true;
@@ -285,6 +301,7 @@ export class KeycloakConnectorClient {
         // Attempt to update the auth with the refresh token
         if (await this.refreshAccessWithRefresh()) {
             this.isAuthChecking = false;
+            this.isAuthCheckedWithServer = true;
             return;
         }
 
@@ -338,6 +355,10 @@ export class KeycloakConnectorClient {
 
         // Call helper function to handle any changes to the status
         this.handleUpdatedUserStatus();
+
+        // Update the auth checked with server flag
+        // (Storage events from other clients are the result of network calls)
+        this.isAuthCheckedWithServer = true;
     }
 
     handleLogin = (newWindow?: boolean) => {
@@ -360,12 +381,13 @@ export class KeycloakConnectorClient {
     handleLogout = async () => {
 
         // Build the logout url
-        const logoutUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGOUT_POST, this.config.routePaths)}`;
+        const logoutUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGOUT_POST, this.config.routePaths)}?post_auth_redirect_uri=${self.location.href}`;
 
         try {
             // Attempt to log out using a fetch
             const logoutFetch = await fetch(`${logoutUrl}?silent=${SilentLogoutTypes.FETCH}`, {
                 credentials: "include",
+                method: "POST",
             });
 
             // Grab the result

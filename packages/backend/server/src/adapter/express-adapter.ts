@@ -76,6 +76,9 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             // Set the response code
             if (connectorResponse.statusCode !== undefined) res.status(connectorResponse.statusCode);
 
+            // Set the response headers
+            Object.entries(connectorResponse.headers ?? {}).forEach(([key, value]) => res.setHeader(key, value));
+
             // Handle exclusive parameters
             if (connectorResponse.redirectUrl !== undefined) {
                 // Redirect if needed

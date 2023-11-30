@@ -8,17 +8,35 @@ import {Authorization} from "./Authorization.js";
 import {
     initialContext,
     KeycloakConnectorContext,
+    KeycloakConnectorDispatchContext,
 } from "../keycloak-connector-context.js";
 import {KccDispatchType, reducer} from "../reducer.js";
 import {useImmerReducer} from "use-immer";
+import {Button, createTheme, ThemeProvider} from "@mui/material";
+import {Logout} from "./Logout.js";
 
 interface ConnectorProviderProps {
     children: ReactNode,
     config: ClientConfig,
-    disableAuthComponent?: boolean
+    disableAuthComponents?: boolean
 }
 
-export const KeycloakConnectorProvider = ({ children, config, disableAuthComponent}: ConnectorProviderProps) => {
+const theme = createTheme({
+    palette: {
+        mode: "dark",
+        primary: { main: "#ffffff" },
+        // @ts-ignore
+        grey: { main: "#7a7a7a" },
+        darkgrey: { main: "#313131" },
+        lightgrey: { main: "#B9B9B9" },
+        lightblue: { main: "#79b4c3" },
+        white: { main: "#fff" },
+        black: { main: "#000" },
+        red: { main: "#ff0000" },
+    },
+});
+
+export const KeycloakConnectorProvider = ({ children, config, disableAuthComponents}: ConnectorProviderProps) => {
 
     const [kccContext, kccDispatch] = useImmerReducer(reducer, initialContext);
 
@@ -71,11 +89,22 @@ export const KeycloakConnectorProvider = ({ children, config, disableAuthCompone
 
     return (
         <KeycloakConnectorContext.Provider value={kccContext}>
-            <>
-                {disableAuthComponent !== true && kccContext.showLoginOverlay && <Authorization />}
+            <KeycloakConnectorDispatchContext.Provider value={kccDispatch}>
+                {disableAuthComponents !== true &&
+                    <ThemeProvider theme={theme}>
+                        {/*Todo: Centralize common components */}
+                        {kccContext.showLoginOverlay && <Authorization />}
+                        {kccContext.showLogoutOverlay && <Logout />}
+                    </ThemeProvider>
+                }
                 <div>Wow5!</div>
+                <Button onClick={() => {
+                    kccDispatch({type: KccDispatchType.EXECUTING_LOGOUT});
+                    kccContext.kccClient?.handleLogout();
+                }}>Logout Now</Button>
+                <Button onClick={() => kccDispatch({type: KccDispatchType.SHOW_LOGOUT})}>Show Logout Modal</Button>
                 {children}
-            </>
+            </KeycloakConnectorDispatchContext.Provider>
         </KeycloakConnectorContext.Provider>
     );
 };
