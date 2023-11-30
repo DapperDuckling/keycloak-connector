@@ -1,6 +1,6 @@
 {
   "name": "@dapperduckling/keycloak-connector-common",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "Common library code. Not intended for individual installation.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
