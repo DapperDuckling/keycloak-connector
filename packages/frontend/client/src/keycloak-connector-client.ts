@@ -379,7 +379,6 @@ export class KeycloakConnectorClient {
     }
 
     handleLogout = async () => {
-
         // Build the logout url
         const logoutUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGOUT_POST, this.config.routePaths)}?post_auth_redirect_uri=${self.location.href}`;
 
