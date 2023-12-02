@@ -178,9 +178,6 @@ export class KeycloakConnectorClient {
 
     private silentLogin = () => {
 
-        // Dispatch the start silent login event
-        this.eventListener.dispatchEvent(ClientEvent.START_SILENT_LOGIN);
-
         // Make an iframe to make auth request
         const iframe = document.createElement("iframe");
         const authUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGIN_POST, this.config.routePaths)}?silent=${SilentLoginTypes.FULL}&silent-token=${this.token}`;
@@ -297,6 +294,9 @@ export class KeycloakConnectorClient {
 
         // Set the flag
         this.isAuthChecking = true;
+
+        // Dispatch the start silent login event
+        this.eventListener.dispatchEvent(ClientEvent.START_SILENT_LOGIN);
 
         // Attempt to update the auth with the refresh token
         if (await this.refreshAccessWithRefresh()) {

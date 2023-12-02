@@ -1,25 +1,35 @@
-import {Button} from "@mui/material";
+import {Button, Dialog, Stack} from "@mui/material";
 import {useKeycloakConnector} from "../use-keycloak-connector.js";
 import {KccDispatchType, reducer} from "../reducer.js";
-import {useImmerReducer} from "use-immer";
-import {initialContext} from "../keycloak-connector-context.js";
+import {Overlay} from "./Overlay.js";
+import type {ReactNode} from "react";
 
-export const Logout = () => {
+export const Logout = ({children}: {children: ReactNode}) => {
     const [kccContext, kccDispatch] = useKeycloakConnector();
 
-    return (
-        <Button
-            onClick={() => {
+    const overlayProps = {
+        mainMsg: "Are you sure you want to log out?",
+        button: {
+            label: "Logout",
+            onClick: () => {
                 kccDispatch({type: KccDispatchType.EXECUTING_LOGOUT});
                 kccContext.kccClient?.handleLogout();
-            }}
-            variant={"contained"}
-            sx={{
-                width: "100%",
-            }}
-            color={"info"}
-        >
-            Logout
-        </Button>
-    )
+            },
+        }
+    };
+
+    return (
+        <Dialog open={true} scroll={"body"}>
+            <Stack
+                p={2}
+                spacing={3}
+                alignItems="center"
+                sx={{ background: "#051827", color: "white" }}
+            >
+                <Overlay {...overlayProps}>
+                    {children}
+                </Overlay>
+            </Stack>
+        </Dialog>
+    );
 }

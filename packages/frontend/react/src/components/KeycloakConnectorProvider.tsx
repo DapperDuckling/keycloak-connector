@@ -1,10 +1,9 @@
 import {type ReactNode, useLayoutEffect, useReducer, useState} from 'react';
-import React from "react";
 import {
     type ClientConfig, ClientEvent,
     keycloakConnectorClient
 } from "@dapperduckling/keycloak-connector-client";
-import {Authorization} from "./Authorization.js";
+import {Login} from "./Login.js";
 import {
     initialContext,
     KeycloakConnectorContext,
@@ -15,10 +14,26 @@ import {useImmerReducer} from "use-immer";
 import {Button, createTheme, ThemeProvider} from "@mui/material";
 import {Logout} from "./Logout.js";
 
+type ReactConfig = {
+    disableAuthComponents?: boolean,
+
+    /**
+     * @desc Specify a component pass to the login modal for slight customization
+     */
+    loginModalChildren?: ReactNode;
+
+    /**
+     * @desc Specify a component pass to the logout modal for slight customization
+     */
+    logoutModalChildren?: ReactNode;
+}
+
 interface ConnectorProviderProps {
     children: ReactNode,
-    config: ClientConfig,
-    disableAuthComponents?: boolean
+    config: {
+        client: ClientConfig,
+        react?: ReactConfig,
+    },
 }
 
 const theme = createTheme({
@@ -36,13 +51,18 @@ const theme = createTheme({
     },
 });
 
-export const KeycloakConnectorProvider = ({ children, config, disableAuthComponents}: ConnectorProviderProps) => {
+export const KeycloakConnectorProvider = ({ children, config}: ConnectorProviderProps) => {
 
     const [kccContext, kccDispatch] = useImmerReducer(reducer, initialContext);
 
     useState(() => {
+        // Safety check for non-typescript instances
+        if (config === undefined) {
+            throw new Error("No config provided to KeycloakConnectorProvider");
+        }
+
         // Instantiate the keycloak connector client
-        const kccClient = keycloakConnectorClient(config);
+        const kccClient = keycloakConnectorClient(config.client);
 
         // Store the client in the context
         kccDispatch({type: KccDispatchType.SET_KCC_CLIENT, payload: kccClient});
@@ -90,11 +110,11 @@ export const KeycloakConnectorProvider = ({ children, config, disableAuthCompone
     return (
         <KeycloakConnectorContext.Provider value={kccContext}>
             <KeycloakConnectorDispatchContext.Provider value={kccDispatch}>
-                {disableAuthComponents !== true &&
+                {config.react?.disableAuthComponents !== true &&
                     <ThemeProvider theme={theme}>
                         {/*Todo: Centralize common components */}
-                        {kccContext.showLoginOverlay && <Authorization />}
-                        {kccContext.showLogoutOverlay && <Logout />}
+                        {kccContext.showLoginOverlay && <Login>{config.react?.loginModalChildren}</Login>}
+                        {kccContext.showLogoutOverlay && <Logout>{config.react?.logoutModalChildren}</Logout>}
                     </ThemeProvider>
                 }
                 <div>Wow5!</div>

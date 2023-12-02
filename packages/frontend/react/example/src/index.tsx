@@ -1,19 +1,25 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import {KeycloakConnectorProvider} from "@dapperduckling/keycloak-connector-react";
+import {DarkSaberLoginChild} from "./DarkSaberLoginChild.js";
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 root.render(
   <React.StrictMode>
   <KeycloakConnectorProvider config={{
-    apiServerOrigin: "http://localhost:3005",
-  }}>
+      client: {
+        apiServerOrigin: "http://localhost:3005",
+      },
+      react: {
+        loginModalChildren: <DarkSaberLoginChild />,
+      }
+    }}>
     <div>
       <h2>Default counter</h2>
     </div>
     <hr />
     <div>
-      <h2>Counter with predefined value</h2>
+      <h2>Counter with predefined value 2</h2>
     </div>
   </KeycloakConnectorProvider>
   </React.StrictMode>,
