@@ -48,7 +48,7 @@ const keycloakConnectorClientEventHandler: ImmerReducerType = (draft, action) =>
             const payload = action.payload as CustomEvent<UserStatus>;
             draft.userStatus = payload.detail;
             draft.showLoginOverlay = draft.showMustLoginOverlay = !payload.detail.loggedIn;
-            draft.initiated = true;
+            draft.hasAuthenticatedOnce = draft.hasAuthenticatedOnce || payload.detail.loggedIn;
             break;
     }
 

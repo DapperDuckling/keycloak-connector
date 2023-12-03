@@ -2,7 +2,7 @@ import type {UserStatus} from "@dapperduckling/keycloak-connector-common";
 
 export interface KeycloakConnectorState {
     userStatus: UserStatus;
-    initiated: boolean;
+    hasAuthenticatedOnce: boolean;
     showLoginOverlay: boolean;
     showMustLoginOverlay: boolean;
     showLogoutOverlay: boolean;

@@ -46,6 +46,7 @@ export type CustomRouteUrl = {
     _prefix?: string;
     loginPage?: string;
     loginPost?: string;
+    loginListener?: string;
     logoutPage?: string;
     logoutPost?: string;
     callback?: string;
@@ -61,6 +62,7 @@ export enum RouteEnum {
     // String enums MUST match key found in CustomRouteUrl type
     LOGIN_PAGE = "loginPage",
     LOGIN_POST = "loginPost",
+    LOGIN_LISTENER = "loginListener",
     LOGOUT_PAGE = "logoutPage",
     LOGOUT_POST = "logoutPost",
     CALLBACK = "callback",

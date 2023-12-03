@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>You're logged in!</title>
+    <link rel="stylesheet" href="/auth/static/main.css">
+    <script>
+        window.onload = function() {
+            // Send a login success message to the broadcast channel
+            const bc = new BroadcastChannel('login-listener');
+            bc.postMessage(`LOGIN_SUCCESS`);
+
+            // Close the current window or tab
+            window.close();
+        };
+    </script>
+</head>
+<body>
+<div id="background">
+    <canvas id="canvas"></canvas>
+</div>
+<div id="modal">
+    <div class="info">
+        <h3>You are logged in!</h3>
+        <p>This tab should auto-close</p>
+    </div>
+    <button onclick="window.close()">Close Tab</button>
+</div>
+<script src="/auth/static/trianglify.bundle.js"></script>
+</body>
+</html>

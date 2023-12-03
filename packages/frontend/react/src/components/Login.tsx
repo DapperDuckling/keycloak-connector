@@ -21,8 +21,8 @@ export const Login = ({children}: {children: ReactNode}) => {
         subMsg: !kccContext.showMustLoginOverlay && kccContext.lengthyLogin ? "this is taking longer than expected" : undefined,
         button: {
             label: "Login",
-            onClick: () => kccContext.kccClient?.handleLogin(kccContext.initiated),
-            newWindow: kccContext.initiated,
+            onClick: () => kccContext.kccClient?.handleLogin(kccContext.hasAuthenticatedOnce),
+            newWindow: kccContext.hasAuthenticatedOnce,
             expressionLevel: expressionLevel,
         }
     };

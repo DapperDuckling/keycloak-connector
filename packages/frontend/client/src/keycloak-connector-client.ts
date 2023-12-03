@@ -41,6 +41,7 @@ export class KeycloakConnectorClient {
 
     private static kccClient: KeycloakConnectorClient | undefined = undefined;
     private static readonly IFRAME_ID = "silent-login-iframe";
+    private static readonly LISTENER_IFRAME_ID = "listener-login-iframe";
     private static readonly ENABLE_IFRAME_DEBUGGING = process?.env?.["DEBUG_SILENT_IFRAME"] !== undefined;
 
     private constructor(config: ClientConfig) {
@@ -177,7 +178,6 @@ export class KeycloakConnectorClient {
     }
 
     private silentLogin = () => {
-
         // Make an iframe to make auth request
         const iframe = document.createElement("iframe");
         const authUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGIN_POST, this.config.routePaths)}?silent=${SilentLoginTypes.FULL}&silent-token=${this.token}`;
@@ -200,13 +200,35 @@ export class KeycloakConnectorClient {
         document.body.appendChild(iframe);
     }
 
+    private silentBroadcastListener = () => {
+
+        // Check for an existing silent listener
+        if (document.querySelectorAll(`#${KeycloakConnectorClient.LISTENER_IFRAME_ID}`).length > 0) return;
+
+        // Make an iframe to listen for successful authentications
+        const iframe = document.createElement("iframe");
+        const listenerUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGIN_LISTENER, this.config.routePaths)}?&silent-token=${this.token}`;
+        iframe.id = KeycloakConnectorClient.LISTENER_IFRAME_ID;
+        iframe.src = listenerUrl;
+        iframe.setAttribute(
+            "sandbox",
+            "allow-scripts"
+        );
+        iframe.style.display = "none";
+
+        // Mount the iframe
+        document.body.appendChild(iframe);
+    }
+
     private abortBackgroundLogins = () => {
         this.isAuthChecking = false;
         this.userStatusAbortController?.abort();
         this.removeSilentIframe();
+        this.removeListenerIframe();
     }
 
-    private removeSilentIframe = () => document.getElementById(KeycloakConnectorClient.IFRAME_ID)?.remove();
+    private removeSilentIframe = () => document.querySelectorAll(`#${KeycloakConnectorClient.IFRAME_ID}`).forEach(elem => elem.remove());
+    private removeListenerIframe = () => document.querySelectorAll(`#${KeycloakConnectorClient.LISTENER_IFRAME_ID}`).forEach(elem => elem.remove());
 
     private authCheckNoWait = () => {
         // Check for a valid access token
@@ -363,14 +385,23 @@ export class KeycloakConnectorClient {
 
     handleLogin = (newWindow?: boolean) => {
 
+        // Initiate the silent listener if using a new window
+        if (newWindow) this.silentBroadcastListener();
+
         // Build the login url
-        const loginUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGIN_POST, this.config.routePaths)}?post_auth_redirect_uri=${self.location.href}`;
+        let loginUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGIN_POST, this.config.routePaths)}?post_auth_redirect_uri=${self.location.href}`;
+
+        // Check for a new window
+        if (newWindow) {
+            loginUrl += `&silent=${SilentLoginTypes.PARTIAL}&silent-token=${this.token}`;
+        }
 
         // Form Settings
         const form = document.createElement("form");
         form.method = "POST";
         form.action = loginUrl;
         form.target = (newWindow === true) ? "_blank" : "_self";
+        form.rel = "opener";
         document.body.appendChild(form);
         form.submit();
 

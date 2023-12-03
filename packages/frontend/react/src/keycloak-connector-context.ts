@@ -15,7 +15,7 @@ export const initialContext: KeycloakConnectorContextProps = {
         accessExpires: -1,
         refreshExpires: -1,
     },
-    initiated: false,
+    hasAuthenticatedOnce: false,
     lengthyLogin: false,
     showLoginOverlay: true,
     silentLoginInitiated: false,

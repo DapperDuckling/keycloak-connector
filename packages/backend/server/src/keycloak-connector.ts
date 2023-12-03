@@ -33,12 +33,16 @@ import {
     ConnectorCookieNames,
     ConnectorCookies,
     ConnectorCookiesToKeep,
+    epoch,
+    getRoutePath,
+    isDev,
+    RouteEnum,
     SilentLoginEvent,
     type SilentLoginMessage,
+    SilentLoginTypes,
     type UserStatus,
     type UserStatusWrapped
 } from "@dapperduckling/keycloak-connector-common";
-import {isDev, epoch, SilentLoginTypes, RouteUrlDefaults, RouteEnum} from "@dapperduckling/keycloak-connector-common";
 import {UserDataDefault} from "./helpers/defaults.js";
 import type {JWTPayload, JWTVerifyResult} from "jose/dist/types/types.js";
 import {RoleHelper} from "./helpers/role-helper.js";
@@ -53,7 +57,6 @@ import {fileURLToPath} from "url";
 import path, {dirname} from "path";
 import RPError = errors.RPError;
 import OPError = errors.OPError;
-import { getRoutePath } from "@dapperduckling/keycloak-connector-common";
 
 export class KeycloakConnector<Server extends SupportedServers> {
 
@@ -152,6 +155,15 @@ export class KeycloakConnector<Server extends SupportedServers> {
             method: "POST",
             isUnlocked: true,
         }, this.handleLoginPost);
+
+        /**
+         * Serves the silent listener page for cross-origin communications
+         */
+        this.registerRoute(adapter,{
+            url: this.getRoutePath(RouteEnum.LOGIN_LISTENER),
+            method: "GET",
+            isUnlocked: true,
+        }, () => this.servePublic("login-listener.html"));
 
         /**
          * Handles the callback from the OP
@@ -661,17 +673,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
             ) {
                 return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED);
             }
-            // if (silentRequestType !== SilentLoginTypes.NONE) {
-            //     // Check for login required
-            //     if (e instanceof OPError && (e.message.includes("login_required") || e.message.includes("interaction_required"))) {
-            //         return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED);
-            //     } else {
-            //         // Log the error still
-            //         this._config.pinoLogger?.error(e);
-            //         this._config.pinoLogger?.error("Error during silent login");
-            //         return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_ERROR);
-            //     }
-            // }
 
             if (e instanceof RPError) {
                 // Check for an expired JWT
@@ -930,7 +931,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const userStatusWrapped = await this.buildWrappedUserStatus(req);
 
         // Get the silent type configuration
-        const [, silentRequestToken] = this.silentRequestConfig(req);
+        const [silentRequestType, silentRequestToken] = this.silentRequestConfig(req);
 
         // Build the silent login response message
         const message: SilentLoginMessage = {
@@ -942,7 +943,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return  {
             statusCode: 200,
             cookies: finalCookies,
-            responseHtml: silentLoginResponseHTML(message, silentRequestToken, process.env['DEBUG_SILENT_IFRAME'] !== undefined)
+            responseHtml: silentLoginResponseHTML(message, silentRequestToken, silentRequestType === SilentLoginTypes.PARTIAL, process.env['DEBUG_SILENT_IFRAME'] !== undefined)
         }
 
     }

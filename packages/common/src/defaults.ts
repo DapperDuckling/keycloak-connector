@@ -4,6 +4,7 @@ export const RouteUrlDefaults: Required<CustomRouteUrl> = {
     _prefix: '/auth',
     loginPage: '/login',
     loginPost: '/login',
+    loginListener: '/login-listener',
     logoutPage: '/logout',
     logoutPost: '/logout',
     callback: '/callback',

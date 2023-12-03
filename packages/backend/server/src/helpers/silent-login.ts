@@ -1,9 +1,13 @@
-import {SilentLoginEvent as SilentLoginEventType, type SilentLoginMessage} from "@dapperduckling/keycloak-connector-common";
+import {
+    SilentLoginEvent as SilentLoginEventType,
+    type SilentLoginMessage
+} from "@dapperduckling/keycloak-connector-common";
 
 const silentLoginResponse = (
     messageJson: string,
     token: string,
     silentLoginEventJson: string,
+    autoClose: boolean,
     enableDebugger: boolean
 ) => {
 
@@ -25,14 +29,13 @@ const silentLoginResponse = (
         event: SilentLoginEvent.LOGIN_ERROR,
     }
 
-    // Check for a message from the server
-    if (messageJson === undefined) {
-        console.error(`Missing message from auth server, cannot process silent login!`);
-        parent.postMessage(messageToParent, "*"); //todo: fix origin
-        return;
-    }
-
     try {
+        // Check for a message from the server
+        if (messageJson === undefined) {
+            console.error(`Missing message from auth server, cannot process silent login!`);
+            return;
+        }
+
         // Ensure we can parse the message
         const message = JSON.parse(messageJson);
 
@@ -57,10 +60,28 @@ const silentLoginResponse = (
     } finally {
         // Send the parent a message
         parent.postMessage(messageToParent, "*"); //todo: lock down with origin
+
+        // Handle auto-closing login types
+        if (autoClose) {
+            // Hop on the broadcast channel
+            if (messageToParent.event === SilentLoginEvent.LOGIN_SUCCESS) {
+                const bc = new BroadcastChannel("login-listener");
+                bc.postMessage(SilentLoginEvent.LOGIN_SUCCESS);
+            }
+
+            // Attempt to close the window
+            window.close();
+
+            // If window is not closed, redirect to main page
+            setTimeout(() => {
+                console.warn(`Failed to close partially silent login window, redirecting to origin`);
+                window.location.href = window.origin;
+            }, 50);
+        }
     }
 }
 
-export const silentLoginResponseHTML = (message: SilentLoginMessage, token: string, enableDebugger: boolean) => {
+export const silentLoginResponseHTML = (message: SilentLoginMessage, token: string, autoClose: boolean, enableDebugger: boolean) => {
     // Build the html for the silent login iframe
     const silentLoginResponseFunction = silentLoginResponse.toString();
 
@@ -78,7 +99,7 @@ export const silentLoginResponseHTML = (message: SilentLoginMessage, token: stri
       <h3>Silent Login Response</h3>
       <p>This page loaded in error. <a id="back-to-main" href="#">Back to main</a></p>
       <script>
-        (${silentLoginResponseFunction})("${messageJson}", "${token}", "${silentLoginEventJson}", ${(enableDebugger) ? "true" : "false"});
+        (${silentLoginResponseFunction})("${messageJson}", "${token}", "${silentLoginEventJson}", "${autoClose}", ${(enableDebugger) ? "true" : "false"});
       </script>
       </body>
     </html>

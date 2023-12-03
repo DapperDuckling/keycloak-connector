@@ -45,7 +45,8 @@ export const Overlay = (props: OverlayProps) => {
                     >{props.subMsg ?? "&nbsp;"}</Typography>
                 </div>
                 <Button
-                    /*{...props.button.newWindow && {startIcon: <OpenInNewIcon />}}*/
+                    component="label"
+                    {...props.button.newWindow && {endIcon: <OpenInNewIcon/>}}
                     onClick={props.button.onClick}
                     variant={props.button.expressionLevel === "subdued" ? "outlined" : "contained"}
                     sx={{

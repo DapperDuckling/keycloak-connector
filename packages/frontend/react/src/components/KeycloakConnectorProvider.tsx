@@ -112,7 +112,6 @@ export const KeycloakConnectorProvider = ({ children, config}: ConnectorProvider
             <KeycloakConnectorDispatchContext.Provider value={kccDispatch}>
                 {config.react?.disableAuthComponents !== true &&
                     <ThemeProvider theme={theme}>
-                        {/*Todo: Centralize common components */}
                         {kccContext.showLoginOverlay && <Login>{config.react?.loginModalChildren}</Login>}
                         {kccContext.showLogoutOverlay && <Logout>{config.react?.logoutModalChildren}</Logout>}
                     </ThemeProvider>

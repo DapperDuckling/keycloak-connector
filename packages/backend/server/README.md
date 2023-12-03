@@ -417,6 +417,7 @@ export type CustomRouteUrl = {
     _prefix?: string;
     loginPage?: string;
     loginPost?: string;
+    loginListener?: string;
     logoutPage?: string;
     logoutPost?: string;
     callback?: string;
