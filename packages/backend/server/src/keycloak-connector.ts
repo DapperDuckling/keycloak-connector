@@ -57,6 +57,7 @@ import {fileURLToPath} from "url";
 import path, {dirname} from "path";
 import RPError = errors.RPError;
 import OPError = errors.OPError;
+import {loginListenerHTML} from "./browser-login-helpers/login-listener.js";
 
 export class KeycloakConnector<Server extends SupportedServers> {
 
@@ -163,7 +164,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             url: this.getRoutePath(RouteEnum.LOGIN_LISTENER),
             method: "GET",
             isUnlocked: true,
-        }, () => this.servePublic("login-listener.html"));
+        }, this.handleLoginListener);
 
         /**
          * Handles the callback from the OP
@@ -422,8 +423,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         // Serve the login listener page
-        return this.servePublic(`login-listener.html`);
-
+        return {
+            statusCode: 200,
+            responseHtml: loginListenerHTML(sourceOrigin, process.env?.['DEBUG_SILENT_IFRAME'] !== undefined)
+        }
     }
 
     private validateRedirectUriOrThrow = (rawRedirectUri: string | null): boolean => {
@@ -984,7 +987,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 silentRequestToken,
                 silentRequestType === SilentLoginTypes.PARTIAL,
                 sourceOrigin ?? req.origin,
-                process.env['DEBUG_SILENT_IFRAME'] !== undefined
+                process.env?.['DEBUG_SILENT_IFRAME'] !== undefined
             )
         }
 
@@ -1590,7 +1593,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             authCookieTimeout: 35 * 60 * 1000, // Default: 35 minutes
             stateType: StateOptions.STATELESS,
             fetchUserInfo: true,
-            DANGEROUS_disableJwtClientAuthentication: (process.env['DANGEROUS_KC_DISABLE_JWT_CLIENT_AUTHENTICATION'] === "true"),
+            DANGEROUS_disableJwtClientAuthentication: (process.env?.['DANGEROUS_KC_DISABLE_JWT_CLIENT_AUTHENTICATION'] === "true"),
 
             // Consumer provided configuration
             ...customConfig,
@@ -1603,8 +1606,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 //ref: https://github.com/panva/node-openid-client/blob/main/docs/README.md#new-clientmetadata-jwks-options
                 //ref: https://openid.net/specs/openid-connect-registration-1_0.html
 
-                client_id: customConfig.clientId ?? process.env['KC_CLIENT_ID'] ?? EMPTY_STRING,
-                client_secret: customConfig.clientSecret ?? process.env['KC_CLIENT_SECRET'] ?? EMPTY_STRING,
+                client_id: customConfig.clientId ?? process.env?.['KC_CLIENT_ID'] ?? EMPTY_STRING,
+                client_secret: customConfig.clientSecret ?? process.env?.['KC_CLIENT_SECRET'] ?? EMPTY_STRING,
                 redirect_uris: [
                     KeycloakConnector.getRouteUri(RouteEnum.CALLBACK, customConfig),
                 ],
@@ -1659,7 +1662,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             config.pinoLogger?.warn(`DANGEROUS_disableJwtClientAuthentication is enabled, DO NOT USE THIS SETTING IN PRODUCTION`);
 
             // Check if this is production (not guaranteed to catch, but as a last chance catch)
-            if (process.env['NODE_ENV'] === "production") {
+            if (process.env?.['NODE_ENV'] === "production") {
                 throw new Error(`DANGEROUS_disableJwtClientAuthentication is set to "true" in production. Keycloak client WILL NOT start in this configuration for your safety.`);
             }
         }

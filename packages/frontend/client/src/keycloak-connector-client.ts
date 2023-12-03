@@ -10,7 +10,7 @@ import {
     type GeneralResponse,
     SilentLoginTypes,
     SilentLogoutTypes,
-    URL,
+    URL, deferredFactory, type Deferred,
 } from "@dapperduckling/keycloak-connector-common";
 import {setImmediate} from "./utils.js";
 import JsCookie from "js-cookie";
@@ -34,6 +34,8 @@ export class KeycloakConnectorClient {
 
     private config: ClientConfig;
     private acceptableOrigins: string[];
+    private loginListenerAwake = false;
+    private loginListenerDeferred: Deferred<void> | undefined = undefined;
     private userStatusAbortController: AbortController | undefined = undefined;
     private started = false;
     private isAuthCheckedWithServer = false;
@@ -43,6 +45,7 @@ export class KeycloakConnectorClient {
     private static readonly IFRAME_ID = "silent-login-iframe";
     private static readonly LISTENER_IFRAME_ID = "listener-login-iframe";
     private static readonly ENABLE_IFRAME_DEBUGGING = process?.env?.["DEBUG_SILENT_IFRAME"] !== undefined;
+
 
     private constructor(config: ClientConfig) {
         // Store the config
@@ -146,6 +149,10 @@ export class KeycloakConnectorClient {
             case SilentLoginEvent.CHILD_ALIVE:
                 // NO-OP
                 break;
+            case SilentLoginEvent.LOGIN_LISTENER_ALIVE:
+                // Resolve the login listener promise
+                this.loginListenerDeferred?.resolve();
+                break;
             case SilentLoginEvent.LOGIN_REQUIRED:
             case SilentLoginEvent.LOGIN_SUCCESS:
 
@@ -200,14 +207,14 @@ export class KeycloakConnectorClient {
         document.body.appendChild(iframe);
     }
 
-    private silentBroadcastListener = () => {
+    private silentLoginListener = () => {
 
         // Check for an existing silent listener
         if (document.querySelectorAll(`#${KeycloakConnectorClient.LISTENER_IFRAME_ID}`).length > 0) return;
 
         // Make an iframe to listen for successful authentications
         const iframe = document.createElement("iframe");
-        const listenerUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGIN_LISTENER, this.config.routePaths)}?&silent-token=${this.token}`;
+        const listenerUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGIN_LISTENER, this.config.routePaths)}?source-origin=${self.origin}&silent-token=${this.token}`;
         iframe.id = KeycloakConnectorClient.LISTENER_IFRAME_ID;
         iframe.src = listenerUrl;
         iframe.setAttribute(
@@ -383,17 +390,48 @@ export class KeycloakConnectorClient {
         this.isAuthCheckedWithServer = true;
     }
 
-    handleLogin = (newWindow?: boolean) => {
+    prepareToHandleNewWindowLogin = () => this.silentLoginListener();
+
+    handleLogin = async (newWindow?: boolean) => {
+
+        let loginListenerAwake = false;
+
+        // Abort the background logins
+        this.abortBackgroundLogins();
 
         // Initiate the silent listener if using a new window
-        //todo: make this an await
-        if (newWindow) this.silentBroadcastListener();
+        if (newWindow) {
+            // Create a new deferred factory
+            this.loginListenerDeferred = deferredFactory<void>();
+
+            // Create the new silent login listener iframe
+            this.silentLoginListener();
+
+            // try {
+            //     // Make a promise that resolves after a timeout
+            //     const timeout = new Promise<void>((resolve, reject) => setTimeout(() => reject('timeout'), KeycloakConnectorClient.MAX_WAIT_FOR_LOGIN_LISTENER_SECS * 1000));
+            //
+            //     // Wait for the child login listener to wake up (or until we timed-out waiting)
+            //     await Promise.race([this.silentLoginListenerDeferred.promise, timeout]);
+            //
+            //     // Set the flag to wake up the login listener
+            //     loginListenerAwake = true;
+            // } catch (e) {
+            //     // Check for non-timeouts
+            //     if (e !== 'timeout') {
+            //         // Ignore the error
+            //         return;
+            //     }
+            //
+            //     console.debug(`Timed out waiting for login listener to wake up`);
+            // }
+        }
 
         // Build the login url
         let loginUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGIN_POST, this.config.routePaths)}?post_auth_redirect_uri=${self.location.href}`;
 
         // Check for a new window
-        if (newWindow) {
+        if (this.loginListenerAwake) {
             loginUrl += `&silent=${SilentLoginTypes.PARTIAL}&silent-token=${this.token}`;
         }
 

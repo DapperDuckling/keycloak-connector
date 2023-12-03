@@ -12,7 +12,7 @@ export const isObject = (obj: unknown): obj is Record<never, never> => obj === O
 export type Deferred<T> = {
     promise: Promise<T>;
     resolve: (value: T | PromiseLike<T>) => void;
-    reject: (reason?: never) => void;
+    reject: (reason?: unknown) => void;
 }
 export const deferredFactory = <T = unknown>(): Deferred<T> => {
     const result = {};

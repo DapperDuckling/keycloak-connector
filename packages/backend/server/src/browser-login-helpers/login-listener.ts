@@ -1,13 +1,19 @@
 import {SilentLoginEvent, type SilentLoginMessage} from "@dapperduckling/keycloak-connector-common";
-import {LOGIN_LISTENER_BROADCAST_CHANNEL} from "./common.js";
+import {LOGIN_LISTENER_BROADCAST_CHANNEL, SILENT_LOGIN_EVENT_JSON} from "./common.js";
+import {SilentLoginEvent as SilentLoginEventType} from "@dapperduckling/keycloak-connector-common/dist/types.js";
 
 const loginListener = (
     sourceOrigin: string | undefined,
+    silentLoginEventJson: string,
+    loginListenerChannel: string,
     enableDebugger: boolean
 ) => {
 
     // Dev helper
     if (enableDebugger) debugger;
+
+    // Decode the silent login event constants
+    const SilentLoginEvent = JSON.parse(silentLoginEventJson) as typeof SilentLoginEventType;
 
     // Update the error link
     const backToMainLink = document.querySelector<HTMLAnchorElement>("#back-to-main");
@@ -51,8 +57,7 @@ const loginListener = (
     }, sourceOrigin);
 
     // Listen to broadcast channel messages
-    const bc = new BroadcastChannel(LOGIN_LISTENER_BROADCAST_CHANNEL);
-
+    const bc = new BroadcastChannel(loginListenerChannel);
     bc.onmessage = (event: MessageEvent<SilentLoginMessage>) => {
         console.debug(`Broadcast msg received`, event);
 
@@ -73,7 +78,7 @@ export const loginListenerHTML = (sourceOrigin: string | undefined, enableDebugg
       <h3>Login Listener</h3>
       <p>This page loaded in error. <a id="back-to-main" href="#">Back to main</a></p>
       <script>
-        (${loginListenerFunction})("${sourceOrigin}", ${(enableDebugger) ? "true" : "false"});
+        (${loginListenerFunction})("${sourceOrigin}", "${SILENT_LOGIN_EVENT_JSON}", "${LOGIN_LISTENER_BROADCAST_CHANNEL}", ${enableDebugger});
       </script>
       </body>
     </html>

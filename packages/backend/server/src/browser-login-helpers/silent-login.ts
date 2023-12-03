@@ -2,12 +2,13 @@ import {
     SilentLoginEvent as SilentLoginEventType,
     type SilentLoginMessage
 } from "@dapperduckling/keycloak-connector-common";
-import {LOGIN_LISTENER_BROADCAST_CHANNEL} from "./common.js";
+import {LOGIN_LISTENER_BROADCAST_CHANNEL, SILENT_LOGIN_EVENT_JSON} from "./common.js";
 
 const silentLoginResponse = (
     messageJson: string,
     token: string,
     silentLoginEventJson: string,
+    loginListenerChannel: string,
     autoClose: boolean,
     sourceOrigin: string | undefined,
     enableDebugger: boolean
@@ -66,13 +67,10 @@ const silentLoginResponse = (
         console.error(`Could not parse message`);
 
     } finally {
-        // Send the parent a message
-        parent.postMessage(messageToParent, sourceOrigin);
-
         // Handle auto-closing login types
         if (autoClose) {
             // Hop on the broadcast channel
-            const bc = new BroadcastChannel(LOGIN_LISTENER_BROADCAST_CHANNEL);
+            const bc = new BroadcastChannel(loginListenerChannel);
             bc.postMessage(messageToParent);
 
             // Attempt to close the window
@@ -83,6 +81,9 @@ const silentLoginResponse = (
                 console.warn(`Failed to close partially silent login window, redirecting to origin`);
                 window.location.href = window.origin;
             }, 50);
+        } else {
+            // Send the parent a message window
+            parent.postMessage(messageToParent, sourceOrigin);
         }
     }
 }
@@ -94,9 +95,6 @@ export const silentLoginResponseHTML = (message: SilentLoginMessage, token: stri
     // Convert the message to a json string and add slashes
     const messageJson = JSON.stringify(message).replaceAll('"', '\\"');
 
-    // Grab the silent login event constants and add slashes
-    const silentLoginEventJson = JSON.stringify(SilentLoginEventType).replaceAll('"', '\\"');
-
     // Return the html
     return `
     <!doctype html>
@@ -105,7 +103,7 @@ export const silentLoginResponseHTML = (message: SilentLoginMessage, token: stri
       <h3>Silent Login Response</h3>
       <p>This page loaded in error. <a id="back-to-main" href="#">Back to main</a></p>
       <script>
-        (${silentLoginResponseFunction})("${messageJson}", "${token}", "${silentLoginEventJson}", "${autoClose}", "${sourceOrigin}", ${(enableDebugger) ? "true" : "false"});
+        (${silentLoginResponseFunction})("${messageJson}", "${token}", "${SILENT_LOGIN_EVENT_JSON}", "${LOGIN_LISTENER_BROADCAST_CHANNEL}", ${autoClose}, "${sourceOrigin}", ${enableDebugger});
       </script>
       </body>
     </html>
