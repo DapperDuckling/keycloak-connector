@@ -55,7 +55,6 @@ await fastify.register(cookie, {
 //     pinoLogger: fastify.log as Logger,
 // });
 
-// //todo: remove
 // await awsRedisClusterProvider.connectOrThrow();
 // const result0 = await awsRedisClusterProvider.store("abc1", `just start ${Date.now()}`, null);
 // const result1 = await awsRedisClusterProvider.store("abc1", `no lock ${Date.now()}`, null, "no-lock");

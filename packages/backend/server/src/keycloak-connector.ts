@@ -609,8 +609,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Ensure the request comes from an allowed origin
         this.validateOriginOrThrow(req);
 
-        //todo: Debug remove. Need to verify where the origin would end up
-
         // Grab the auth flow nonce
         const authFlowNonce = this.getAuthFlowNonce(req);
 

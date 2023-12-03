@@ -35,7 +35,7 @@ export class KeycloakConnectorClient {
     private config: ClientConfig;
     private acceptableOrigins: string[];
     private loginListenerAwake = false;
-    private loginListenerDeferred: Deferred<void> | undefined = undefined;
+    private loginListenerInitiated: number | undefined = undefined;
     private userStatusAbortController: AbortController | undefined = undefined;
     private started = false;
     private isAuthCheckedWithServer = false;
@@ -45,6 +45,7 @@ export class KeycloakConnectorClient {
     private static readonly IFRAME_ID = "silent-login-iframe";
     private static readonly LISTENER_IFRAME_ID = "listener-login-iframe";
     private static readonly ENABLE_IFRAME_DEBUGGING = process?.env?.["DEBUG_SILENT_IFRAME"] !== undefined;
+    private static readonly MAX_LOGIN_LISTENER_WAIT_SECS = 30;
 
 
     private constructor(config: ClientConfig) {
@@ -150,8 +151,7 @@ export class KeycloakConnectorClient {
                 // NO-OP
                 break;
             case SilentLoginEvent.LOGIN_LISTENER_ALIVE:
-                // Resolve the login listener promise
-                this.loginListenerDeferred?.resolve();
+                this.loginListenerAwake = true;
                 break;
             case SilentLoginEvent.LOGIN_REQUIRED:
             case SilentLoginEvent.LOGIN_SUCCESS:
@@ -199,7 +199,7 @@ export class KeycloakConnectorClient {
         );
         iframe.setAttribute(
             "sandbox",
-            "allow-scripts allow-same-origin allow-forms" //todo: may need to remove allow-same-origin here
+            "allow-scripts allow-same-origin allow-forms"
         );
         iframe.style.display = "none";
 
@@ -208,6 +208,16 @@ export class KeycloakConnectorClient {
     }
 
     private silentLoginListener = () => {
+
+        // Check if the listener is already up
+        if (this.loginListenerAwake) return;
+
+        // Check if the previous login listener is still initiating
+        if (this.loginListenerInitiated !== undefined &&
+            this.loginListenerInitiated + KeycloakConnectorClient.MAX_LOGIN_LISTENER_WAIT_SECS * 1000 > Date.now()) return;
+
+        // Remove any existing login listener iframe
+        this.removeListenerIframe();
 
         // Check for an existing silent listener
         if (document.querySelectorAll(`#${KeycloakConnectorClient.LISTENER_IFRAME_ID}`).length > 0) return;
@@ -219,19 +229,22 @@ export class KeycloakConnectorClient {
         iframe.src = listenerUrl;
         iframe.setAttribute(
             "sandbox",
-            "allow-scripts allow-same-origin allow-forms"
+            "allow-scripts allow-same-origin"
         );
         iframe.style.display = "none";
 
         // Mount the iframe
         document.body.appendChild(iframe);
+
+        // Store the initiated time
+        this.loginListenerAwake = false;
+        this.loginListenerInitiated = Date.now();
     }
 
     private abortBackgroundLogins = () => {
         this.isAuthChecking = false;
         this.userStatusAbortController?.abort();
         this.removeSilentIframe();
-        this.removeListenerIframe();
     }
 
     private removeSilentIframe = () => document.querySelectorAll(`#${KeycloakConnectorClient.IFRAME_ID}`).forEach(elem => elem.remove());
@@ -390,49 +403,32 @@ export class KeycloakConnectorClient {
         this.isAuthCheckedWithServer = true;
     }
 
+    /**
+     * Prepares the client to smoothly handle logins through a new window
+     */
     prepareToHandleNewWindowLogin = () => this.silentLoginListener();
 
     handleLogin = async (newWindow?: boolean) => {
 
-        let loginListenerAwake = false;
-
         // Abort the background logins
         this.abortBackgroundLogins();
-
-        // Initiate the silent listener if using a new window
-        if (newWindow) {
-            // Create a new deferred factory
-            this.loginListenerDeferred = deferredFactory<void>();
-
-            // Create the new silent login listener iframe
-            this.silentLoginListener();
-
-            // try {
-            //     // Make a promise that resolves after a timeout
-            //     const timeout = new Promise<void>((resolve, reject) => setTimeout(() => reject('timeout'), KeycloakConnectorClient.MAX_WAIT_FOR_LOGIN_LISTENER_SECS * 1000));
-            //
-            //     // Wait for the child login listener to wake up (or until we timed-out waiting)
-            //     await Promise.race([this.silentLoginListenerDeferred.promise, timeout]);
-            //
-            //     // Set the flag to wake up the login listener
-            //     loginListenerAwake = true;
-            // } catch (e) {
-            //     // Check for non-timeouts
-            //     if (e !== 'timeout') {
-            //         // Ignore the error
-            //         return;
-            //     }
-            //
-            //     console.debug(`Timed out waiting for login listener to wake up`);
-            // }
-        }
 
         // Build the login url
         let loginUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGIN_POST, this.config.routePaths)}?post_auth_redirect_uri=${self.location.href}`;
 
-        // Check for a new window
-        if (this.loginListenerAwake) {
-            loginUrl += `&silent=${SilentLoginTypes.PARTIAL}&silent-token=${this.token}`;
+        // Check for a new window request
+        if (newWindow) {
+            // Check if the silent login listener was not initiated
+            if (this.loginListenerInitiated === undefined) {
+                console.error(`Unable to smoothly handle new window login. Need to call prepareToHandleNewWindowLogin() before calling this function.`);
+            }
+
+            // Check if the listener is awake
+            if (this.loginListenerAwake) {
+                loginUrl += `&silent=${SilentLoginTypes.PARTIAL}&silent-token=${this.token}`;
+            } else {
+                console.warn('Silent login listener not yet ready, skipping smooth background handling');
+            }
         }
 
         // Form Settings

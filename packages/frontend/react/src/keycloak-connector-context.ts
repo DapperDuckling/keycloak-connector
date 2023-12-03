@@ -16,13 +16,15 @@ export const initialContext: KeycloakConnectorContextProps = {
         refreshExpires: -1,
     },
     hasAuthenticatedOnce: false,
-    lengthyLogin: false,
-    showLoginOverlay: true,
-    silentLoginInitiated: false,
-    executingLogout: false,
-    showMustLoginOverlay: false,
-    showLogoutOverlay: false,
-    loginError: false,
+    ui: {
+        lengthyLogin: false,
+        showLoginOverlay: true,
+        silentLoginInitiated: false,
+        executingLogout: false,
+        showMustLoginOverlay: false,
+        showLogoutOverlay: false,
+        loginError: false,
+    }
 }
 
 export const KeycloakConnectorContext = createContext<KeycloakConnectorContextProps | undefined>(undefined);

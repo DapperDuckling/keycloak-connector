@@ -72,15 +72,18 @@ const silentLoginResponse = (
             // Hop on the broadcast channel
             const bc = new BroadcastChannel(loginListenerChannel);
             bc.postMessage(messageToParent);
+            bc.close();
 
             // Attempt to close the window
             window.close();
 
             // If window is not closed, redirect to main page
             setTimeout(() => {
-                console.warn(`Failed to close partially silent login window, redirecting to origin`);
-                window.location.href = window.origin;
+                console.warn(`Failed to close partially silent login window, redirecting to source origin`);
+                window.location.href = sourceOrigin;
             }, 50);
+
+
         } else {
             // Send the parent a message window
             parent.postMessage(messageToParent, sourceOrigin);

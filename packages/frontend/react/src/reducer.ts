@@ -3,6 +3,7 @@ import type {KeycloakConnectorContextProps} from "./keycloak-connector-context.j
 import type {UserStatus} from "@dapperduckling/keycloak-connector-common";
 import {ClientEvent, KeycloakConnectorClient} from "@dapperduckling/keycloak-connector-client";
 import {initialContext} from "./keycloak-connector-context.js";
+import {Draft} from "immer";
 
 export enum KccDispatchType {
     SET_KCC_CLIENT = "SET_KCC_CLIENT",
@@ -23,22 +24,24 @@ export type KeycloakConnectorStateActions =
 
 type ImmerReducerType = ImmerReducer<KeycloakConnectorContextProps, KeycloakConnectorStateActions>;
 
+const resetUiHelperStates = (draft: Draft<KeycloakConnectorContextProps>) => {
+    draft.ui.silentLoginInitiated = draft.ui.lengthyLogin = draft.ui.loginError = false;
+}
+
 const keycloakConnectorClientEventHandler: ImmerReducerType = (draft, action) => {
     // Ensure the correct payload was passed
     if (action.type !== KccDispatchType.KCC_CLIENT_EVENT) return;
 
-    //todo: need to create a function here to provide a "reset" login window state for the below events
-
     const eventType = action.payload.type as ClientEvent;
     switch (eventType) {
         case ClientEvent.INVALID_TOKENS:
-            draft.showLoginOverlay = true;
+            draft.ui.showLoginOverlay = true;
             break;
         case ClientEvent.START_SILENT_LOGIN:
-            draft.silentLoginInitiated = true;
+            draft.ui.silentLoginInitiated = true;
             break;
         case ClientEvent.LOGIN_ERROR:
-            draft.loginError = true;
+            draft.ui.loginError = true;
             break;
         case ClientEvent.LOGOUT_SUCCESS:
             // Reset the state
@@ -47,8 +50,9 @@ const keycloakConnectorClientEventHandler: ImmerReducerType = (draft, action) =>
         case ClientEvent.USER_STATUS_UPDATED:
             const payload = action.payload as CustomEvent<UserStatus>;
             draft.userStatus = payload.detail;
-            draft.showLoginOverlay = draft.showMustLoginOverlay = !payload.detail.loggedIn;
-            draft.hasAuthenticatedOnce = draft.hasAuthenticatedOnce || payload.detail.loggedIn;
+            resetUiHelperStates(draft);
+            draft.ui.showLoginOverlay = draft.ui.showMustLoginOverlay = !payload.detail.loggedIn;   // Show hide the overlay and must log in
+            draft.hasAuthenticatedOnce = draft.hasAuthenticatedOnce || payload.detail.loggedIn;     // Potentially set the auth once flag
             break;
     }
 
@@ -64,14 +68,14 @@ export const reducer: ImmerReducerType = (draft, action) => {
             draft.kccClient = action.payload;
             break;
         case KccDispatchType.LENGTHY_LOGIN:
-            draft.lengthyLogin = true;
+            draft.ui.lengthyLogin = true;
             break;
         case KccDispatchType.EXECUTING_LOGOUT:
-            draft.showLogoutOverlay = true;
-            draft.executingLogout = true;
+            draft.ui.showLogoutOverlay = true;
+            draft.ui.executingLogout = true;
             break;
         case KccDispatchType.SHOW_LOGOUT:
-            draft.showLogoutOverlay = true;
+            draft.ui.showLogoutOverlay = true;
             break;
     }
 }

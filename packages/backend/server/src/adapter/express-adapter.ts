@@ -88,7 +88,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 
                 // Send file
                 res.sendFile(connectorResponse.serveFileFullPath, (err) => {
-                    res.status(404);
+                    if (!res.headersSent) res.status(404);
                     next();
                 });
 
