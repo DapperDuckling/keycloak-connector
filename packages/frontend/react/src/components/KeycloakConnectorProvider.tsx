@@ -5,27 +5,33 @@ import {
 } from "@dapperduckling/keycloak-connector-client";
 import {Login} from "./Login.js";
 import {
-    initialContext,
+    InitialContext,
     KeycloakConnectorContext,
     KeycloakConnectorDispatchContext,
 } from "../keycloak-connector-context.js";
-import {KccDispatchType, reducer} from "../reducer.js";
+import {reducer} from "../reducer.js";
 import {useImmerReducer} from "use-immer";
 import {Button, createTheme, ThemeProvider} from "@mui/material";
 import {Logout} from "./Logout.js";
+import {KccDispatchType} from "../types.js";
 
-type ReactConfig = {
+export type ReactConfig = {
     disableAuthComponents?: boolean,
 
     /**
-     * @desc Specify a component pass to the login modal for slight customization
+     * @desc Specify a component to pass to the login modal for slight customization
      */
     loginModalChildren?: ReactNode;
 
     /**
-     * @desc Specify a component pass to the logout modal for slight customization
+     * @desc Specify a component to pass to the logout modal for slight customization
      */
     logoutModalChildren?: ReactNode;
+
+    /**
+     * Defer the start of the plugin
+     */
+    deferredStart?: boolean;
 }
 
 interface ConnectorProviderProps {
@@ -51,8 +57,15 @@ const theme = createTheme({
     },
 });
 
-export const KeycloakConnectorProvider = ({ children, config}: ConnectorProviderProps) => {
+export const KeycloakConnectorProvider = ({children, config}: ConnectorProviderProps) => {
 
+    // Grab the initial context
+    const initialContext = structuredClone(InitialContext);
+
+    // Update for a deferred start
+    if (config.react?.deferredStart) initialContext.ui.showLoginOverlay = false;
+
+    // Initialize the reducer
     const [kccContext, kccDispatch] = useImmerReducer(reducer, initialContext);
 
     useState(() => {
@@ -104,7 +117,7 @@ export const KeycloakConnectorProvider = ({ children, config}: ConnectorProvider
         });
 
         // Initialize the connector
-        kccClient.start();
+        if (config.react?.deferredStart !== true) kccClient.start();
     });
 
     return (
@@ -112,16 +125,10 @@ export const KeycloakConnectorProvider = ({ children, config}: ConnectorProvider
             <KeycloakConnectorDispatchContext.Provider value={kccDispatch}>
                 {config.react?.disableAuthComponents !== true &&
                     <ThemeProvider theme={theme}>
-                        {kccContext.ui.showLoginOverlay && <Login>{config.react?.loginModalChildren}</Login>}
-                        {kccContext.ui.showLogoutOverlay && <Logout>{config.react?.logoutModalChildren}</Logout>}
+                        {kccContext.ui.showLoginOverlay && <Login {...config.react}>{config.react?.loginModalChildren}</Login>}
+                        {kccContext.ui.showLogoutOverlay && <Logout {...config.react}>{config.react?.logoutModalChildren}</Logout>}
                     </ThemeProvider>
                 }
-                <div>Wow5!</div>
-                <Button onClick={() => {
-                    kccDispatch({type: KccDispatchType.EXECUTING_LOGOUT});
-                    kccContext.kccClient?.handleLogout();
-                }}>Logout Now</Button>
-                <Button onClick={() => kccDispatch({type: KccDispatchType.SHOW_LOGOUT})}>Show Logout Modal</Button>
                 {children}
             </KeycloakConnectorDispatchContext.Provider>
         </KeycloakConnectorContext.Provider>

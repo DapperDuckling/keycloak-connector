@@ -1,26 +1,10 @@
-import type { ImmerReducer } from "use-immer";
+import type {ImmerReducer} from "use-immer";
 import type {KeycloakConnectorContextProps} from "./keycloak-connector-context.js";
+import {InitialContext} from "./keycloak-connector-context.js";
 import type {UserStatus} from "@dapperduckling/keycloak-connector-common";
-import {ClientEvent, KeycloakConnectorClient} from "@dapperduckling/keycloak-connector-client";
-import {initialContext} from "./keycloak-connector-context.js";
+import {ClientEvent} from "@dapperduckling/keycloak-connector-client";
 import {Draft} from "immer";
-
-export enum KccDispatchType {
-    SET_KCC_CLIENT = "SET_KCC_CLIENT",
-    KCC_CLIENT_EVENT = "KCC_CLIENT_EVENT",
-    LENGTHY_LOGIN = "LENGTHY_LOGIN",
-    SHOW_LOGOUT = "SHOW_LOGOUT",
-    EXECUTING_LOGOUT = "EXECUTING_LOGOUT",
-}
-
-export type KeycloakConnectorStateActions =
-    | { type: KccDispatchType.SET_KCC_CLIENT; payload: KeycloakConnectorClient; }
-    | { type: KccDispatchType.KCC_CLIENT_EVENT; payload: Event | CustomEvent<UserStatus>; }
-    | { type:
-        KccDispatchType.LENGTHY_LOGIN   |
-        KccDispatchType.SHOW_LOGOUT     |
-        KccDispatchType.EXECUTING_LOGOUT
-    }
+import {KccDispatchType, KeycloakConnectorStateActions} from "./types.js";
 
 type ImmerReducerType = ImmerReducer<KeycloakConnectorContextProps, KeycloakConnectorStateActions>;
 
@@ -45,7 +29,7 @@ const keycloakConnectorClientEventHandler: ImmerReducerType = (draft, action) =>
             break;
         case ClientEvent.LOGOUT_SUCCESS:
             // Reset the state
-            return structuredClone(initialContext);
+            return structuredClone(InitialContext);
 
         case ClientEvent.USER_STATUS_UPDATED:
             const payload = action.payload as CustomEvent<UserStatus>;
@@ -74,8 +58,15 @@ export const reducer: ImmerReducerType = (draft, action) => {
             draft.ui.showLogoutOverlay = true;
             draft.ui.executingLogout = true;
             break;
+        case KccDispatchType.SHOW_LOGIN:
+            draft.ui.showLoginOverlay = true;
+            break;
         case KccDispatchType.SHOW_LOGOUT:
             draft.ui.showLogoutOverlay = true;
             break;
+        case KccDispatchType.HIDE_DIALOG:
+            resetUiHelperStates(draft);
+            draft.ui.showLoginOverlay = false;
+            draft.ui.showLogoutOverlay = false;
     }
 }

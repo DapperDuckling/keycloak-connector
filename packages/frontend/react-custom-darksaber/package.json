@@ -1,0 +1,73 @@
+{
+  "name": "@dapperduckling/keycloak-connector-react-custom-darksaber",
+  "version": "0.0.3",
+  "description": "An opinionated library for securing react apps without all the fuss",
+  "keywords": [
+    "react",
+    "keycloak",
+    "sso",
+    "authentication",
+    "oidc"
+  ],
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "author": "DapperDuckling Dev LLC",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DapperDuckling/keycloak-connector.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DapperDuckling/keycloak-connector/issues"
+  },
+  "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
+  "scripts": {
+    "clean": "rimraf ./dist/",
+    "build": "npm run clean && npm run build:esm && npm run build:cjs",
+    "build:yarn": "npm run clean && yarn build:esm && yarn build:cjs",
+    "build:esm": "tsc",
+    "build:cjs": "tsc --module commonjs --outDir dist/cjs",
+    "yalc:publish": "yalc publish --push",
+    "yalc:watch": "yalc-watch",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@dapperduckling/keycloak-connector-client": "file:../client",
+    "@dapperduckling/keycloak-connector-common": "^0.0.11",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.14.19",
+    "@mui/material": "^5.14.18",
+    "immer": "^10.0.3",
+    "use-immer": "^0.9.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.38",
+    "@types/react-dom": "^18.2.17",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "~5.2.0",
+    "yalc-watch": "^0.0.6"
+  },
+  "files": [
+    "dist",
+    "src",
+    "COPYING",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "gitHead": "59aee98d0b1e78baf2a8692f55314cc711818ddc",
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "yalcWatch": {
+    "watchFolder": "dist",
+    "buildWatchCommand": "tsc --watch",
+    "extensions": "js,jsx,ts,tsx"
+  }
+}

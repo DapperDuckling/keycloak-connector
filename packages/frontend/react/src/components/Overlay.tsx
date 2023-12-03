@@ -1,6 +1,8 @@
-import {Button, Dialog, Stack, Typography} from "@mui/material";
+import {Button, Dialog, IconButton, Stack, Typography} from "@mui/material";
 import type {ReactNode} from "react";
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import {OpenInNew, Close} from '@mui/icons-material';
+import { useKeycloakConnector } from "../use-keycloak-connector";
+import {KccDispatchType} from "../types.js";
 
 export type ButtonExpressionLevel = "subdued" | "regular" | "expressed";
 
@@ -8,6 +10,7 @@ interface OverlayProps {
     children?: ReactNode;
     mainMsg: string;
     subMsg?: string | undefined;
+    userCanClose?: boolean;
     button: {
         label: string;
         onClick: () => void;
@@ -21,17 +24,36 @@ export const Overlay = (props: OverlayProps) => {
     // Update the expression level if not set
     props.button.expressionLevel ??= "expressed";
 
+    const [kccContext, kccDispatch] = useKeycloakConnector();
+
     return (
         <Dialog open={true} scroll={"body"}>
             <Stack
                 p={2}
                 spacing={3}
                 alignItems="center"
-                sx={{ background: "#051827", color: "white" }}
+                sx={{ background: "#051827", color: "white", minWidth: 265 }}
             >
+                {props.userCanClose &&
+                    <IconButton
+                        aria-label="close"
+                        onClick={() => {
+                            kccContext.kccClient?.abortBackgroundLogins();
+                            kccDispatch({type: KccDispatchType.HIDE_DIALOG});
+                        }}
+                        sx={{
+                            position: 'absolute',
+                            right: 8,
+                            top: 8,
+                            color: (theme) => theme.palette.grey[500],
+                        }}
+                    >
+                        <Close />
+                    </IconButton>
+                }
                 {props.children}
                 <div>
-                    <Typography variant="h6" align="center">{props.mainMsg}</Typography>
+                    <Typography variant="h6" align="center" sx={{marginTop: 1}}>{props.mainMsg}</Typography>
                     <Typography
                         variant="caption"
                         display="block"
@@ -46,7 +68,7 @@ export const Overlay = (props: OverlayProps) => {
                 </div>
                 <Button
                     component="label"
-                    {...props.button.newWindow && {endIcon: <OpenInNewIcon/>}}
+                    {...props.button.newWindow && {endIcon: <OpenInNew />}}
                     onClick={props.button.onClick}
                     variant={props.button.expressionLevel === "subdued" ? "outlined" : "contained"}
                     sx={{

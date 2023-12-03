@@ -1,14 +1,12 @@
 import {createContext, Dispatch} from "react";
 import {KeycloakConnectorClient} from "@dapperduckling/keycloak-connector-client";
-import type {KeycloakConnectorState} from "./types.js";
-import {KeycloakConnectorStateActions} from "./reducer.js";
+import type {KeycloakConnectorState, KeycloakConnectorStateActions} from "./types.js";
 
 export interface KeycloakConnectorContextProps extends KeycloakConnectorState {
     kccClient?: KeycloakConnectorClient,
 }
 
-//temp dev note: if anything is added here, need to consider LOGOUT_SUCCESS where the state is reset to this object
-export const initialContext: KeycloakConnectorContextProps = {
+export const InitialContext: KeycloakConnectorContextProps = {
     userStatus: {
         userInfo: undefined,
         loggedIn: false,

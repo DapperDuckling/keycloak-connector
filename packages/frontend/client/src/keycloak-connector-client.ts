@@ -241,7 +241,7 @@ export class KeycloakConnectorClient {
         this.loginListenerInitiated = Date.now();
     }
 
-    private abortBackgroundLogins = () => {
+    public abortBackgroundLogins = () => {
         this.isAuthChecking = false;
         this.userStatusAbortController?.abort();
         this.removeSilentIframe();
@@ -250,7 +250,7 @@ export class KeycloakConnectorClient {
     private removeSilentIframe = () => document.querySelectorAll(`#${KeycloakConnectorClient.IFRAME_ID}`).forEach(elem => elem.remove());
     private removeListenerIframe = () => document.querySelectorAll(`#${KeycloakConnectorClient.LISTENER_IFRAME_ID}`).forEach(elem => elem.remove());
 
-    private authCheckNoWait = () => {
+    public authCheckNoWait = () => {
         // Check for a valid access token
         if (KeycloakConnectorClient.isTokenCurrent(TokenType.ACCESS)) {
             // Initial check if the user status has not been populated
@@ -324,7 +324,7 @@ export class KeycloakConnectorClient {
         return false;
     }
 
-    private authCheck = async () => {
+    public authCheck = async () => {
 
         // Execute the synchronous auth check portion
         if (this.authCheckNoWait() && (this.userStatusHash !== undefined || this.config.fastInitialAuthCheck)) return;

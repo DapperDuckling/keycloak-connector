@@ -1,10 +1,9 @@
-import {Button, Dialog, Stack} from "@mui/material";
+import {Dialog, Stack} from "@mui/material";
 import {useKeycloakConnector} from "../use-keycloak-connector.js";
-import {KccDispatchType, reducer} from "../reducer.js";
 import {Overlay} from "./Overlay.js";
-import type {ReactNode} from "react";
+import {AuthProps, KccDispatchType} from "../types.js";
 
-export const Logout = ({children}: {children: ReactNode}) => {
+export const Logout = ({children}: AuthProps) => {
     const [kccContext, kccDispatch] = useKeycloakConnector();
 
     const overlayProps = {
@@ -15,7 +14,8 @@ export const Logout = ({children}: {children: ReactNode}) => {
                 kccDispatch({type: KccDispatchType.EXECUTING_LOGOUT});
                 kccContext.kccClient?.handleLogout();
             },
-        }
+        },
+        userCanClose: true,
     };
 
     return (

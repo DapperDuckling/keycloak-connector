@@ -1,0 +1,48 @@
+{
+  "extends": [
+    "@tsconfig/strictest/tsconfig.json",
+    "@tsconfig/node18/tsconfig.json"
+  ],
+  "ts-node": {
+    "esm": true,
+    "files": true
+  },
+  "compilerOptions": {
+    "module": "es2022",
+    "lib": [
+      "es2022",
+      "DOM"
+    ],
+    "importHelpers": true,
+    "declaration": true,
+    "sourceMap": true,
+    "rootDir": "./src",
+    "outDir": "./dist/esm",
+    "strict": true,
+    "noUnusedLocals": false,
+    "moduleResolution": "node",
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "noUnusedParameters": false,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "removeComments": false,
+    "noEmitOnError": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "preserveConstEnums": true,
+    "target": "es2022",
+    "plugins": [
+      { "transform": "typia/lib/transform" }
+    ]
+  },
+  "include": ["src"],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "test"
+  ]
+}

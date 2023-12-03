@@ -2,7 +2,11 @@ import {Box, CircularProgress, Typography} from "@mui/material";
 import {useKeycloakConnector} from "@dapperduckling/keycloak-connector-react";
 import DarkSaberLogo from "../assets/DarkSaberLogo300x300.webp";
 
-export const DarkSaberLoginChild = () => {
+interface Props {
+    logo?: string;
+}
+
+export const DarkSaberLoginChild = ({logo}: Props) => {
 
     const [kccContext] = useKeycloakConnector();
 
@@ -12,13 +16,12 @@ export const DarkSaberLoginChild = () => {
             <Box sx={{ position: "relative", height: 210, width: 210 }}>
                 <Box
                     component="img"
-                    // src={`https://s3-public.devilops.dso.mil/DarkSaberLogo300x300.webp`}
-                    src={DarkSaberLogo}
+                    src={logo ?? DarkSaberLogo}
                     height="100%"
                     width="100%"
                     alt="Dark Saber Logo"
                 />
-                {kccContext.silentLoginInitiated && !kccContext.showMustLoginOverlay && (
+                {kccContext.ui.silentLoginInitiated && !kccContext.ui.showMustLoginOverlay && (
                     <>
                         <Box sx={center}>
                             <CircularProgress

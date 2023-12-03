@@ -1,9 +1,9 @@
 import {useKeycloakConnector} from "../use-keycloak-connector.js";
 import {Dialog, Stack} from "@mui/material";
 import {ButtonExpressionLevel, Overlay} from "./Overlay.js";
-import type {ReactNode} from "react";
+import {AuthProps} from "../types.js";
 
-export const Login = ({children}: {children: ReactNode}) => {
+export const Login = ({children, reactConfig}: AuthProps) => {
     const [kccContext] = useKeycloakConnector();
 
     let expressionLevel: ButtonExpressionLevel;
@@ -24,11 +24,11 @@ export const Login = ({children}: {children: ReactNode}) => {
             onClick: () => kccContext.kccClient?.handleLogin(kccContext.hasAuthenticatedOnce),
             newWindow: kccContext.hasAuthenticatedOnce,
             expressionLevel: expressionLevel,
-        }
+        },
+        userCanClose: !!(kccContext.hasAuthenticatedOnce || reactConfig?.deferredStart),
     }
 
     // Start the login listener if login will be with a new window
-    console.log(`Has Auth'd once: ${kccContext.hasAuthenticatedOnce}`);
     if (kccContext.hasAuthenticatedOnce) kccContext.kccClient?.prepareToHandleNewWindowLogin();
 
     return (
@@ -37,7 +37,7 @@ export const Login = ({children}: {children: ReactNode}) => {
                 p={2}
                 spacing={3}
                 alignItems="center"
-                sx={{ background: "#051827", color: "white" }}
+                sx={{ background: "#051827", color: "white"}}
             >
                 <Overlay {...overlayProps}>
                     {children}
