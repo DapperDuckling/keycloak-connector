@@ -51,7 +51,7 @@ export const Overlay = (props: OverlayProps) => {
                     variant={props.button.expressionLevel === "subdued" ? "outlined" : "contained"}
                     sx={{
                         width: "100%",
-                        opacity: props.button.expressionLevel !== "expressed" ? "0.6" : "1.0",
+                        opacity: props.button.expressionLevel === "subdued" ? "0.6" : "1.0",
                     }}
                     color={props.button.expressionLevel === "expressed" ? "info" : "primary"}
                 >

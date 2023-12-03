@@ -5,6 +5,14 @@ let oneMore = false;
 
 const updateBackground = () => {
     const backgroundElem = document.querySelector("#background").getClientRects()[0];
+
+    // Check for a missing background element
+    // (typically when the page unloads)
+    if (!backgroundElem) return;
+
+    // Check for valid dimensions
+    if (backgroundElem.width === 0 || backgroundElem.height === 0) return;
+
     const pattern = trianglify({
         seed: seed,
         cellSize: 50,

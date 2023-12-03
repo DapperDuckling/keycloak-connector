@@ -212,7 +212,7 @@ export class KeycloakConnectorClient {
         iframe.src = listenerUrl;
         iframe.setAttribute(
             "sandbox",
-            "allow-scripts"
+            "allow-scripts allow-same-origin allow-forms"
         );
         iframe.style.display = "none";
 
@@ -386,6 +386,7 @@ export class KeycloakConnectorClient {
     handleLogin = (newWindow?: boolean) => {
 
         // Initiate the silent listener if using a new window
+        //todo: make this an await
         if (newWindow) this.silentBroadcastListener();
 
         // Build the login url

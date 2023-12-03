@@ -51,7 +51,7 @@ import {standaloneKeyProvider} from "./crypto/index.js";
 import {webcrypto} from "crypto";
 import {TokenCache, UserInfoCache} from "./cache-adapters/index.js";
 import {AuthPluginManager} from "./auth-plugins/index.js";
-import {silentLoginResponseHTML} from "./helpers/silent-login.js";
+import {silentLoginResponseHTML} from "./browser-login-helpers/silent-login.js";
 import hash from "object-hash";
 import {fileURLToPath} from "url";
 import path, {dirname} from "path";
@@ -288,7 +288,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Otherwise, serve the login page
         return this.servePublic(`login-start.html`);
-    };
+    }
 
     private silentRequestConfig = (req: ConnectorRequest): [SilentLoginTypes, string] => {
         // Ensure there is a token passed
@@ -301,6 +301,12 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const silentType = (silentParam && Object.values(SilentLoginTypes).includes(silentParam)) ? silentParam : SilentLoginTypes.NONE;
 
         return [silentType as SilentLoginTypes, token];
+    }
+
+    private originFromQuery = (req: ConnectorRequest): string | undefined => {
+        const sourceOriginParam = req.urlQuery['source-origin'];
+
+        return typeof sourceOriginParam === "string" ? sourceOriginParam : undefined;
     }
 
     private redirectIfAuthenticated = async (req: ConnectorRequest): Promise<ConnectorResponse<Server> | false> => {
@@ -324,7 +330,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Silent, return data via silent login response
         if (silentRequestType !== SilentLoginTypes.NONE) {
-            return this.handleSilentLoginResponse(req, [], SilentLoginEvent.LOGIN_SUCCESS);
+            return this.handleSilentLoginResponse(req, [], SilentLoginEvent.LOGIN_SUCCESS, req.origin);
         }
 
         // Validate the redirect uri (or throw)
@@ -347,8 +353,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const redirectIfAuthenticated = await this.redirectIfAuthenticated(req);
         if (redirectIfAuthenticated) return redirectIfAuthenticated;
 
-        // Ensure the request comes from our origin
-        this.validateOriginOrThrow(req);
+        // Ensure the request comes from an allowed origin
+        const sourceOrigin = this.validateOriginOrThrow(req);
 
         // Generate random values
         const cv = generators.codeVerifier();
@@ -363,6 +369,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Build the redirect uri
         const redirectUri = this.buildRedirectUriOrThrow({
             authFlowNonce: authFlowNonce,
+            sourceOrigin: sourceOrigin,
             silentRequestType: silentRequestType,
             silentRequestToken: silentRequestToken
         });
@@ -404,6 +411,21 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
     }
 
+    private handleLoginListener = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
+
+        // Grab the source origin from the query
+        const sourceOrigin = this.originFromQuery(req);
+
+        // Ensure the origin is allowed
+        if (sourceOrigin === undefined || !this.validRedirectOrigins.includes(sourceOrigin)) return {
+            statusCode: 400
+        }
+
+        // Serve the login listener page
+        return this.servePublic(`login-listener.html`);
+
+    }
+
     private validateRedirectUriOrThrow = (rawRedirectUri: string | null): boolean => {
 
         // Check for a null redirect uri (i.e. no redirect uri)
@@ -434,14 +456,17 @@ export class KeycloakConnector<Server extends SupportedServers> {
         throw new LoginError(ErrorHints.CODE_400);
     }
 
-    private validateOriginOrThrow = (req: ConnectorRequest) => {
+    private validateOriginOrThrow = (req: ConnectorRequest, required = true): string | undefined => {
+
+        // Check for a missing origin when not required
+        if (!required && req.origin === undefined) return;
 
         // Check for dev and the server has a "localhost" origin
         const hostname = (URL.canParse(this._config.serverOrigin)) ? (new URL(this._config.serverOrigin))?.hostname : undefined;
-        if (isDev() && hostname === "localhost") return;
+        if (isDev() && hostname === "localhost") return req.origin;
 
         // Check for good origin
-        if (req.origin && this.validRedirectOrigins.includes(req.origin)) return;
+        if (req.origin && this.validRedirectOrigins.includes(req.origin)) return req.origin;
 
         // Log this error (possibly detect attacks)
         this._config.pinoLogger?.warn(`Request came from different origin. Server origin: ${this._config.serverOrigin}, Got: ${req.origin}. Add to valid origins configuration if required.`);
@@ -516,6 +541,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     private buildRedirectUriOrThrow = (config: {
         authFlowNonce: string,
+        sourceOrigin?: string | undefined,
         isLogout?: boolean,
         silentRequestType?: SilentLoginTypes,
         silentRequestToken?: string,
@@ -544,6 +570,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
             redirectUriObj.searchParams.append("silent-token", config.silentRequestToken);
         }
 
+        // Add the source origin query param
+        if (config.sourceOrigin) {
+            redirectUriObj.searchParams.append("source-origin", config.sourceOrigin);
+        }
+
         return redirectUriObj.toString();
     }
 
@@ -562,7 +593,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             // Silent, return data via silent login response
             if (silentRequestType !== SilentLoginTypes.NONE) {
-                return this.handleSilentLoginResponse(req, [], SilentLoginEvent.LOGIN_ERROR);
+                return this.handleSilentLoginResponse(req, [], SilentLoginEvent.LOGIN_ERROR, req.origin);
             }
 
             // Rethrow on non-silent requests
@@ -572,8 +603,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     private handleCallback = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
-        // Ensure the request comes from our origin
+        // Ensure the request comes from an allowed origin
         this.validateOriginOrThrow(req);
+
+        //todo: Debug remove. Need to verify where the origin would end up
 
         // Grab the auth flow nonce
         const authFlowNonce = this.getAuthFlowNonce(req);
@@ -614,9 +647,13 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Check if this is a silent request
         const [silentRequestType, silentRequestToken] = this.silentRequestConfig(req);
 
+        // Grab the source origin of the initial request from the query param
+        const sourceOrigin = this.originFromQuery(req);
+
         // Build the redirect uri
         const redirectUri = this.buildRedirectUriOrThrow({
             authFlowNonce: authFlowNonce,
+            sourceOrigin: sourceOrigin,
             silentRequestType: silentRequestType,
             silentRequestToken: silentRequestToken
         });
@@ -655,7 +692,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             // Return a silent login response if required
             if (silentRequestType !== SilentLoginTypes.NONE) {
-                return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_SUCCESS);
+                return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_SUCCESS, sourceOrigin);
             }
 
             return {
@@ -671,7 +708,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 e instanceof OPError &&
                 (e.message.includes("login_required") || e.message.includes("interaction_required"))
             ) {
-                return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED);
+                return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED, sourceOrigin);
             }
 
             if (e instanceof RPError) {
@@ -713,7 +750,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     private handleLogoutPost = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
-        // Ensure the request comes from our origin
+        // Ensure the request comes from an allowed origin
         this.validateOriginOrThrow(req);
 
         // This nonce will ensure authorization cookies are cleared automatically when KC returns
@@ -901,7 +938,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return cookies.reduce((cookieStore,currentCookie) => ({...cookieStore, [currentCookie.name]: currentCookie.value}),{});
     }
 
-    private handleSilentLoginResponse = async (req: ConnectorRequest, cookies: CookieParams<Server>[], event: SilentLoginEvent): Promise<ConnectorResponse<Server>> => {
+    private handleSilentLoginResponse = async (req: ConnectorRequest, cookies: CookieParams<Server>[], event: SilentLoginEvent, sourceOrigin: string | undefined): Promise<ConnectorResponse<Server>> => {
         // Convert the cookies into an object based store
         const requestCookies = this.cookieArrayToObject(cookies);
 
@@ -943,7 +980,12 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return  {
             statusCode: 200,
             cookies: finalCookies,
-            responseHtml: silentLoginResponseHTML(message, silentRequestToken, silentRequestType === SilentLoginTypes.PARTIAL, process.env['DEBUG_SILENT_IFRAME'] !== undefined)
+            responseHtml: silentLoginResponseHTML(message,
+                silentRequestToken,
+                silentRequestType === SilentLoginTypes.PARTIAL,
+                sourceOrigin ?? req.origin,
+                process.env['DEBUG_SILENT_IFRAME'] !== undefined
+            )
         }
 
     }
@@ -1078,9 +1120,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Todo: add the result of this call to the connector request with the key being the access token
 
-        // Check the origin of the request
-        this.validateOriginOrThrow(connectorRequest);
-
         // Execute the following loop at most twice
         let numOfLoopExecutions = 0;
 
@@ -1096,6 +1135,13 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             // Extract the user data key
             userData = userDataResponse.userData;
+
+            try {
+                // Check the origin of the request
+                this.validateOriginOrThrow(connectorRequest, false);
+            } catch (e) {
+                return userDataResponse;
+            }
 
             // Grab the access token from the request
             const validatedAccessJwt = await this.populateTokensFromRequest(connectorRequest, userDataResponse, numOfLoopExecutions > 0);

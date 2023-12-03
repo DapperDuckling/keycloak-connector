@@ -23,6 +23,7 @@ const silentLoginIframe = (authUrl: string, token: string, silentLoginEventJson:
   // Check if this page has not been loaded in an iframe
   if (window.frameElement === null) {
     // Redirect the user to this page's origin root uri
+    console.error(`Not loaded in iframe, redirecting to window's origin`);
     window.location.href = window.location.origin;
     return;
   }

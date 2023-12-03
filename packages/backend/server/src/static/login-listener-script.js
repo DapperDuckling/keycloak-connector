@@ -17,17 +17,24 @@
     const parent = window.parent;
 
     // Check if this page has not been loaded in an iframe
-    if (window.frameElement === null) {
+    // (cannot use frameElement due to different origins)
+    if (window.top === window.self) {
         // Redirect the user to this page's origin root uri
+        console.error(`Not loaded in iframe, redirecting to window's origin`);
         window.location.href = window.location.origin;
         return;
     }
+
+    // Setup the parent message
+    window.addEventListener("message", () => {
+
+    });
 
     // Tell the parent we are alive
     parent.postMessage({
         token: token,
         event: `CHILD_ALIVE`,
-    }, parent.location.origin);
+    }, "*");
 
     // Listen to broadcast channel messages
     const bc = new BroadcastChannel('login-listener');

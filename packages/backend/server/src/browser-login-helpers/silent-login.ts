@@ -2,12 +2,14 @@ import {
     SilentLoginEvent as SilentLoginEventType,
     type SilentLoginMessage
 } from "@dapperduckling/keycloak-connector-common";
+import {LOGIN_LISTENER_BROADCAST_CHANNEL} from "./common.js";
 
 const silentLoginResponse = (
     messageJson: string,
     token: string,
     silentLoginEventJson: string,
     autoClose: boolean,
+    sourceOrigin: string | undefined,
     enableDebugger: boolean
 ) => {
 
@@ -23,6 +25,12 @@ const silentLoginResponse = (
     // Update the error link
     const backToMainLink = document.querySelector<HTMLAnchorElement>("#back-to-main");
     if (backToMainLink) backToMainLink.href = window.location.origin;
+
+    // Check for an origin
+    if (sourceOrigin === undefined) {
+        console.error(`Missing source origin, cannot process silent login!`);
+        return;
+    }
 
     const messageToParent: SilentLoginMessage = {
         token: token,
@@ -59,15 +67,13 @@ const silentLoginResponse = (
 
     } finally {
         // Send the parent a message
-        parent.postMessage(messageToParent, "*"); //todo: lock down with origin
+        parent.postMessage(messageToParent, sourceOrigin);
 
         // Handle auto-closing login types
         if (autoClose) {
             // Hop on the broadcast channel
-            if (messageToParent.event === SilentLoginEvent.LOGIN_SUCCESS) {
-                const bc = new BroadcastChannel("login-listener");
-                bc.postMessage(SilentLoginEvent.LOGIN_SUCCESS);
-            }
+            const bc = new BroadcastChannel(LOGIN_LISTENER_BROADCAST_CHANNEL);
+            bc.postMessage(messageToParent);
 
             // Attempt to close the window
             window.close();
@@ -81,7 +87,7 @@ const silentLoginResponse = (
     }
 }
 
-export const silentLoginResponseHTML = (message: SilentLoginMessage, token: string, autoClose: boolean, enableDebugger: boolean) => {
+export const silentLoginResponseHTML = (message: SilentLoginMessage, token: string, autoClose: boolean, sourceOrigin: string | undefined, enableDebugger: boolean) => {
     // Build the html for the silent login iframe
     const silentLoginResponseFunction = silentLoginResponse.toString();
 
@@ -99,7 +105,7 @@ export const silentLoginResponseHTML = (message: SilentLoginMessage, token: stri
       <h3>Silent Login Response</h3>
       <p>This page loaded in error. <a id="back-to-main" href="#">Back to main</a></p>
       <script>
-        (${silentLoginResponseFunction})("${messageJson}", "${token}", "${silentLoginEventJson}", "${autoClose}", ${(enableDebugger) ? "true" : "false"});
+        (${silentLoginResponseFunction})("${messageJson}", "${token}", "${silentLoginEventJson}", "${autoClose}", "${sourceOrigin}", ${(enableDebugger) ? "true" : "false"});
       </script>
       </body>
     </html>
