@@ -30,7 +30,7 @@
     "test:watch": "vitest",
     "yalc:publish": "yalc publish --push",
     "yalc:watch": "yalc-watch",
-    "postinstall": "node dev-post-install.mjs"
+    "postinstall": "node dev-post-install.cjs"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
