@@ -1,6 +1,6 @@
 import {Box, CircularProgress, Typography} from "@mui/material";
-import {useKeycloakConnector} from "@dapperduckling/keycloak-connector-react";
 import DarkSaberLogo from "../assets/DarkSaberLogo300x300.webp";
+import { useKeycloakConnector } from "@dapperduckling/keycloak-connector-react";
 
 interface Props {
     logo?: string;
