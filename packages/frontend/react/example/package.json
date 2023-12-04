@@ -15,7 +15,6 @@
     "@dapperduckling/keycloak-connector-client": "file:.yalc/@dapperduckling/keycloak-connector-client",
     "@dapperduckling/keycloak-connector-common": "file:.yalc/@dapperduckling/keycloak-connector-common",
     "@dapperduckling/keycloak-connector-react": "file:.yalc/@dapperduckling/keycloak-connector-react",
-    "@dapperduckling/keycloak-connector-react-custom-darksaber": "file:.yalc/@dapperduckling/keycloak-connector-react-custom-darksaber",
     "@types/react": "^18.0.13",
     "@types/react-dom": "^18.0.5",
     "parcel": "^2.6.0",
