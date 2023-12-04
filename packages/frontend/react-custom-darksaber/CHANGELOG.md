@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.5] - 2023-12-04
+## [1.0.2] - 2023-12-04
 
 ### Fixed
 
-- Applied fix with `postinstall` preventing use in other libraries 
+- Invalid import
 
 ## [1.0.0] - 2023-12-03
 
