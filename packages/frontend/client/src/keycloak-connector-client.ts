@@ -20,6 +20,13 @@ import {type ClientConfig, ClientEvent, LocalStorage} from "./types.js";
 import {EventListener} from "@dapperduckling/keycloak-connector-common";
 
 export class KeycloakConnectorClient {
+
+    private static kccClient: KeycloakConnectorClient | undefined = undefined;
+    private static readonly IFRAME_ID = "silent-login-iframe";
+    private static readonly LISTENER_IFRAME_ID = "listener-login-iframe";
+    private static readonly ENABLE_IFRAME_DEBUGGING = process?.env?.["DEBUG_SILENT_IFRAME"] !== undefined;
+    private static readonly MAX_LOGIN_LISTENER_WAIT_SECS = 30;
+
     // Create a random token if in a secure context. If not in a secure context, just generate a non-cryptographically secure "random" token
     // Dev note: This is merely a defense-in-depth approach that is paired with origin checking anyway. If this app is running in an unsecure
     //            context already, the user has already lost to a MITM attack.
@@ -40,15 +47,10 @@ export class KeycloakConnectorClient {
     private started = false;
     private isAuthCheckedWithServer = false;
     private isAuthChecking = false;
+    private uniqueSilentIframeId = `${KeycloakConnectorClient.IFRAME_ID}-${this.token}`;
+    private uniqueListenerIframeId = `${KeycloakConnectorClient.LISTENER_IFRAME_ID}-${this.token}`;
 
-    private static kccClient: KeycloakConnectorClient | undefined = undefined;
-    private static readonly IFRAME_ID = "silent-login-iframe";
-    private static readonly LISTENER_IFRAME_ID = "listener-login-iframe";
-    private static readonly ENABLE_IFRAME_DEBUGGING = process?.env?.["DEBUG_SILENT_IFRAME"] !== undefined;
-    private static readonly MAX_LOGIN_LISTENER_WAIT_SECS = 30;
-
-
-    private constructor(config: ClientConfig) {
+    public constructor(config: ClientConfig) {
         // Store the config
         this.config = config;
 
@@ -188,7 +190,7 @@ export class KeycloakConnectorClient {
         // Make an iframe to make auth request
         const iframe = document.createElement("iframe");
         const authUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGIN_POST, this.config.routePaths)}?silent=${SilentLoginTypes.FULL}&silent-token=${this.token}`;
-        iframe.id = KeycloakConnectorClient.IFRAME_ID;
+        iframe.id = this.uniqueSilentIframeId;
         iframe.setAttribute(
             "srcDoc",
             silentLoginIframeHTML(
@@ -220,12 +222,12 @@ export class KeycloakConnectorClient {
         this.removeListenerIframe();
 
         // Check for an existing silent listener
-        if (document.querySelectorAll(`#${KeycloakConnectorClient.LISTENER_IFRAME_ID}`).length > 0) return;
+        if (document.querySelectorAll(`#${this.uniqueListenerIframeId}`).length > 0) return;
 
         // Make an iframe to listen for successful authentications
         const iframe = document.createElement("iframe");
         const listenerUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGIN_LISTENER, this.config.routePaths)}?source-origin=${self.origin}&silent-token=${this.token}`;
-        iframe.id = KeycloakConnectorClient.LISTENER_IFRAME_ID;
+        iframe.id = this.uniqueListenerIframeId;
         iframe.src = listenerUrl;
         iframe.setAttribute(
             "sandbox",
@@ -247,8 +249,13 @@ export class KeycloakConnectorClient {
         this.removeSilentIframe();
     }
 
-    private removeSilentIframe = () => document.querySelectorAll(`#${KeycloakConnectorClient.IFRAME_ID}`).forEach(elem => elem.remove());
-    private removeListenerIframe = () => document.querySelectorAll(`#${KeycloakConnectorClient.LISTENER_IFRAME_ID}`).forEach(elem => elem.remove());
+    public destroy = () => {
+        this.abortBackgroundLogins();
+        this.removeListenerIframe();
+    }
+
+    private removeSilentIframe = () => document.querySelectorAll(`#${this.uniqueSilentIframeId}`).forEach(elem => elem.remove());
+    private removeListenerIframe = () => document.querySelectorAll(`#${this.uniqueListenerIframeId}`).forEach(elem => elem.remove());
 
     public authCheckNoWait = () => {
         // Check for a valid access token

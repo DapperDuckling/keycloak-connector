@@ -46,8 +46,7 @@ const keycloakConnectorClientEventHandler: ImmerReducerType = (draft, action) =>
 export const reducer: ImmerReducerType = (draft, action) => {
     switch (action.type) {
         case KccDispatchType.KCC_CLIENT_EVENT:
-            keycloakConnectorClientEventHandler(draft, action);
-            break;
+            return keycloakConnectorClientEventHandler(draft, action);
         case KccDispatchType.SET_KCC_CLIENT:
             draft.kccClient = action.payload;
             break;
@@ -68,5 +67,10 @@ export const reducer: ImmerReducerType = (draft, action) => {
             resetUiHelperStates(draft);
             draft.ui.showLoginOverlay = false;
             draft.ui.showLogoutOverlay = false;
+            break;
+        case KccDispatchType.DESTROY_CLIENT:
+            return structuredClone(InitialContext);
     }
+
+    return undefined;
 }

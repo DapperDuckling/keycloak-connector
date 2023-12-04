@@ -1,7 +1,6 @@
-import {type ReactNode, useLayoutEffect, useState} from 'react';
+import {type ReactNode, useEffect} from 'react';
 import {
-    type ClientConfig, ClientEvent,
-    keycloakConnectorClient
+    type ClientConfig, ClientEvent, KeycloakConnectorClient,
 } from "@dapperduckling/keycloak-connector-client";
 import {Login} from "./Login.js";
 import {
@@ -14,6 +13,7 @@ import {useImmerReducer} from "use-immer";
 import {createTheme, ThemeProvider} from "@mui/material";
 import {Logout} from "./Logout.js";
 import {KccDispatchType} from "../types.js";
+import {EventListenerFunction} from "@dapperduckling/keycloak-connector-common/src/event-listener.js";
 
 export type ReactConfig = {
     disableAuthComponents?: boolean,
@@ -32,6 +32,11 @@ export type ReactConfig = {
      * Defer the start of the plugin
      */
     deferredStart?: boolean;
+
+    /**
+     * Can specify an event listener to catch all emitted events
+     */
+    globalEventListener?: EventListenerFunction<ClientEvent>;
 }
 
 interface ConnectorProviderProps {
@@ -68,35 +73,23 @@ export const KeycloakConnectorProvider = ({children, config}: ConnectorProviderP
     // Initialize the reducer
     const [kccContext, kccDispatch] = useImmerReducer(reducer, initialContext);
 
-    useState(() => {
+    useEffect(() => {
         // Safety check for non-typescript instances
         if (config === undefined) {
             throw new Error("No config provided to KeycloakConnectorProvider");
         }
 
         // Instantiate the keycloak connector client
-        const kccClient = keycloakConnectorClient(config.client);
+        // const kccClient = keycloakConnectorClient(config.client);
+        const kccClient = new KeycloakConnectorClient(config.client);
 
         // Store the client in the context
         kccDispatch({type: KccDispatchType.SET_KCC_CLIENT, payload: kccClient});
-    });
-
-    useLayoutEffect(() => {
-
-        // Grab the client
-        const kccClient = kccContext.kccClient;
-
-        if (!kccClient) {
-            console.debug(`No client found`);
-            return;
-        }
-
-        // Check if the client has already started
-        if (kccClient.isStarted()) return;
 
         // Attach handler
         let lengthyLoginTimeout: undefined | number = undefined;
 
+        // Add event listener to pass events down to components
         kccClient.addEventListener('*', (clientEvent, payload) => {
 
             console.debug(`KCP received event: ${clientEvent}`);
@@ -116,9 +109,17 @@ export const KeycloakConnectorProvider = ({children, config}: ConnectorProviderP
             }
         });
 
+        // Add global event listener from user
+        if (config.react?.globalEventListener) kccClient.addEventListener('*', config.react?.globalEventListener);
+
         // Initialize the connector
         if (config.react?.deferredStart !== true) kccClient.start();
-    });
+
+        return () => {
+            kccClient.destroy();
+            kccDispatch({type: KccDispatchType.DESTROY_CLIENT});
+        }
+    }, []);
 
     return (
         <KeycloakConnectorContext.Provider value={kccContext}>
@@ -129,7 +130,7 @@ export const KeycloakConnectorProvider = ({children, config}: ConnectorProviderP
                         {kccContext.ui.showLogoutOverlay && <Logout {...config.react}>{config.react?.logoutModalChildren}</Logout>}
                     </ThemeProvider>
                 }
-                {children}
+                {kccContext.hasAuthenticatedOnce && children}
             </KeycloakConnectorDispatchContext.Provider>
         </KeycloakConnectorContext.Provider>
     );

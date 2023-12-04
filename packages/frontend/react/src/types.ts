@@ -22,6 +22,7 @@ export interface KeycloakConnectorState {
 }
 
 export enum KccDispatchType {
+    DESTROY_CLIENT = "DESTROY_CLIENT",
     SET_KCC_CLIENT = "SET_KCC_CLIENT",
     KCC_CLIENT_EVENT = "KCC_CLIENT_EVENT",
     LENGTHY_LOGIN = "LENGTHY_LOGIN",
@@ -35,6 +36,7 @@ export type KeycloakConnectorStateActions =
     | { type: KccDispatchType.SET_KCC_CLIENT; payload: KeycloakConnectorClient; }
     | { type: KccDispatchType.KCC_CLIENT_EVENT; payload: Event | CustomEvent<UserStatus>; }
     | { type:
+            KccDispatchType.DESTROY_CLIENT |
             KccDispatchType.LENGTHY_LOGIN |
             KccDispatchType.SHOW_LOGIN |
             KccDispatchType.SHOW_LOGOUT |
