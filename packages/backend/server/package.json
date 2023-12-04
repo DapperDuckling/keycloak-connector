@@ -28,7 +28,9 @@
     "test:start:express": "npm run build && cd ./tests/integration/express/ && nodemon ./express-server.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "postinstall": "node dev-post-install.js"
+    "yalc:publish": "yalc publish --push",
+    "yalc:watch": "yalc-watch",
+    "postinstall": "node dev-post-install.mjs"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
