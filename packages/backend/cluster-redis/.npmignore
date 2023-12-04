@@ -1,5 +1,6 @@
 *
 !dist/*
 !package.json
-!readme.md
+!README.md
 !COPYING
+!CHANGELOG.md
