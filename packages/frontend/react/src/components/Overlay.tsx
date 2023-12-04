@@ -1,7 +1,7 @@
 import {Button, Dialog, IconButton, Stack, Typography} from "@mui/material";
 import type {ReactNode} from "react";
 import {OpenInNew, Close} from '@mui/icons-material';
-import { useKeycloakConnector } from "../use-keycloak-connector";
+import { useKeycloakConnector } from "../use-keycloak-connector.js";
 import {KccDispatchType} from "../types.js";
 
 export type ButtonExpressionLevel = "subdued" | "regular" | "expressed";
