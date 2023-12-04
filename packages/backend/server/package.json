@@ -28,7 +28,7 @@
     "test:start:express": "npm run build && cd ./tests/integration/express/ && nodemon ./express-server.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "postinstall": "ts-patch install"
+    "postinstall": "node dev-post-install.js"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
