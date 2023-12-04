@@ -1,4 +1,4 @@
-import {type ReactNode, useLayoutEffect, useReducer, useState} from 'react';
+import {type ReactNode, useLayoutEffect, useState} from 'react';
 import {
     type ClientConfig, ClientEvent,
     keycloakConnectorClient
@@ -11,7 +11,7 @@ import {
 } from "../keycloak-connector-context.js";
 import {reducer} from "../reducer.js";
 import {useImmerReducer} from "use-immer";
-import {Button, createTheme, ThemeProvider} from "@mui/material";
+import {createTheme, ThemeProvider} from "@mui/material";
 import {Logout} from "./Logout.js";
 import {KccDispatchType} from "../types.js";
 
