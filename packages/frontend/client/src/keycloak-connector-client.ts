@@ -455,6 +455,7 @@ export class KeycloakConnectorClient {
         // Build the logout url
         const logoutUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGOUT_POST, this.config.routePaths)}?post_auth_redirect_uri=${self.location.href}`;
 
+        /** Remove until plugin added to keycloak to allow CORS request to certain endpoints
         try {
             // Attempt to log out using a fetch
             const logoutFetch = await fetch(`${logoutUrl}?silent=${SilentLogoutTypes.FETCH}`, {
@@ -486,6 +487,7 @@ export class KeycloakConnectorClient {
             this.config.logger?.error(`Failed to logout in the background`);
             this.config.logger?.error(e);
         }
+        **/
 
         // Perform a form submit redirect to logout instead
         const form = document.createElement("form");
