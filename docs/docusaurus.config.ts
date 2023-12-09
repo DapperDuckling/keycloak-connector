@@ -92,19 +92,23 @@ const config: Config = {
             }
           ],
         },
-        // {
-        //   title: 'More',
-        //   items: [
-        //     {
-        //       label: 'Blog',
-        //       to: '/blog',
-        //     },
-        //     {
-        //       label: 'GitHub',
-        //       href: 'https://github.com/DapperDuckling/keycloak-connector',
-        //     },
-        //   ],
-        // },
+        {
+          title: 'More',
+          items: [
+            {
+              label: 'NPM - Server',
+              href: 'https://www.npmjs.com/package/@dapperduckling/keycloak-connector-server',
+            },
+            {
+              label: 'NPM - Client',
+              href: 'https://www.npmjs.com/package/@dapperduckling/keycloak-connector-client',
+            },
+            {
+              label: 'GitHub',
+              href: 'https://github.com/DapperDuckling/keycloak-connector',
+            },
+          ],
+        },
       ],
       copyright: `Copyright © ${new Date().getFullYear()} DapperDuckling LLC. Built with Docusaurus.`,
     },
