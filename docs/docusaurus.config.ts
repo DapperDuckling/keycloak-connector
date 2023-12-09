@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'Keycloak Connector',
-  tagline: 'Securing NodeJs apps with ease.',
+  tagline: 'An opinionated auth library built to secure front & backend applications',
   favicon: 'img/keycloak-logo.svg',
 
   // Set the production url of your site here
@@ -39,12 +39,7 @@ const config: Config = {
           editUrl:
             'https://github.com/DapperDuckling/keycloak-connector/tree/main/docs/',
         },
-        blog: {
-          showReadingTime: true,
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/DapperDuckling/keycloak-connector/tree/main/docs/',
-        },
+        blog: false,
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -68,9 +63,9 @@ const config: Config = {
           position: 'left',
           label: 'Tutorial',
         },
-        {to: '/blog', label: 'Blog', position: 'left'},
+        // {to: '/blog', label: 'Blog', position: 'left'},
         {
-          href: 'https://github.com/facebook/docusaurus',
+          href: 'https://github.com/DapperDuckling/keycloak-connector',
           label: 'GitHub',
           position: 'right',
         },
@@ -93,33 +88,25 @@ const config: Config = {
           items: [
             {
               label: 'Stack Overflow',
-              href: 'https://stackoverflow.com/questions/tagged/docusaurus',
-            },
-            {
-              label: 'Discord',
-              href: 'https://discordapp.com/invite/docusaurus',
-            },
-            {
-              label: 'Twitter',
-              href: 'https://twitter.com/docusaurus',
-            },
+              href: 'https://stackoverflow.com/questions/tagged/keycloak-connector',
+            }
           ],
         },
-        {
-          title: 'More',
-          items: [
-            {
-              label: 'Blog',
-              to: '/blog',
-            },
-            {
-              label: 'GitHub',
-              href: 'https://github.com/facebook/docusaurus',
-            },
-          ],
-        },
+        // {
+        //   title: 'More',
+        //   items: [
+        //     {
+        //       label: 'Blog',
+        //       to: '/blog',
+        //     },
+        //     {
+        //       label: 'GitHub',
+        //       href: 'https://github.com/DapperDuckling/keycloak-connector',
+        //     },
+        //   ],
+        // },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} DapperDuckling LLC. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,

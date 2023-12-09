@@ -10,32 +10,34 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Easy to Use',
-    Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
+    title: 'Top End User Experience',
+    Svg: require('@site/static/img/undraw_ux.svg').default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        The react library comes loaded with user experiencing enriching features,
+          ensuring the user stays authenticated without all the unnecessary redirects
+          and data loss.
       </>
     ),
   },
   {
-    title: 'Focus on What Matters',
-    Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
+    title: 'Scalability Built In',
+    Svg: require('@site/static/img/hero-cluster.svg').default,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
+        Running multiple instances of your backend? Use the provided Redis clustering plugin
+          library to sync efforts and secure apps across your scaled platform.
       </>
     ),
   },
   {
-    title: 'Powered by React',
-    Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
+    title: 'Financial-grade API 2.0',
+    Svg: require('@site/static/img/undraw_security.svg').default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+        Founded on the principles and requirements of the FAPI 2.0 security profile.
+          <br />
+          <sub>*DPoP support pending</sub>
       </>
     ),
   },
