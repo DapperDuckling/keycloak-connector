@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "workspaces": [
+    "docs",
     "packages/common",
     "packages/backend/*",
     "packages/frontend/*"
