@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'Keycloak Connector',
-  tagline: 'An opinionated auth library built to secure front & backend applications',
+  tagline: 'An opinionated auth library built to secure React (and more) apps.',
   favicon: 'img/keycloak-logo.svg',
 
   // Set the production url of your site here

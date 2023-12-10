@@ -17,11 +17,11 @@ function HomepageHeader() {
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <div className="hero__badges">
-            <span className="badge badge--info">NodeJs</span>
-            <span className="badge badge--info">Keycloak</span>
-            <span className="badge badge--info">ExpressJS</span>
-            <span className="badge badge--info">Fastify</span>
-            <span className="badge badge--info">React</span>
+            <span className="badge badge--secondary">NodeJs</span>
+            <span className="badge badge--secondary">Keycloak</span>
+            <span className="badge badge--secondary">ExpressJS</span>
+            <span className="badge badge--secondary">Fastify</span>
+            <span className="badge badge--secondary">React</span>
         </div>
         <div className={styles.buttons}>
           <Link

@@ -25,8 +25,8 @@ const FeatureList: FeatureItem[] = [
     Svg: require('@site/static/img/hero-cluster.svg').default,
     description: (
       <>
-        Running multiple instances of your backend? Use the provided Redis clustering plugin
-          library to sync efforts and secure apps across your scaled platform.
+        Running multiple instances of your backend? Use the provided clustering plugin
+          library to sync efforts and secure apps across your platform.
       </>
     ),
   },
