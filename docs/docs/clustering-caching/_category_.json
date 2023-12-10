@@ -1,0 +1,8 @@
+{
+  "label": "Clustering / Caching",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "description": "Learn about one of the core features to Keycloak Connector."
+  }
+}

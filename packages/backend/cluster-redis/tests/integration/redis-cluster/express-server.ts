@@ -25,7 +25,10 @@ export async function makeExpressServer(port: number) {
 
     const clusterProvider = await redisClusterProvider({
         pinoLogger: loggerHttp.logger,
-        credentialProvider: redisCredentialProvider,
+        redisOptions: {
+            username: 'dev-only',
+            password: 'my-cool-dev-password',
+        }
     });
 
     // Initialize the keycloak connector
