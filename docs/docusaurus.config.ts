@@ -39,6 +39,7 @@ const config: Config = {
           editUrl:
             'https://github.com/DapperDuckling/keycloak-connector/tree/main/docs/',
         },
+
         blog: false,
         theme: {
           customCss: './src/css/custom.css',
