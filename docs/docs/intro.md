@@ -27,29 +27,108 @@ Or **try Keycloak Connector immediately** with **[docusaurus.new](https://docusa
 
 - [Node.js](https://nodejs.org/en/download/) version 18.0 or above:
 
-## Preparing the backend with Express
+## Setup Express (backend)
 
 [//]: # (update this with a link to the supported servers page)
 _Using a different server? See our [other supported servers.](/supported-servers)_
 
 Keycloak connector server is an auth middleware that sits between end-user requests and your secure routes.  
 
+```js
+import express from 'express';
+import {keycloakConnectorExpress, lock} from "@dapperduckling/keycloak-connector-server";
+import cookieParser from "cookie-parser"
 
+const serverPort = 3005;
 
+// Grab express app
+const app = express();
 
-The command also installs all necessary dependencies you need to run Docusaurus.
+// Register the cookie parser
+app.use(cookieParser());
 
-## Start your site
+// Initialize keycloak connector server
+await keycloakConnectorExpress(app, {
+    clientId: 'keycloak-connector-example',
+    clientSecret: 'PASSWORD_ONLY_USED_IN_DEV',      // A password is not allowed in non-dev environments
+    serverOrigin: `http://localhost:${serverPort}`,
+    authServerUrl: 'http://localhost:8080/',        // Your keycloak server here!
+    realm: 'master',
+});
 
-Run the development server:
+// Register a public route on the app
+app.get('/', (req, res) => {
+    res.send('I am a public route and no authentication nor authorization is required to reach me.');
+});
 
-```bash
-cd my-website
-npm run start
+// Create a new router to secure all routes behind
+const router = express.Router();
+
+// Lock all routes in this router behind a login page
+router.use(lock());
+
+// Only authentication required route
+router.get('/no-role-required', (req, res) => {
+    res.send(`Since the router I'm attached to is uses 'lock()', this route only requires a user to login (authenticate) to access.`);
+});
+
+// Requires "COOL_GUY" role
+router.get('/cool-guy', lock(['COOL_GUY']), (req, res) => {
+    res.send(`This route requires an end-user to have the "COOL_GUY" role.`);
+});
+
+// Register the router with the app
+app.use(router);
+
+// Start the server
+app.listen(3005, () => {
+    console.log(`express :: listening`);
+});
 ```
 
-The `cd` command changes the directory you're working with. In order to work with your newly created Docusaurus site, you'll need to navigate the terminal there.
+You can start and test this setup now! Head to a [protected route](http://localhost/no-role-required)
 
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
+## Setup React (frontend)
 
-Open `docs/intro.md` (this page) and edit some lines: the site **reloads automatically** and displays your changes.
+App.jsx
+```jsx
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import {KeycloakConnectorProvider} from "@dapperduckling/keycloak-connector-react";
+import {Content} from "./content.js";
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+
+const keycloakConnectorConfig = {
+    client: {
+        // The backend NodeJs server
+        apiServerOrigin: "http://loaclhost:3005"
+    }
+}
+
+root.render(
+  <React.StrictMode>
+      <KeycloakConnectorProvider config={keycloanConnectorConfig}>
+          <Content />
+      </KeycloakConnectorProvider>
+  </React.StrictMode>
+)
+```
+
+Content.jsx
+```jsx
+export const Content = () => {
+    const [kccContext] = useKeycloakConnector();
+    return (
+        <>
+            <h2>You're using Keycloak Connector React</h2>
+            <p>
+                User login status:
+                <span>{kccContext.userStatus.loggedIn ? 'Logged in!' : 'Logged out!'}</span>
+            </p>
+        </>
+    );
+}
+```
+
+## That's it!

@@ -1,7 +1,8 @@
 import express from 'express';
 import {keycloakConnectorExpress, lock} from "@dapperduckling/keycloak-connector-server";
 import cookieParser from "cookie-parser"
-import {default as logger} from "pino-http"; // Optional (see below)
+
+const serverPort = 3005;
 
 // Grab express app
 const app = express();
@@ -9,26 +10,13 @@ const app = express();
 // Register the cookie parser
 app.use(cookieParser());
 
-// Optional -- Add pino logger
-const loggerHttp = logger.default({
-    level: "debug",
-    transport: {
-        target: 'pino-pretty',
-        options: {
-            translateTime: 'HH:MM:ss Z',
-            ignore: 'pid,hostname',
-        },
-    },
-});
-
 // Initialize keycloak connector server
 await keycloakConnectorExpress(app, {
-    serverOrigin: `http://localhost:3005`,
-    authServerUrl: 'http://localhost:8080/',
-    realm: 'local-dev',
-    refreshConfigMins: -1, // Disable for dev testing
-    pinoLogger: loggerHttp.logger,
-    fetchUserInfo: true,
+    clientId: 'keycloak-connector-example',
+    clientSecret: 'PASSWORD_ONLY_USED_IN_DEV',      // A password is not allowed in non-dev environments
+    serverOrigin: `http://localhost:${serverPort}`,
+    authServerUrl: 'http://localhost:8080/',        // Your keycloak server here!
+    realm: 'master',
 });
 
 // Register a public route on the app
@@ -40,7 +28,6 @@ app.get('/', (req, res) => {
 const router = express.Router();
 
 // Lock all routes in this router behind a login page
-// (must declare before registering any other routes on this route)
 router.use(lock());
 
 // Only authentication required route
@@ -50,7 +37,6 @@ router.get('/no-role-required', (req, res) => {
 
 // Requires "COOL_GUY" role
 router.get('/cool-guy', lock(['COOL_GUY']), (req, res) => {
-    // Send the response
     res.send(`This route requires an end-user to have the "COOL_GUY" role.`);
 });
 
