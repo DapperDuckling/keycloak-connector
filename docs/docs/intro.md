@@ -8,31 +8,34 @@ Let's discover **Keycloak Connector for React** in less than 15 minutes.
 
 ## Getting Started
 
-Get started by adding the following packages to an existing stack.
+Get started by adding the following packages to an existing application.
 
-  #### Frontend React App
+  #### Frontend - React App
   ```sh
-  npm 
+  npm i @dapperduckling/keycloak-connector-react
   ```
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+  #### Backend - NodeJs Server
+  ```sh
+  npm i @dapperduckling/keycloak-connector-server 
+  ```
+
+[//]: # (todo: Update this with a nodejs in browser option)
+Or **try Keycloak Connector immediately** with **[docusaurus.new](https://docusaurus.new)**.
 
 ### What you'll need
 
 - [Node.js](https://nodejs.org/en/download/) version 18.0 or above:
-  - When installing Node.js, you are recommended to check all checkboxes related to dependencies.
 
-## Generate a new site
+## Preparing the backend with Express
 
-Generate a new Docusaurus site using the **classic template**.
+[//]: # (update this with a link to the supported servers page)
+_Using a different server? See our [other supported servers.](/supported-servers)_
 
-The classic template will automatically be added to your project after you run the command:
+Keycloak connector server is an auth middleware that sits between end-user requests and your secure routes.  
 
-```bash
-npm init docusaurus@latest my-website classic
-```
 
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
+
 
 The command also installs all necessary dependencies you need to run Docusaurus.
 
