@@ -39,7 +39,26 @@ await keycloakConnectorExpress(app, {
 ```
 
 ## Configuration Options
+
+
 ### Credential Provider
+Using rotating keys? Or need to use a cloud provider's temporary token based authentication service?
+
+Provide a function to `credentialProvider` that returns a `Credentials` object
+```ts
+export const redisCredentialProvider = async () => {
+    try {
+        const credentials = await awsCredentialProvider(); // Non-working function call, as of Nov 2023, AWS has not yet implemented Redis IAM support
+        return {
+            username: "USERNAME_MAY_NOT_BE_REQUIRED",
+            password: credentials.secretAccessKey,
+        }
+    } catch (e) {
+        console.error("Error getting AWS credentials", e);
+        return undefined;
+    }
+}
+```
 
 ## Security Considerations
 ### Environment variables
