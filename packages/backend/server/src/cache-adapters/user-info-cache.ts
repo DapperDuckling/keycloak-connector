@@ -5,6 +5,7 @@ import {cacheFactory} from "../cache/cache-factory.js";
 import {CacheProvider} from "../cache/cache-provider.js";
 import {errors} from "openid-client";
 import RPError = errors.RPError;
+import {isObject} from "@dapperduckling/keycloak-connector-common";
 
 export type UserInfoCacheConfig = CacheAdapterConfig & {
     oidcClient: BaseClient,
@@ -48,7 +49,7 @@ export class UserInfoCache extends AbstractCacheAdapter<UserinfoResponse, [strin
                 this.config.pinoLogger?.error(`Keycloak misconfiguration! See keycloak-connector-server readme for proper client configuration. (Need to set signature algorithm)`);
             }
 
-            this.config.pinoLogger?.debug(e);
+            if (isObject(e)) this.config.pinoLogger?.debug(e);
             this.config.pinoLogger?.debug(`Failed to fetch user info from keycloak`);
         }
 

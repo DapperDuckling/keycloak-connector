@@ -15,7 +15,7 @@ import {
 import {is} from "typia";
 import {setImmediate} from "timers";
 import type {Deferred} from "@dapperduckling/keycloak-connector-common";
-import {deferredFactory} from "@dapperduckling/keycloak-connector-common";
+import {deferredFactory, isObject} from "@dapperduckling/keycloak-connector-common";
 
 type UpdateDataMessage<T> = {
     data: T,
@@ -174,7 +174,7 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
             )
         } catch (e) {
             // Log error
-            this.config.pinoLogger?.info(e);
+            if (isObject(e)) this.config.pinoLogger?.info(e);
             this.config.pinoLogger?.info(`Failed to perform data update`);
 
         } finally {
