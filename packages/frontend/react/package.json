@@ -1,6 +1,6 @@
 {
   "name": "@dapperduckling/keycloak-connector-react",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "An opinionated library for securing react apps without all the fuss",
   "keywords": [
     "react",
@@ -34,8 +34,8 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@dapperduckling/keycloak-connector-client": "^1.0.4",
-    "@dapperduckling/keycloak-connector-common": "^1.0.2",
+    "@dapperduckling/keycloak-connector-client": "^1.0.5",
+    "@dapperduckling/keycloak-connector-common": "^1.0.3",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.14.19",
