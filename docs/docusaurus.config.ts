@@ -17,6 +17,7 @@ const config: Config = {
   // If you aren't using GitHub pages, you don't need these.
   organizationName: 'DapperDuckling', // Usually your GitHub org/user name.
   projectName: 'keycloak-connector', // Usually your repo name.
+  // trailingSlash: false,
 
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
@@ -46,7 +47,7 @@ const config: Config = {
       'docusaurus-plugin-typedoc',
       {
         id: 'api-2',
-        entryPoints: ['../packages/Backend/server'],
+        entryPoints: ['../packages/backend/server'],
         entryPointStrategy: 'packages',
         out: 'api/Backend/server',
         sidebar: {
@@ -58,7 +59,7 @@ const config: Config = {
       'docusaurus-plugin-typedoc',
       {
         id: 'api-3',
-        entryPoints: ['../packages/Backend/group-auth-plugin'],
+        entryPoints: ['../packages/backend/group-auth-plugin'],
         entryPointStrategy: 'packages',
         out: 'api/Backend/group-auth-plugin',
         sidebar: {
@@ -70,7 +71,7 @@ const config: Config = {
       'docusaurus-plugin-typedoc',
       {
         id: 'api-4',
-        entryPoints: ['../packages/Backend/cluster-redis'],
+        entryPoints: ['../packages/backend/cluster-redis'],
         entryPointStrategy: 'packages',
         out: 'api/Backend/cluster-redis',
         sidebar: {
@@ -82,7 +83,7 @@ const config: Config = {
       'docusaurus-plugin-typedoc',
       {
         id: 'api-5',
-        entryPoints: ['../packages/Frontend/client'],
+        entryPoints: ['../packages/frontend/client'],
         entryPointStrategy: 'packages',
         out: 'api/Frontend/client',
         sidebar: {
@@ -94,7 +95,7 @@ const config: Config = {
       'docusaurus-plugin-typedoc',
       {
         id: 'api-6',
-        entryPoints: ['../packages/Frontend/react'],
+        entryPoints: ['../packages/frontend/react'],
         entryPointStrategy: 'packages',
         out: 'api/Frontend/react',
         sidebar: {
@@ -108,6 +109,7 @@ const config: Config = {
       'classic',
       {
         docs: {
+          routeBasePath: '/', // Serve the docs at the site's root
           sidebarPath: './sidebars.ts',
           // Remove this to remove the "edit this page" links.
           editUrl:

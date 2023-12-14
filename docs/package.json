@@ -5,7 +5,7 @@
   "scripts": {
     "clean:typedocs": "rimraf ./docs/api/",
     "docusaurus": "docusaurus",
-    "start": "docusaurus start",
+    "start": "npm run clean:typedocs && docusaurus start",
     "build": "npm run clean:typedocs && docusaurus build",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",

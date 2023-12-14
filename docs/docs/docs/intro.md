@@ -2,7 +2,7 @@
 sidebar_position: 1
 ---
 
-# Tutorial Intro
+# Getting Started
 
 Let's discover **Keycloak Connector for React** in less than 15 minutes.
 
@@ -47,15 +47,13 @@ Following FAPI guidance, several changes to your Keycloak configuration may be r
 ### Client Configuration
 
 ```
-- Step 1
-- Step 2
+- todo
 ```
 
 ### Realm Configuration
 
 ```
-- Step 1
-- Step 2
+- todo
 ```
 
 ## Setup Express
