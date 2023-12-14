@@ -59,17 +59,17 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
     abstract disconnect(): Promise<boolean>;
 
     public addListener(event: AllEvents<CustomEvents>, listener: Listener) {
-        this.clusterConfig.pinoLogger?.debug<string>(`Adding a listener for '${event}' event`);
+        this.clusterConfig.pinoLogger?.debug(`Adding a listener for '${event}' event`);
         this.eventEmitter.addListener(event, listener);
     }
 
     public removeListener(event: AllEvents<CustomEvents>, listener: Listener) {
-        this.clusterConfig.pinoLogger?.debug<string>(`Removing a listener for '${event}' event`);
+        this.clusterConfig.pinoLogger?.debug(`Removing a listener for '${event}' event`);
         this.eventEmitter.removeListener(event, listener);
     }
 
     public emitEvent(event: AllEvents<CustomEvents>, ...args: unknown[]) {
-        this.clusterConfig.pinoLogger?.debug<string>(`Emitting an event: '${event}'`);
+        this.clusterConfig.pinoLogger?.debug(`Emitting an event: '${event}'`);
         this.eventEmitter.emit(event, ...args);
     }
 

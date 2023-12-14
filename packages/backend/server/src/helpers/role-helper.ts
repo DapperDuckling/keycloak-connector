@@ -183,7 +183,7 @@ export class RoleHelper {
             }
         }
 
-        this.config.pinoLogger?.error<string>(`Failed to match input style to expected type: (${typeof roles})`);
+        this.config.pinoLogger?.error(`Failed to match input style to expected type: (${typeof roles})`);
         this.config.pinoLogger?.error(roles);
         throw new Error("Invalid required roles, could not match input style to expected type");
     }

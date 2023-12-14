@@ -47,5 +47,6 @@
     "watchFolder": "dist",
     "buildWatchCommand": "tsc --watch",
     "extensions": "js,jsx,ts,tsx"
-  }
+  },
+  "gitHead": "ccdf8ea97b4d914b74c1e8a8b2d0fb85d1e358f0"
 }
