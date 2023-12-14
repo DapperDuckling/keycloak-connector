@@ -10,8 +10,8 @@
     "authentication",
     "oidc"
   ],
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "author": "DapperDuckling Dev LLC",
   "license": "AGPL-3.0-only",
   "type": "module",
