@@ -35,7 +35,7 @@ import {
     ConnectorCookiesToKeep,
     epoch,
     getRoutePath,
-    isDev,
+    isDev, isObject,
     RouteEnum,
     SilentLoginEvent,
     type SilentLoginMessage,
@@ -639,7 +639,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
         } catch (e) {
 
             // Log the bad request
-            this._config.pinoLogger?.warn(e, "Invalid cookie(s) from browser during login attempt");
+            if (isObject(e)) this._config.pinoLogger?.warn(e);
+            this._config.pinoLogger?.warn("Invalid cookie(s) from browser during login attempt");
 
             // Redirect the user back to the login page
             throw new LoginError(ErrorHints.CODE_400);
@@ -739,7 +740,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             } else {
                 // Log the issue
-                this._config.pinoLogger?.error(e);
+                if (isObject(e)) this._config.pinoLogger?.error(e);
                 this._config.pinoLogger?.error(`Unexpected error during login`);
             }
 
@@ -1286,7 +1287,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             // Return the validated access token
             return refreshTokenSetResult.refreshTokenSet.access_token;
         } catch (e) {
-            this._config.pinoLogger?.warn(e);
+            if (isObject(e)) this._config.pinoLogger?.warn(e);
             this._config.pinoLogger?.warn(`Failed to get new TokenSet using refresh token`);
             return;
         }
@@ -1331,7 +1332,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             } else if (e instanceof Error && e.message.includes(`unsupported`) && e.message.includes(`auth_method`)) {
                 this._config.pinoLogger?.warn('Invalid access token used'); // This occurs when an access token is revoked auto/manually at OP
             } else {
-                this._config.pinoLogger?.warn(e);
+                if (isObject(e)) this._config.pinoLogger?.warn(e);
                 this._config.pinoLogger?.warn('Error validating access token');
             }
         }
@@ -1358,7 +1359,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             return await this.components.tokenCache.refreshTokenSet(refreshJwt);
 
         } catch (e) {
-            this._config.pinoLogger?.debug(e);
+            if (isObject(e)) this._config.pinoLogger?.debug(e);
             this._config.pinoLogger?.debug(`Could not validate refresh token, could not perform refresh.`);
         }
 
@@ -1564,7 +1565,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 return true;
 
             } catch (e) {
-                this._config.pinoLogger?.error(e);
+                if (isObject(e)) this._config.pinoLogger?.error(e);
                 this._config.pinoLogger?.error(`Failed to update OIDC configuration`);
                 return false;
             } finally {
@@ -1804,7 +1805,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         } catch (e) {
             // Log the error
-            config.pinoLogger?.warn(e, `Failed to fetch latest openid-config data`);
+            if (isObject(e)) config.pinoLogger?.warn(e);
+            if (isObject(e)) config.pinoLogger?.warn(`Failed to fetch latest openid-config data`);
             return null;
         }
     }

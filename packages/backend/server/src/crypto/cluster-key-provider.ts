@@ -18,6 +18,7 @@ import {webcrypto} from "crypto";
 import {LRUCache} from "lru-cache";
 import {createHash} from "node:crypto";
 import {setImmediate} from "timers";
+import {isObject} from "@dapperduckling/keycloak-connector-common";
 
 export type ClusterConnectorKeys = {
     connectorKeys: ConnectorKeys,
@@ -366,7 +367,7 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
             return subResults;
 
         } catch (e) {
-            this.keyProviderConfig.pinoLogger?.error(e);
+            if (isObject(e)) this.keyProviderConfig.pinoLogger?.error(e);
             this.keyProviderConfig.pinoLogger?.error(`Error while subscribing to ${listeningChannel}`);
             return false;
         }

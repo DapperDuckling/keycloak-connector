@@ -5,6 +5,7 @@ import type {CacheProvider} from "../cache/cache-provider.js";
 import {cacheFactory} from "../cache/cache-factory.js";
 import type {CacheAdapterConfig} from "./abstract-cache-adapter.js";
 import {AbstractCacheAdapter} from "./abstract-cache-adapter.js";
+import {isObject} from "@dapperduckling/keycloak-connector-common";
 
 export type TokenCacheConfig = CacheAdapterConfig & {
     oidcClient: BaseClient,
@@ -61,7 +62,7 @@ export class TokenCache extends AbstractCacheAdapter<RefreshTokenSet, [string]> 
                 return;
             }
 
-            this.config.pinoLogger?.debug(e);
+            if (isObject(e)) this.config.pinoLogger?.debug(e);
             this.config.pinoLogger?.debug(`Failed to perform token refresh`);
             return;
         }

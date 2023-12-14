@@ -6,6 +6,7 @@ import {promiseWait, promiseWaitTimeout, ttlFromExpiration, WaitTimeoutError} fr
 import {webcrypto} from "crypto";
 import * as jose from 'jose';
 import type {JWTPayload} from "jose/dist/types/types.js";
+import {isObject} from "@dapperduckling/keycloak-connector-common";
 
 export type CacheMissCallback<T, A extends any[] = any[]> = (...args: A) => Promise<T | undefined>;
 
@@ -225,7 +226,7 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
                     // Log this in order to inform the owner they may need to increase the wait timeout
                     this.config.pinoLogger?.warn(`Timed out while waiting for cache miss callback to execute. Waited ${maxCacheMissWaitSecs} seconds`);
                 } else {
-                    this.config.pinoLogger?.error(e);
+                    if (isObject(e)) this.config.pinoLogger?.error(e);
                     this.config.pinoLogger?.error(`Unexpected unhandled error from cache miss callback`);
                 }
             }

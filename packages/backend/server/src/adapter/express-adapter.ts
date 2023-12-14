@@ -105,7 +105,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             }
         } catch (e) {
             // Log the error
-            this.pinoLogger?.error(e);
+            if (isObject(e)) this.pinoLogger?.error(e);
 
             // Serve the error
             next(new Error());
