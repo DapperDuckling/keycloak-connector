@@ -29,10 +29,6 @@
     "preserveConstEnums": true,
     "moduleResolution": "nodenext",
     "target": "es2022",
-    "paths": {
-      "@dapperduckling/keycloak-connector-server": ["../server"],
-      "@dapperduckling/keycloak-connector-common": ["../../common"],
-    }
   },
   "include": [
     "./src/**/*"
