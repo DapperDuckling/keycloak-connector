@@ -59,7 +59,7 @@ Following FAPI guidance, several changes to your Keycloak configuration may be r
 ## Setup Express
 
 [//]: # (update this with a link to the supported servers page)
-_Using a different server? See our [other supported servers.](/supported-servers)_
+[//]: # (_Using a different server? See our [other supported servers.]&#40;/supported-servers&#41;_)
 
 Keycloak connector server is an auth middleware that sits between end-user requests and your secure routes.
 
