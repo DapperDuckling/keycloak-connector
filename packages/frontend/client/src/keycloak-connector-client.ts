@@ -24,7 +24,7 @@ export class KeycloakConnectorClient {
     private static kccClient: KeycloakConnectorClient | undefined = undefined;
     private static readonly IFRAME_ID = "silent-login-iframe";
     private static readonly LISTENER_IFRAME_ID = "listener-login-iframe";
-    private static readonly ENABLE_IFRAME_DEBUGGING = process?.env?.["DEBUG_SILENT_IFRAME"] !== undefined;
+    private static readonly ENABLE_IFRAME_DEBUGGING = (typeof process !== "undefined" && process.env?.["DEBUG_SILENT_IFRAME"] !== undefined);
     private static readonly MAX_LOGIN_LISTENER_WAIT_SECS = 30;
 
     // Create a random token if in a secure context. If not in a secure context, just generate a non-cryptographically secure "random" token
