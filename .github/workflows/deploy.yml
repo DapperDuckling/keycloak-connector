@@ -1,5 +1,5 @@
 # .github/workflows/deploy.yml
-name: GitHub Pages
+name: Documentation
 
 on:
   push:
@@ -23,7 +23,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: '14'
+          node-version: '18'
 
       - name: Get yarn cache
         id: yarn-cache
