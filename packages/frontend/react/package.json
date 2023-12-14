@@ -34,7 +34,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@dapperduckling/keycloak-connector-client": "file:../client",
+    "@dapperduckling/keycloak-connector-client": "^1.0.4",
     "@dapperduckling/keycloak-connector-common": "^1.0.2",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",

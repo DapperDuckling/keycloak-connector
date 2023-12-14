@@ -39,7 +39,7 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@dapperduckling/keycloak-connector-react": ">=0",
+    "@dapperduckling/keycloak-connector-react": ">=1.0.0",
     "react": ">=18",
     "react-dom": ">=18"
   },
