@@ -14,9 +14,6 @@ jobs:
       contents: write
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
-    defaults:
-      run:
-        working-directory: ./docs
     steps:
       - uses: actions/checkout@v3
 
@@ -38,7 +35,7 @@ jobs:
             ${{ runner.os }}-docs-
 
       - run: npm ci
-      - run: npm run build
+      - run: cd docs && npm run build
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
