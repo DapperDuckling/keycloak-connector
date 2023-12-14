@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'Keycloak Connector',
-  tagline: 'An opinionated auth library built to secure React (and more) apps.',
+  tagline: 'An opinionated auth library built to secure javascript applications.',
   favicon: 'img/keycloak-logo.svg',
 
   // Set the production url of your site here
@@ -28,7 +28,81 @@ const config: Config = {
     defaultLocale: 'en',
     locales: ['en'],
   },
-
+  plugins: [
+    [
+      'docusaurus-plugin-typedoc',
+      {
+        id: 'api-1',
+        entryPoints: ['../packages/common'],
+        entryPointStrategy: 'packages',
+        out: 'api/common',
+        sidebar: {
+          categoryLabel: 'Common',
+          position: 3,
+        },
+      },
+    ],
+    [
+      'docusaurus-plugin-typedoc',
+      {
+        id: 'api-2',
+        entryPoints: ['../packages/Backend/server'],
+        entryPointStrategy: 'packages',
+        out: 'api/Backend/server',
+        sidebar: {
+          categoryLabel: 'Server',
+        },
+      },
+    ],
+    [
+      'docusaurus-plugin-typedoc',
+      {
+        id: 'api-3',
+        entryPoints: ['../packages/Backend/group-auth-plugin'],
+        entryPointStrategy: 'packages',
+        out: 'api/Backend/group-auth-plugin',
+        sidebar: {
+          categoryLabel: 'Group Auth Plugin',
+        },
+      },
+    ],
+    [
+      'docusaurus-plugin-typedoc',
+      {
+        id: 'api-4',
+        entryPoints: ['../packages/Backend/cluster-redis'],
+        entryPointStrategy: 'packages',
+        out: 'api/Backend/cluster-redis',
+        sidebar: {
+          categoryLabel: 'Cluster Redis',
+        },
+      },
+    ],
+    [
+      'docusaurus-plugin-typedoc',
+      {
+        id: 'api-5',
+        entryPoints: ['../packages/Frontend/client'],
+        entryPointStrategy: 'packages',
+        out: 'api/Frontend/client',
+        sidebar: {
+          categoryLabel: 'Client',
+        },
+      },
+    ],
+    [
+      'docusaurus-plugin-typedoc',
+      {
+        id: 'api-6',
+        entryPoints: ['../packages/Frontend/react'],
+        entryPointStrategy: 'packages',
+        out: 'api/Frontend/react',
+        sidebar: {
+          categoryLabel: 'React',
+        },
+      },
+    ],
+  ],
   presets: [
     [
       'classic',
@@ -60,9 +134,15 @@ const config: Config = {
       items: [
         {
           type: 'docSidebar',
-          sidebarId: 'tutorialSidebar',
+          sidebarId: 'docs',
           position: 'left',
-          label: 'Tutorial',
+          label: 'Docs',
+        },
+        {
+          type: 'docSidebar',
+          sidebarId: 'api',
+          position: 'left',
+          label: 'API',
         },
         // {to: '/blog', label: 'Blog', position: 'left'},
         {

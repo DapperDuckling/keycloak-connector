@@ -6,9 +6,22 @@ sidebar_position: 1
 
 Let's discover **Keycloak Connector for React** in less than 15 minutes.
 
+### What you'll need
+
+- [Node.js](https://nodejs.org/en/download/) version 18.0 or above
+- Keycloak version 16.0 or above
+
+[//]: # (Todo: link this to the keycloak docker container)
+
 ## Getting Started
 
-Get started by adding the following packages to an existing application.
+Get started by starting Keycloak and adding the following packages to an existing application.
+
+#### Keycloak
+
+  ```sh
+  docker run quay.io/keycloak/keycloak start-dev
+  ```
 
 #### Frontend - React App
 
@@ -24,13 +37,6 @@ Get started by adding the following packages to an existing application.
 
 [//]: # (todo: Update this with a nodejs in browser option)
 Or **try Keycloak Connector immediately** with **[docusaurus.new](https://docusaurus.new)**.
-
-### What you'll need
-
-- [Node.js](https://nodejs.org/en/download/) version 18.0 or above
-- Keycloak version 16.0 or above
-
-[//]: # (Todo: link this to the keycloak docker container)
 
 ## Setup Keycloak
 
@@ -59,12 +65,10 @@ _Using a different server? See our [other supported servers.](/supported-servers
 
 Keycloak connector server is an auth middleware that sits between end-user requests and your secure routes.
 
-```js
+```ts title="server.js"
 import express from 'express';
 import {keycloakConnectorExpress, lock} from "@dapperduckling/keycloak-connector-server";
-import cookieParser from "cookie-parser"
-
-const serverPort = 3005;
+import cookieParser from "cookie-parser";
 
 // Grab express app
 const app = express();
@@ -76,7 +80,7 @@ app.use(cookieParser());
 await keycloakConnectorExpress(app, {
   clientId: 'keycloak-connector-example',
   clientSecret: 'PASSWORD_ONLY_USED_IN_DEV',    // A password is not allowed in non-dev environments
-  serverOrigin: `http://localhost:${serverPort}`,
+  serverOrigin: `http://localhost:3005`,
   authServerUrl: 'http://localhost:8080/',    // Your keycloak server here!
   realm: 'master',
 });
@@ -115,9 +119,7 @@ You can start and test this setup now! Head to a [protected route](http://localh
 
 ## Setup React
 
-**App.jsx**
-
-```jsx
+```jsx title="App.jsx"
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import {KeycloakConnectorProvider} from "@dapperduckling/keycloak-connector-react";
@@ -141,9 +143,7 @@ root.render(
 )
 ```
 
-**Content.jsx**
-
-```jsx
+```jsx title="Content.jsx"
 export const Content = () => {
   const [kccContext] = useKeycloakConnector();
   return (

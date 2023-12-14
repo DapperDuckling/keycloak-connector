@@ -8,7 +8,7 @@ import type {
     PendingJwksUpdateMsg, RequestActiveKey,
     RequestUpdateSystemJwksMsg, ServerActiveKey
 } from "@dapperduckling/keycloak-connector-server";
-import {AbstractKeyProvider, isDev} from "@dapperduckling/keycloak-connector-server";
+import {AbstractKeyProvider} from "@dapperduckling/keycloak-connector-server";
 import {fromNodeProviderChain} from "@aws-sdk/credential-providers";
 import { ElastiCacheClient } from '@aws-sdk/client-elasticache';
 

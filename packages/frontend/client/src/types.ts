@@ -14,6 +14,7 @@ export enum ClientEvent {
 export interface ClientConfig {
     /**
      * @description Set the API server's origin if different from the current page's origin
+     * to prevent CORS errors
      * @example "http://localhost:4000"
      * @default self.location.origin
      */

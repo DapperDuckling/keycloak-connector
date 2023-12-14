@@ -5,7 +5,7 @@ sidebar_position: 2
 # Using Redis
 
 [//]: # (todo: Link to ioredis)
-`RedisClusterProvider` uses `ioredis` under the hood. Configuration follows normal `ioredis` options with a few additions.
+`RedisClusterProvider` uses **[ioredis](https://github.com/redis/ioredis)** under the hood. Configuration allows for existing **ioredis** options with a few additions.
 
 ```sh
 npm i @dapperduckling/keycloak-connector-cluster-redis
@@ -13,32 +13,51 @@ npm i @dapperduckling/keycloak-connector-cluster-redis
 
 ## Adding clustering support
 ```ts
-// Two additional imports
+import express from 'express';
+import {keycloakConnectorExpress, lock} from "@dapperduckling/keycloak-connector-server";
+import cookieParser from "cookie-parser";
+// highlight-start
 import {clusterKeyProvider} from "@dapperduckling/keycloak-connector-server";
 import {redisClusterProvider} from "@dapperduckling/keycloak-connector-cluster-redis";
+// highlight-end
+
+// Grab express app
+const app = express();
+
+// Register the cookie parser
+app.use(cookieParser());
 
 // Prepare the redis cluster provider
+// highlight-start
 const clusterProvider = await redisClusterProvider({
+    hostOptions: [{
+       host: "localhost",
+       port: 6379 
+    }],
     redisOptions: {
         username: 'dev-only',
         password: 'my-cool-dev-password',
     }
 });
+// highlight-end
 
+// Initialize keycloak connector server
 await keycloakConnectorExpress(app, {
     clientId: 'keycloak-connector-example',
-    clientSecret: 'PASSWORD_ONLY_USED_IN_DEV',
-    serverOrigin: `http://localhost:${serverPort}`,
-    authServerUrl: 'http://localhost:8080/',
+    clientSecret: 'PASSWORD_ONLY_USED_IN_DEV',    // A password is not allowed in non-dev environments
+    serverOrigin: `http://localhost:3005`,
+    authServerUrl: 'http://localhost:8080/',    // Your keycloak server here!
     realm: 'master',
-    
-    // Two new options
+    // highlight-start
     clusterProvider: clusterProvider,
     keyProvider: clusterKeyProvider,
+    // highlight-end
 });
+
 ```
 
 ## Configuration Options
+
 
 
 ### Credential Provider
@@ -48,9 +67,9 @@ Provide a function to `credentialProvider` that returns a `Credentials` object
 ```ts
 export const redisCredentialProvider = async () => {
     try {
-        const credentials = await awsCredentialProvider(); // Non-working function call, as of Nov 2023, AWS has not yet implemented Redis IAM support
+        const credentials = await awsCredentialProvider(); 
+        
         return {
-            username: "USERNAME_MAY_NOT_BE_REQUIRED",
             password: credentials.secretAccessKey,
         }
     } catch (e) {
@@ -58,6 +77,10 @@ export const redisCredentialProvider = async () => {
         return undefined;
     }
 }
+
+const clusterProvider = await redisClusterProvider({
+    credentialProvider: redisCredentialProvider,
+});
 ```
 
 ## Security Considerations

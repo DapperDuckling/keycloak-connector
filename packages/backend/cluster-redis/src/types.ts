@@ -8,11 +8,19 @@ interface Credentials {
 }
 
 export interface BaseRedisConfig extends ClusterConfig {
-    credentialUpdateIntervalMins?: number,
-    credentialProvider?: () => Promise<Credentials | undefined>,
-    hostOptions?: [ClusterNode, ...ClusterNode[]],
+    // See https://github.com/redis/ioredis
     redisOptions?: RedisOptions,
+
+    // For cluster configuration, specify the connection information for each node
+    hostOptions?: [ClusterNode, ...ClusterNode[]],
+
+    // Prepends a specific prefix to all operations before sending commands to the
+    // redis server
     prefix?: string,
+
+    // For dynamic credentials, a
+    credentialProvider?: () => Promise<Credentials | undefined>,
+    credentialUpdateIntervalMins?: number,
     DANGEROUS_allowUnsecureConnectionToRedisServer?: boolean,
 }
 
