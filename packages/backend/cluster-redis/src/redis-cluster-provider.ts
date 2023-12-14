@@ -6,7 +6,7 @@ import {
 } from "@dapperduckling/keycloak-connector-server";
 import {
     deferredFactory,
-    isDev,
+    isDev, isObject,
 } from "@dapperduckling/keycloak-connector-common";
 import {webcrypto} from "crypto";
 import * as fs from "fs";
@@ -281,7 +281,7 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
         } catch (e) {
             this.clusterConfig.pinoLogger?.error(`Failed to update credentials`);
-            this.clusterConfig.pinoLogger?.error(e);
+            if (isObject(e)) this.clusterConfig.pinoLogger?.error(e);
 
         } finally {
             // Release the updating credentials "lock"
@@ -354,7 +354,7 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
             await this.client.connect();
         } catch (e) {
             const errMsg = `Client failed to connect to redis cluster`;
-            this.clusterConfig.pinoLogger?.error(e);
+            if (isObject(e)) this.clusterConfig.pinoLogger?.error(e);
             this.clusterConfig.pinoLogger?.error(errMsg);
             throw new Error(errMsg);
         }
@@ -363,7 +363,7 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
             await this.subscriber.connect();
         } catch (e) {
             const errMsg = `Subscriber failed to connect to redis cluster`;
-            this.clusterConfig.pinoLogger?.error(e);
+            if (isObject(e)) this.clusterConfig.pinoLogger?.error(e);
             this.clusterConfig.pinoLogger?.error(errMsg);
             throw new Error(errMsg);
         }
@@ -395,7 +395,7 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
         try {
             this.client.disconnect();
         } catch (e) {
-            this.clusterConfig.pinoLogger?.error(e);
+            if (isObject(e)) this.clusterConfig.pinoLogger?.error(e);
             this.clusterConfig.pinoLogger?.error(`Failed to disconnect from redis cluster`);
             return false;
         }
@@ -403,7 +403,7 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
         try {
             this.subscriber.disconnect();
         } catch (e) {
-            this.clusterConfig.pinoLogger?.error(e);
+            if (isObject(e)) this.clusterConfig.pinoLogger?.error(e);
             this.clusterConfig.pinoLogger?.error(`Failed to disconnect from redis cluster`);
             return false;
         }
@@ -437,7 +437,7 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
             return true;
         } catch (e) {
-            this.clusterConfig.pinoLogger?.debug(e);
+            if (isObject(e)) this.clusterConfig.pinoLogger?.debug(e);
             this.clusterConfig.pinoLogger?.debug(`Failed to subscribe to ${channelName}`);
             return false;
         }
@@ -461,7 +461,7 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
             return true;
         } catch (e) {
-            this.clusterConfig.pinoLogger?.debug(e);
+            if (isObject(e)) this.clusterConfig.pinoLogger?.debug(e);
             this.clusterConfig.pinoLogger?.debug(`Failed to unsubscribe from ${channelName}`);
             return false;
         }
@@ -477,7 +477,7 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
             await this.client.publish(channelName, message);
             return true;
         } catch (e) {
-            this.clusterConfig.pinoLogger?.debug(e);
+            if (isObject(e)) this.clusterConfig.pinoLogger?.debug(e);
             this.clusterConfig.pinoLogger?.debug(`Failed to publish message to ${channelName}`);
             return false;
         }

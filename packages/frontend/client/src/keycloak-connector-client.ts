@@ -10,7 +10,7 @@ import {
     type GeneralResponse,
     SilentLoginTypes,
     SilentLogoutTypes,
-    URL, deferredFactory, type Deferred,
+    URL, deferredFactory, type Deferred, isObject,
 } from "@dapperduckling/keycloak-connector-common";
 import {setImmediate} from "./utils.js";
 import JsCookie from "js-cookie";
@@ -134,7 +134,7 @@ export class KeycloakConnectorClient {
             }
         } catch (e) {
             this.config.logger?.error(`Could not update localStorage with user data`);
-            this.config.logger?.error(e);
+            if (isObject(e)) this.config.logger?.error(e);
         }
     }
 
@@ -324,7 +324,7 @@ export class KeycloakConnectorClient {
             if (!(e instanceof DOMException && e.name === 'AbortError')) {
                 // Log the error
                 this.config.logger?.error(`Failed to refresh access token in the background`);
-                this.config.logger?.error(e);
+                if (isObject(e)) this.config.logger?.error(e);
             }
         }
 
