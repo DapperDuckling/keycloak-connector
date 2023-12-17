@@ -109,8 +109,17 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
     decorateUserStatus: DecorateUserStatus<GroupAuthUserStatus> = async (connectorRequest: ConnectorRequest, logger: Logger | undefined) => {
 
-        // Break apart the user groups into a more manageable object
-        const allUserGroups = connectorRequest.kccUserData?.userInfo?.["groups"] ?? [];
+        // Grab the user info
+        const userInfo = connectorRequest.kccUserData?.userInfo;
+
+        // Check if there is no 'groups' property
+        if (userInfo !== undefined && userInfo['groups'] === undefined) {
+            // Add log message to help initial configurations where keycloak may not be configured correctly
+            logger?.debug(`Expected "groups" scope added to user info response from keycloak, but was missing. Are you sure the keycloak client has the group membership scope added?`);
+        }
+
+        // Grab all the user groups
+        const allUserGroups = userInfo?.["groups"] ?? [];
 
         const userGroups: UserGroupsInternal = getUserGroups(allUserGroups, this.groupAuthConfig.adminGroups);
 
