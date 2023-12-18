@@ -88,8 +88,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 
                 // Send file
                 res.sendFile(connectorResponse.serveFileFullPath, (err) => {
-                    if (!res.headersSent) res.status(404);
-                    next();
+                    if (!res.headersSent) res.status(404).send('Could not find file to serve.');
                 });
 
             } else {
