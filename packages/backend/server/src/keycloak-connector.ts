@@ -606,8 +606,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     private handleCallback = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
-        // Ensure the request comes from an allowed origin
-        this.validateOriginOrThrow(req);
+        // todo: Removed origin check since this is a get request
+        // // Ensure the request comes from an allowed origin
+        // this.validateOriginOrThrow(req);
 
         // Grab the auth flow nonce
         const authFlowNonce = this.getAuthFlowNonce(req);
