@@ -58,10 +58,18 @@ import path, {dirname} from "path";
 import RPError = errors.RPError;
 import OPError = errors.OPError;
 import {loginListenerHTML} from "./browser-login-helpers/login-listener.js";
+import * as fs from "fs";
+
+const STATIC_FILE_DIR = [dirname(fileURLToPath(import.meta.url)), 'static', ""].join(path.sep);
 
 export class KeycloakConnector<Server extends SupportedServers> {
 
     public static readonly REQUIRED_ALGO = 'PS256'; // FAPI required algo, see: https://openid.net/specs/openid-financial-api-part-2-1_0.html
+    private readonly HTML_PAGES: Record<string, string> = {
+        login: fs.readFileSync(`${STATIC_FILE_DIR}login-start.html`, 'utf8'),
+        logout: fs.readFileSync(`${STATIC_FILE_DIR}logout-start.html`, 'utf8'),
+    } as const;
+
     private readonly _config: KeycloakConnectorConfigBase;
     private readonly components: KeycloakConnectorInternalConfiguration;
     private readonly roleHelper: RoleHelper;
@@ -130,6 +138,15 @@ export class KeycloakConnector<Server extends SupportedServers> {
             this.updateOpenIdConfig,
             this.updateOidcServer
         );
+
+        // Update the static pages to include the server origin
+        const staticPageReplacements: Record<string, string> = {
+            serverOrigin: this._config.serverOrigin,
+        }
+        for (const [fileKey, htmlContents] of Object.entries(this.HTML_PAGES)) {
+            // Simple match and replace
+            this.HTML_PAGES[fileKey] = htmlContents.replaceAll(/\${(\w*)}/g, (match, key) => staticPageReplacements[key] ?? match);
+        }
     }
 
     public getExposed = () => ({
@@ -247,8 +264,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             method: "GET",
             isUnlocked: true,
             serveStaticOptions: {
-                root: [this.getDirectory(), 'static'].join(path.sep),
-                // index: 'login-start.html',
+                root: STATIC_FILE_DIR,
             },
         }, this.handleFailedStaticServe);
     }
@@ -273,8 +289,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
         });
     }
 
-    private getDirectory = () => dirname(fileURLToPath(import.meta.url));
-
     private handleFailedStaticServe = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
         this._config.pinoLogger?.error("Failed to serve static file");
         return {
@@ -288,7 +302,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
         if (redirectIfAuthenticated) return redirectIfAuthenticated;
 
         // Otherwise, serve the login page
-        return this.servePublic(`login-start.html`);
+        return {
+            responseHtml: this.HTML_PAGES['login'] ?? "Failed to load",
+        }
     }
 
     private silentRequestConfig = (req: ConnectorRequest): [SilentLoginTypes, string] => {
@@ -749,7 +765,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
     }
 
-    private handleLogoutGet = async (): Promise<ConnectorResponse<Server>> => this.servePublic(`logout-start.html`);
+    private handleLogoutGet = async (): Promise<ConnectorResponse<Server>> => ({
+        responseHtml: this.HTML_PAGES['logout'] ?? "Failed to load",
+    });
 
     private handleLogoutPost = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
@@ -916,25 +934,23 @@ export class KeycloakConnector<Server extends SupportedServers> {
         };
     }
 
-    private handleServePublic = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
-        return this.servePublic(req.urlParams['file'] ?? "login-start.html");
-    }
-
-    private servePublic = async (fileToServe: string): Promise<ConnectorResponse<Server>> => {
-        // Ensure the requested file matches regex
-        if (!/^(?=.*\w)[-_\w.]+$/.test(fileToServe)) {
-            return {
-                statusCode: 404,
-                //todo: see what 400 defaults to
-                // responseText: "Bad request",
-            }
-        }
-
-        // Serve the file
-        return {
-            serveFileFullPath: [this.getDirectory(), 'static', fileToServe].join(path.sep)
-        }
-    }
+    // private handleServePublic = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
+    //     return this.servePublic(req.urlParams['file'] ?? "login-start.html");
+    // }
+    //
+    // private servePublic = async (fileToServe: string): Promise<ConnectorResponse<Server>> => {
+    //     // Ensure the requested file matches regex
+    //     if (!/^(?=.*\w)[-_\w.]+$/.test(fileToServe)) {
+    //         return {
+    //             statusCode: 404,
+    //         }
+    //     }
+    //
+    //     // Serve the file
+    //     return {
+    //         serveFileFullPath: `${STATIC_FILE_DIR}${fileToServe}`
+    //     }
+    // }
 
     private cookieArrayToObject = (cookies: CookieParams<Server>[]): ReqCookies => {
         // Convert the cookies into an object based store
