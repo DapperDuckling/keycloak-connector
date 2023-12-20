@@ -200,7 +200,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
                 this.logger?.debug(`Group auth input`);
                 this.logger?.debug(groupAuth);
                 this.logger?.debug(`Group auth output`);
-                this.logger?.debug(groupAuthDebug);
+                this.logger?.debug(printableGroupAuthDebug);
             }
         }
 
