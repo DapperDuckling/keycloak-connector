@@ -46,8 +46,8 @@
     "cpy": "^10.1.0"
   },
   "dependencies": {
-    "@dapperduckling/keycloak-connector-common": "^1.0.4",
-    "@dapperduckling/keycloak-connector-server": "^1.0.11",
+    "@dapperduckling/keycloak-connector-common": "file:../../common",
+    "@dapperduckling/keycloak-connector-server": "file:../server",
     "fastify-plugin": "^4.5.1"
   },
   "publishConfig": {

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.7] - 2023-12-22
+
+### Fixed
+
+- Fixed issue where a client could be destroyed but still attempt to authorize
+
 ## [1.0.0] - 2023-12-03
 
 ### Added

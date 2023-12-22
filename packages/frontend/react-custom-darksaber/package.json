@@ -43,6 +43,9 @@
     "react": ">=18",
     "react-dom": ">=18"
   },
+  "devDependencies": {
+    "@dapperduckling/keycloak-connector-react": "file:../react"
+  },
   "yalcWatch": {
     "watchFolder": "dist",
     "buildWatchCommand": "tsc --watch",

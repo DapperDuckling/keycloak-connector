@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.9] - 2023-12-22
+
+### Fixed
+
+- Did not handle react strict mode correctly 
+
 ## [1.0.0] - 2023-12-03
 
 ### Added

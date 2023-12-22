@@ -1,34 +1,10 @@
 {
   "extends": [
-    "@tsconfig/strictest/tsconfig.json",
-    "@tsconfig/node18/tsconfig.json",
-    "@tsconfig/esm/tsconfig.json"
+    "../../../tsconfig.base.json"
   ],
-  "ts-node": {
-    "esm": true,
-    "files": true
-  },
   "compilerOptions": {
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "declaration": true,
+    "rootDir": "./src",
     "outDir": "./dist/",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "noImplicitAny": true,
-    "skipLibCheck": true,
-    "baseUrl": "./src",
-    "sourceMap": true,
-    "strictNullChecks": true,
-    "removeComments": false,
-    "noEmitOnError": true,
-    "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true,
-    "module": "nodenext",
-    "preserveConstEnums": true,
-    "moduleResolution": "nodenext",
-    "target": "es2022",
   },
   "include": [
     "./src/**/*"

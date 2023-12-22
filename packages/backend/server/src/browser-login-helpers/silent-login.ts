@@ -98,6 +98,9 @@ export const silentLoginResponseHTML = (message: SilentLoginMessage, token: stri
     // Convert the message to a json string and add slashes
     const messageJson = JSON.stringify(message).replaceAll('"', '\\"');
 
+    // Prepare the source origin
+    const sourceOriginFormatted = (sourceOrigin === undefined) ? undefined : `"${sourceOrigin}"`
+
     // Return the html
     return `
     <!doctype html>
@@ -106,7 +109,7 @@ export const silentLoginResponseHTML = (message: SilentLoginMessage, token: stri
       <h3>Silent Login Response</h3>
       <p>This page loaded in error. <a id="back-to-main" href="#">Back to main</a></p>
       <script>
-        (${silentLoginResponseFunction})("${messageJson}", "${token}", "${SILENT_LOGIN_EVENT_JSON}", "${LOGIN_LISTENER_BROADCAST_CHANNEL}", ${autoClose}, "${sourceOrigin}", ${enableDebugger});
+        (${silentLoginResponseFunction})("${messageJson}", "${token}", "${SILENT_LOGIN_EVENT_JSON}", "${LOGIN_LISTENER_BROADCAST_CHANNEL}", ${autoClose}, ${sourceOriginFormatted}, ${enableDebugger});
       </script>
       </body>
     </html>

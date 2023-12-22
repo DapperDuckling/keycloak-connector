@@ -135,8 +135,8 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             isAppAdmin: userGroupsPure.isAllAppAdmin,
             isOrgAdmin: userGroupsPure.isAllOrgAdmin,
             isUser: false,
-            orgAdminGroups: [],
             appAdminGroups: [],
+            orgAdminGroups: [],
         }
 
         // Grab a list of app admin groups (application and standalone groups)
@@ -163,6 +163,12 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         // Update app and org admin
         groupAuthUserStatus.isAppAdmin ||= groupAuthUserStatus.appAdminGroups.length > 0;
         groupAuthUserStatus.isOrgAdmin ||= groupAuthUserStatus.orgAdminGroups.length > 0;
+
+        // Help debug permission errors
+        if (isDev()) {
+            this.logger?.debug(`User's group auth permissions`);
+            this.logger?.debug(groupAuthUserStatus);
+        }
 
         return {
             groupAuth: groupAuthUserStatus

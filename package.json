@@ -22,11 +22,8 @@
   },
   "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
   "scripts": {
-    "build:client": "npm run build -w keycloak-connector-client",
-    "build:server": "npm run build -w keycloak-connector-server",
     "build": "npm run build --workspaces",
-    "publish:client": "npm publish -w keycloak-connector-client --access public",
-    "publish:server": "npm publish -w keycloak-connector-server --access public",
+    "publish": "lerna publish --no-private",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -48,11 +45,14 @@
     "express": "^4.18.2",
     "fastify": "^4.24.3",
     "lerna": "^7.4.2",
-    "pino": "^8.15.0",
+    "pino": "^8.17.1",
     "pino-pretty": "^9.4.0",
     "ts-node": "github:TypeStrong/ts-node#main",
     "typescript": "^5.2.2",
     "vitest": "^1.0.3",
     "yalc": "^1.0.0-pre.53"
+  },
+  "dependencies": {
+    "@dapperduckling/keycloak-connector-server": "^1.0.11"
   }
 }

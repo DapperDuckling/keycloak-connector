@@ -49,6 +49,7 @@ export class KeycloakConnectorClient {
     private isAuthChecking = false;
     private uniqueSilentIframeId = `${KeycloakConnectorClient.IFRAME_ID}-${this.token}`;
     private uniqueListenerIframeId = `${KeycloakConnectorClient.LISTENER_IFRAME_ID}-${this.token}`;
+    private isDestroyed = false;
 
     public constructor(config: ClientConfig) {
         // Store the config
@@ -99,6 +100,7 @@ export class KeycloakConnectorClient {
 
         // Set the auth to happen on the next tick
         setImmediate(async () => {
+            if (this.isDestroyed) return;
             await this.authCheck();
         });
 
@@ -252,6 +254,7 @@ export class KeycloakConnectorClient {
     public destroy = () => {
         this.abortBackgroundLogins();
         this.removeListenerIframe();
+        this.isDestroyed = true;
     }
 
     private removeSilentIframe = () => document.querySelectorAll(`#${this.uniqueSilentIframeId}`).forEach(elem => elem.remove());
