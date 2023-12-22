@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.14] - 2023-12-22
+
+### Fixed
+
+- Issue where plugin would not check for default permissions
+
 ## [1.0.0] - 2023-12-03
 
 ### Added

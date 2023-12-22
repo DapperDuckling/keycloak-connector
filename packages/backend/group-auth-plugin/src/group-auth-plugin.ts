@@ -177,19 +177,20 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
     isAuthorized = async (
         connectorRequest: ConnectorRequest,
-        userData: UserData<KcGroupClaims>,
     ): Promise<boolean> => {
 
         this.logger?.debug(`Group Auth plugin checking for authorization...`);
 
-        const groupAuths = connectorRequest.routeConfig.groupAuths;
+        const groupAuths = connectorRequest.routeConfig.groupAuths ?? [{}];
+        const userData = connectorRequest.kccUserData;
 
-        // Check for groupAuths in the routeConfig
-        if (groupAuths === undefined || groupAuths.length === 0) {
-            // No group auth defined, so no restrictions
-            return true;
+        // Check for missing user data
+        if (userData === undefined) {
+            this.logger?.error(`kccUserData is empty!`);
+            return false;
         }
 
+        // Add debug info in dev
         if (isDev()) {
             for (const groupAuth of groupAuths) {
                 const groupAuthDebug: GroupAuthDebug = {}

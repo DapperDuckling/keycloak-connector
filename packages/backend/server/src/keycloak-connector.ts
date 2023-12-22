@@ -1199,6 +1199,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         } while(++numOfLoopExecutions < 2);
 
+        // Add reference to user data on the connector request as well
+        connectorRequest.kccUserData = userData;
+
         // Check for no user info data (still)
         if (this._config.fetchUserInfo && userInfo === undefined) {
             // Valid token, but not valid user info information. Could be a server error, but nevertheless, sync the responses and return no authentication
@@ -1211,9 +1214,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Handle authorizing user based on request and user data
         userData.isAuthorized = await this.authPluginManager.isUserAuthorized(connectorRequest, userData);
-
-        // Add reference to user data on the connector request as well
-        connectorRequest.kccUserData = userData;
 
         return userDataResponse;
     }
