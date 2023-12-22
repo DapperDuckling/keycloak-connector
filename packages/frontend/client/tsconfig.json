@@ -10,7 +10,9 @@
       "DOM"
     ],
     "plugins": [
-      { "transform": "typia/lib/transform" }
+      {
+        "transform": "typia/lib/transform"
+      }
     ],
   },
   "include": [

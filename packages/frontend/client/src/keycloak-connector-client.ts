@@ -1,5 +1,4 @@
 import {
-    ConnectorCookies,
     getRoutePath,
     RouteEnum,
     SilentLoginEvent,
@@ -7,15 +6,12 @@ import {
     TokenType,
     type UserStatus,
     type UserStatusWrapped,
-    type GeneralResponse,
     SilentLoginTypes,
-    SilentLogoutTypes,
-    URL, deferredFactory, type Deferred, isObject,
+    URL, isObject,
 } from "@dapperduckling/keycloak-connector-common";
 import {setImmediate} from "./utils.js";
-import JsCookie from "js-cookie";
 import {silentLoginIframeHTML} from "./silent-login-iframe.js";
-import {is, validate} from "typia";
+import {is} from "typia";
 import {type ClientConfig, ClientEvent, LocalStorage} from "./types.js";
 import {EventListener} from "@dapperduckling/keycloak-connector-common";
 
