@@ -5,7 +5,8 @@
   "compilerOptions": {
     "noUnusedLocals": false,
     "noEmitOnError": false,
-    "sourceMap": true
+    "sourceMap": true,
+    "rootDir": "../"
   },
   "include": ["./**/*"],
   "exclude": [],

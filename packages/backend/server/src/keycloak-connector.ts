@@ -1165,8 +1165,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
             // Grab the access token from the request
             const validatedAccessJwt = await this.populateTokensFromRequest(connectorRequest, userDataResponse, numOfLoopExecutions > 0);
 
-            // Allow auth plugins to decorate the response
-            await this.authPluginManager.decorateResponse(connectorRequest, userData, this._config.pinoLogger);
+            // Allow auth plugins to decorate the response with defaults
+            await this.authPluginManager.decorateRequestDefaults(connectorRequest, userData);
 
             // Check for no access token
             if (userData.accessToken === undefined || validatedAccessJwt === undefined) return userDataResponse;

@@ -3,7 +3,6 @@ import type {ConnectorRequest as ConnectorRequestOriginal} from "@dapperduckling
 export type InheritanceTree = Record<string, string[] | "*">;
 export type MappedInheritanceTree = Record<string, Set<string> | "*">;
 
-
 export interface ConnectorRequest extends ConnectorRequestOriginal<GroupAuthRouteConfig, KcGroupClaims> {
     kccUserGroupAuthData?: GroupAuthData
     kccUserGroupAuthDebug?: GroupAuthDebug[],
@@ -83,11 +82,7 @@ export type GroupAuthData = {
     appId: string | null,
     orgId: string | null,
     standalone: boolean | null,
-    systemAdmin: boolean | null,
-    debugInfo: {
-        [key: string]: any,
-        // "matching-groups": Set<string | undefined>,
-    }
+    systemAdmin: boolean,
 }
 
 export type UserGroupPermissions<T = undefined> = T extends "array" ? string[] : Set<string>;

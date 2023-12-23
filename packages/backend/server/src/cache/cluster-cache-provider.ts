@@ -123,62 +123,59 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
             // Record the final retry time
             const finalRetryTimeMs = Date.now() + (this.config.maxWaitSecs ?? CacheProvider.MAX_WAIT_SECS) * 1000;
 
-
             do {
+                // Grab a lock
+                lock = await this.clusterProvider.lock(this.lockOptions);
+
+                // Check for a lock
+                if (lock) break;
+
+                // Did not obtain a lock, wait for result from elsewhere
+
                 // Store the pending refresh
                 const deferredRefresh = deferredFactory<T | undefined>();
                 this.pendingRefresh.set(key, deferredRefresh);
 
-                // Grab a lock
-                lock = await this.clusterProvider.lock(this.lockOptions);
-
-                // Check for no lock
-                if (!lock) {
-                    try {
-                        // Wait for a pending refresh
-                        const updateDataResult = await promiseWait<T | undefined>(deferredRefresh.promise, finalRetryTimeMs);
-                        if (updateDataResult) return {
-                            data: updateDataResult
-                        }
-                    } catch (e) {
-                        if (e instanceof WaitTimeoutError) {
-                            // Log this in order to inform the owner they may need to increase the wait timeout
-                            this.config.pinoLogger?.warn(`Timed out waiting for cache cluster update to occur. May consider increasing the wait time or investigating why the request is taking so long.`);
-                        }
+                try {
+                    // Wait for a pending refresh
+                    const updateDataResult = await promiseWait<T | undefined>(deferredRefresh.promise, finalRetryTimeMs);
+                    if (updateDataResult) return {
+                        data: updateDataResult
                     }
-
-                    // Timed out or received no updated data from cluster
-                    continue;
-                }
-
-                // Execute the wrapped cache miss callback
-                data = await wrappedCacheMissCallback();
-
-                // Check for a new token set
-                if (data) {
-                    // Calculate ttl
-                    const ttl = ttlFromExpiration(expiration) ?? this.config.ttl;
-
-                    // Store the result in the cluster
-                    await this.clusterProvider.storeObject(storageKey, data, Math.max(1, ttl), this.lockOptions.key);
-
-                    // Return the new data
-                    return {
-                        data: data,
-                        dataGenerator: true,
+                } catch (e) {
+                    if (e instanceof WaitTimeoutError) {
+                        // Log this in order to inform the owner they may need to increase the wait timeout
+                        this.config.pinoLogger?.warn(`Timed out waiting for cache cluster update to occur. May consider increasing the wait time or investigating why the request is taking so long.`);
                     }
                 }
             } while (
                 Date.now() <= finalRetryTimeMs &&       // Check exit condition
                 await sleep(25, 150)   // Add some random sleep for next loop
             )
+
+            // Execute the wrapped cache miss callback
+            data = await wrappedCacheMissCallback();
+
+            // Check for resultant data
+            if (data !== undefined) {
+                // Calculate ttl
+                const ttl = ttlFromExpiration(expiration) ?? this.config.ttl;
+
+                // Store the result in the cluster
+                await this.clusterProvider.storeObject(storageKey, data, Math.max(1, ttl), this.lockOptions.key);
+
+                // Return the new data
+                return {
+                    data: data,
+                    dataGenerator: true,
+                }
+            }
         } catch (e) {
             // Log error
             if (isObject(e)) this.config.pinoLogger?.info(e);
             this.config.pinoLogger?.info(`Failed to perform data update`);
 
         } finally {
-
 
             // Unsubscribe from the listener
             await this.clusterProvider.unsubscribe(listeningChannel, this.handleIncomingUpdateData);

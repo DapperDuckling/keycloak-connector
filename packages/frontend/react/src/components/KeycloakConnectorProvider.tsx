@@ -13,7 +13,7 @@ import {useImmerReducer} from "use-immer";
 import {createTheme, ThemeProvider} from "@mui/material";
 import {Logout} from "./Logout.js";
 import {KccDispatchType} from "../types.js";
-import {EventListenerFunction} from "@dapperduckling/keycloak-connector-common/src/event-listener.js";
+import {EventListenerFunction} from "@dapperduckling/keycloak-connector-common";
 
 export type ReactConfig = {
     disableAuthComponents?: boolean,

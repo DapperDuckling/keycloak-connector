@@ -41,6 +41,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         urlQuery: request.query,
         cookies: request.cookies as ReqCookies,
         headers: request.headers,
+        pluginDecorators: {},
         routeConfig: {
             ...this.globalRouteConfig,
             // ...(routeConfig !== false) && routeConfig,
@@ -180,6 +181,9 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 
         // Store the user data
         req.kccUserData = userDataResponse.userData;
+
+        // Decorate the request with the decorators from the plugins
+        Object.entries(connectorReq.pluginDecorators ?? {}).forEach(([key, value]) => req[key] = value);
 
         // Removed to enable keycloak connector plugins
         // // Check for no lock requirement (public route)

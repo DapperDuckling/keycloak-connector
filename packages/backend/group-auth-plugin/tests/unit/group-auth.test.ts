@@ -40,7 +40,8 @@ describe('Validate GroupAuth configuration to actual permission group requiremen
             urlQuery: {},
             url: "",
             urlParams: {},
-            headers: {}
+            headers: {},
+            pluginDecorators: {},
         }
 
         userData = {
@@ -642,8 +643,8 @@ describe('Validate GroupAuth configuration to actual permission group requiremen
             const expectedMatchingGroups = groupPathBuilder
                 .setGroupAuthConfig(groupAuthConfig)
                 .systemAdmin()
-                .allOrgAdmin()
-                .org()
+                // .allOrgAdmin()
+                // .org()
                 .output();
 
             // Compare

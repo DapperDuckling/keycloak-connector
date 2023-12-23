@@ -54,6 +54,9 @@ const keycloakConnectorFastifyPlugin: FastifyPluginAsync<KeycloakConnectorConfig
         // Store the user data
         request.kccUserData = userDataResponse.userData;
 
+        // Decorate the request with the decorators from the plugins
+        Object.entries(connectorReq.pluginDecorators ?? {}).forEach(([key, value]) => request[key] = value);
+
         // Grab the protector response
         const connectorResponse = await kcc.buildRouteProtectionResponse(connectorReq, request.kccUserData);
 

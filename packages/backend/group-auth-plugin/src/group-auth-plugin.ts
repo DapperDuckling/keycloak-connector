@@ -4,7 +4,7 @@ import type {
     DecorateUserStatus,
     UserData
 } from "@dapperduckling/keycloak-connector-server";
-import {AbstractAuthPlugin, AuthPluginOverride} from "@dapperduckling/keycloak-connector-server";
+import {AbstractAuthPlugin, AuthPluginOverride, DecorateResponse} from "@dapperduckling/keycloak-connector-server";
 import {isDev} from "@dapperduckling/keycloak-connector-common";
 import type {Logger} from "pino";
 import type {
@@ -93,18 +93,22 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         }
     }
 
-    decorateResponse = async (connectorRequest: ConnectorRequest, userData: UserData, logger: Logger | undefined): Promise<void> => {
-        // Decorate the user data with default group info
-        connectorRequest.kccUserGroupAuthData = {
-            appId: null,
-            orgId: null,
-            standalone: null,
-            systemAdmin: null,
-            debugInfo: {},
-            ...this.exposedEndpoints()
-        }
+    private defaultGroupAuthData = (): GroupAuthData => ({
+        systemAdmin: false,
+        appId: null,
+        orgId: null,
+        standalone: null,
+        ...this.exposedEndpoints()
+    });
+
+    decorateRequestDefaults: DecorateResponse = async ({logger}) => {
 
         logger?.debug(`Group Auth plugin decorating response`);
+
+        // Decorate the user data with default group info
+        return {
+            kccUserGroupAuthData: this.defaultGroupAuthData()
+        }
     }
 
     decorateUserStatus: DecorateUserStatus<GroupAuthUserStatus> = async (connectorRequest: ConnectorRequest, logger: Logger | undefined) => {
@@ -248,21 +252,12 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         debugData.matchingGroups = matchingGroups;
 
         // Create default group info object
-        const kccUserGroupAuthData: GroupAuthData = {
-            systemAdmin: null,
-            appId: null,
-            standalone: null,
-            orgId: null,
-            debugInfo: {
-                // "matching-groups": new Set(),
-                "app-lookup": false,
-                "org-lookup": false,
-                "route-required-super-admin-only": false,
-            },
-        }
+        const kccUserGroupAuthData = this.defaultGroupAuthData();
 
-        // Decorate the user data with the group info object (intentionally overwrite previous objects)
-        connectorRequest.kccUserGroupAuthData = kccUserGroupAuthData;
+        if (!onlyDebugData) {
+            // Update the user data with the group info object (intentionally overwrite previous objects)
+            connectorRequest.pluginDecorators["kccUserGroupAuthData"] = kccUserGroupAuthData;
+        }
 
         // Grab the route's group auth config
         const groupAuthConfig: GroupAuthConfig = {
@@ -283,16 +278,13 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
         }
 
         // Check if the user has a group membership that matches the super-user group exactly
-        // if (groupAuthConfig.adminGroups?.systemAdmin !== undefined && allUserGroups.includes(groupAuthConfig.adminGroups.systemAdmin)) {
-        if (userStatus.isSystemAdmin) {
-            connectorRequest.kccUserGroupAuthData.systemAdmin = true;
-            return true;
-        } else if (groupAuthConfig.requireAdmin === "SYSTEM_ADMIN") {
+        if (!userStatus.isSystemAdmin && groupAuthConfig.requireAdmin === "SYSTEM_ADMIN") {
+            // Not a super admin
+            kccUserGroupAuthData.systemAdmin = false;
             return false;
+        } else if (userStatus.isSystemAdmin) {
+            kccUserGroupAuthData.systemAdmin = true;
         }
-
-        // Not a super admin
-        kccUserGroupAuthData.systemAdmin = false;
 
         // Break apart the user groups into a more manageable object
         const userGroups = getUserGroups(allUserGroups, groupAuthConfig.adminGroups);
@@ -328,13 +320,19 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             switch (paramKey) {
                 case groupAuthConfig.orgParam:
                     constraints.org = paramValue;
-                    kccUserGroupAuthData.debugInfo["org-lookup"] = paramValue;
                     break;
                 case groupAuthConfig.appParam:
                     constraints.app = paramValue;
-                    kccUserGroupAuthData.debugInfo["app-lookup"] = paramValue;
                     break;
             }
+        }
+
+        // Check for super admin privileges
+        if (userStatus.isSystemAdmin) {
+            // Add constraint information
+            kccUserGroupAuthData.orgId = constraints.org ?? null;
+            kccUserGroupAuthData.appId = constraints.app ?? null;
+            return true;
         }
 
         // Check if no valid constraints and the "require admin" flag is not set to an explicit org or app admin
@@ -342,10 +340,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             (typeof groupAuthConfig.requireAdmin === "boolean" || groupAuthConfig.requireAdmin === undefined)
         ) {
 
-            // No valid constraints assumes we must require a super admin only
-            kccUserGroupAuthData.debugInfo["routeRequiredSystemAdminOnly"] = true;
-
-            // Super admin was checked near the beginning, so if this point is reached, they are not a super admin
+            // Super admin was already checked, so if this point is reached, they are not a super admin
             this.logger?.debug(`No valid constraints found, so a super admin was required for this route, but user is not super admin`);
             return false;
         }
@@ -382,7 +377,11 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             matchingGroups.appRequirements.add(groupAuthConfig.adminGroups?.allAppAdmin);
 
             // Check for all app admin
-            if (userGroups.isAllAppAdmin) return true;
+            if (userGroups.isAllAppAdmin) {
+                kccUserGroupAuthData.appId = appConstraint;
+                kccUserGroupAuthData.orgId = orgConstraint ?? null;
+                return true;
+            }
 
             // Grab the app group to use for this permission check
             // Dev note: The manually generated object at the end here is to help with producing the debug data
@@ -408,6 +407,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             if (groupAuthConfig.adminGroups?.appAdmin !== undefined
                 && appWidePermissions.has(groupAuthConfig.adminGroups.appAdmin)) {
                 kccUserGroupAuthData.appId = appConstraint;
+                kccUserGroupAuthData.orgId = orgConstraint ?? null;
                 this.logger?.debug(`User has app admin permission`);
                 return true;
             }
@@ -430,6 +430,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             const hasRequiredAppWidePermission = this.hasPermission(appWidePermissions, permission, mappedAppInheritanceTree);
             if (hasRequiredAppWidePermission) {
                 kccUserGroupAuthData.appId = appConstraint;
+                kccUserGroupAuthData.orgId = orgConstraint ?? null;
                 return true;
             }
 
@@ -505,14 +506,25 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
             // Add debug info
             matchingGroups.appRequirements.add(groupAuthConfig.adminGroups?.allAppAdmin ?? "");
 
-            return userStatus.isAllAppAdmin;
+            if (userStatus.isAllAppAdmin) {
+                kccUserGroupAuthData.appId = constraints.app ?? null;
+                kccUserGroupAuthData.orgId = constraints.org ?? null;
+                return true;
+            }
+
+            return false;
 
         } else if (groupAuthConfig.requireAdmin === "APP_ADMINS_ONLY") {
             // Add debug info
             matchingGroups.appRequirements.add(groupAuthConfig.adminGroups?.allAppAdmin ?? "");
             matchingGroups.appRequirements.add(`/${groupAuthConfig.appIsStandalone ? 'standalone' : 'applications'}/${GroupAuthPlugin.DEBUG_ANY_APP}/${groupAuthConfig.adminGroups?.appAdmin ?? ""}`);
 
-            return userStatus.isAppAdmin;
+            if (userStatus.isAppAdmin) {
+                kccUserGroupAuthData.orgId = constraints.org ?? null;
+                return true;
+            }
+
+            return false;
 
         } else if (constraints.org !== undefined) {
 

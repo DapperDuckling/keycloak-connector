@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2023-12-23
+
+### Added
+
+- Validated app and org constraints decorated on request object
+
+### Removed
+
+- `debugInfo` decoration
+
 ## [1.0.14] - 2023-12-22
 
 ### Fixed

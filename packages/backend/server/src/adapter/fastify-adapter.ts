@@ -40,6 +40,7 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
         urlQuery: request.query as Record<string, unknown>,
         cookies: request.cookies,
         headers: request.raw.headers,
+        pluginDecorators: {},
         routeConfig: {
             ...this.globalRouteConfig,
             ...request.routeOptions.config,

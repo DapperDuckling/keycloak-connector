@@ -33,7 +33,6 @@ router.get(
          *      body.keycloak.ga.appId    (string or null)   // The validated application id
          *      body.keycloak.ga.orgId    (string or null)   // The validated organization id
          *      body.keycloak.ga.groups   (string[] or null) // The group (or all groups) that matched this rule
-         *      body.keycloak.ga.debugInfo                   // An object to help describe the logic behind the request (for code dev)
          *      body.keycloak.userInfo    (object from KC) **already a part of base library
          */
     }

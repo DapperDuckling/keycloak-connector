@@ -76,13 +76,14 @@ export class AuthPluginManager {
         //     }
     }
 
-    public decorateResponse: DecorateResponse = async (connectorRequest: ConnectorRequest, userData: UserData): Promise<void> => {
+    public decorateRequestDefaults = async (connectorRequest: ConnectorRequest, userData: UserData): Promise<void> => {
         // Loop through plugins
         for (const [name, plugin] of this.plugins.entries()) {
             try {
-                await plugin.decorateResponse(connectorRequest, userData);
+                const decorators = await plugin.decorateRequestDefaults({connectorRequest, userData, logger: this.logger});
+                Object.entries(decorators).forEach(([key, value]) => connectorRequest.pluginDecorators![key] = value);
             } catch (e) {
-                throw new Error(`Issue invoking decorateResponse from auth plugin ${name}`);
+                throw new Error(`Issue invoking decorateRequestDefaults from auth plugin ${name}`);
             }
         }
     }
@@ -95,7 +96,7 @@ export class AuthPluginManager {
             try {
                 userStatus = {
                     ...userStatus,
-                    ...await plugin.decorateUserStatus(connectorRequest),
+                    ...await plugin.decorateUserStatus(connectorRequest, this.logger),
                 }
             } catch (e) {
                 throw new Error(`Issue invoking decorateUserStatus from auth plugin ${name}`);

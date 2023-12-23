@@ -151,9 +151,9 @@ export enum AzpOptions {
     IGNORE = 1,
 }
 
-
-
 export type ReqCookies = { [cookieName: string]: string | undefined };
+
+export type PluginDecorators = Record<string, unknown>;
 
 export interface ConnectorRequest<
     KcRouteConfig extends object = Record<string, unknown>,
@@ -169,6 +169,7 @@ export interface ConnectorRequest<
     headers: IncomingHttpHeaders;
     routeConfig: KeycloakRouteConfig & KcRouteConfig;
 
+    pluginDecorators: PluginDecorators;
     kccUserData?: UserData<KcClaims>;
     body?: Record<string, string>;
 }

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2023-12-23
+
+### Added
+
+- Added plugin decorators to allow plugins to add properties to the request object
+
+### Fixed
+
+- Cache provider unnecessarily re-attempting cache miss callback when no data was returned
+- Resolved lock not getting released before attempting to gain another one
+
 ## [1.0.12] - 2023-12-19
 
 ### Fixed

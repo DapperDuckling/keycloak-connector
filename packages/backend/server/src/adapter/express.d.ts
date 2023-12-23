@@ -10,3 +10,12 @@ declare module "http" {
         _keycloakReqHandled: boolean;
     }
 }
+
+declare global {
+    namespace Express {
+        // Inject additional properties on express.Request
+        interface Request {
+            [key: string]: unknown;
+        }
+    }
+}
