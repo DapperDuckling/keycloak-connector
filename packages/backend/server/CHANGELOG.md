@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2023-12-23
+
+### Fixed
+
+- Added plugin decorators to allow plugins to add properties to the request object
+
 ## [1.1.0] - 2023-12-23
 
 ### Added

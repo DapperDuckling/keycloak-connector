@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sign In</title>
-    <link rel="stylesheet" href="/auth/static/main.css">
+    <link rel="stylesheet" href="${urlPrefix}/static/main.css">
 </head>
 <body>
 <div id="background">
@@ -16,11 +16,11 @@
         <h3>Sign in to your account</h3>
         <p>${serverOrigin}</p>
     </div>
-    <form action="/auth/login" method="post">
+    <form action="${urlPrefix}/login" method="post">
         <button>Sign In</button>
     </form>
 </div>
-<script src="/auth/static/trianglify.bundle.js"></script>
-<script src="/auth/static/script.js"></script>
+<script src="${urlPrefix}/static/trianglify.bundle.js"></script>
+<script src="${urlPrefix}/static/script.js"></script>
 </body>
 </html>

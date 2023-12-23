@@ -36,7 +36,7 @@ import {
     epoch,
     getRoutePath,
     isDev, isObject,
-    RouteEnum,
+    RouteEnum, RouteUrlDefaults,
     SilentLoginEvent,
     type SilentLoginMessage,
     SilentLoginTypes,
@@ -142,7 +142,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Update the static pages to include the server origin
         const staticPageReplacements: Record<string, string> = {
             serverOrigin: this._config.serverOrigin,
+            urlPrefix: this._config.routePaths?._prefix ?? RouteUrlDefaults._prefix
         }
+
         for (const [fileKey, htmlContents] of Object.entries(this.HTML_PAGES)) {
             // Simple match and replace
             this.HTML_PAGES[fileKey] = htmlContents.replaceAll(/\${(\w*)}/g, (match, key) => staticPageReplacements[key] ?? match);
