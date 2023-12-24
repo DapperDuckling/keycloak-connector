@@ -26,7 +26,8 @@ app.use(cookieParser());
 // Initialize the keycloak connector
 const {registerAuthPlugin} = await keycloakConnectorExpress(app, {
     serverOrigin: `http://localhost:3005`,
-    authServerUrl: 'http://localhost:8080/',
+    authServerUrl: 'http://localhost:8080',
+    keycloakVersionBelow18: true,
     realm: 'local-dev',
     refreshConfigMins: -1, // Disable for dev testing
     pinoLogger: loggerHttp.logger,
