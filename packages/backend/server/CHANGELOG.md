@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2023-12-24
+
+### Fixed
+
+- Fixed logouts were prompting uses at keycloak still
+
 ## [1.1.1] - 2023-12-23
 
 ### Fixed
