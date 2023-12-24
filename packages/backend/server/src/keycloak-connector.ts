@@ -796,6 +796,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const logoutUrl = this.components.oidcClient.endSessionUrl({
             post_logout_redirect_uri: redirectUri,
             ...idToken && {id_token_hint: idToken},
+            client_id: this.components.oidcClient.metadata.client_id,
+            prompt: 'none'
         });
 
         // Grab the cors headers
