@@ -106,6 +106,10 @@ export class KeycloakConnectorClient {
     public addEventListener = (...args: Parameters<EventListener<ClientEvent>['addEventListener']>) => this.eventListener.addEventListener(...args);
     public removeEventListener = (...args: Parameters<EventListener<ClientEvent>['removeEventListener']>) => this.eventListener.removeEventListener(...args);
 
+    private clearUserStatus = () => {
+        localStorage.removeItem(LocalStorage.USER_STATUS);
+    }
+
     private storeUserStatus = (data: UserStatusWrapped | undefined) => {
         try {
             if (data === undefined) return;
@@ -458,6 +462,9 @@ export class KeycloakConnectorClient {
     }
 
     handleLogout = async () => {
+        // Clear the local storage
+        this.clearUserStatus();
+
         // Build the logout url
         const logoutUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGOUT_POST, this.config.routePaths)}?post_auth_redirect_uri=${self.location.href}`;
 
