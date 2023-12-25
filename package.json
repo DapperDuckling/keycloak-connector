@@ -24,6 +24,7 @@
   "scripts": {
     "build": "npm run build --workspaces",
     "publish": "lerna publish --no-private",
+    "list-versions": "lerna ls -l",
     "test": "vitest run",
     "test:watch": "vitest"
   },
