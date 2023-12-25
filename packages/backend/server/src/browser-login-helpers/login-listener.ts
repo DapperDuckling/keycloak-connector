@@ -59,7 +59,7 @@ const loginListener = (
     // Listen to broadcast channel messages
     const bc = new BroadcastChannel(loginListenerChannel);
     bc.onmessage = (event: MessageEvent<SilentLoginMessage>) => {
-        console.debug(`Broadcast msg received`, event);
+        if (enableDebugger) console.debug(`Broadcast msg received`, event);
 
         // Pass the message up to the parent
         parent.postMessage(event.data, sourceOrigin);

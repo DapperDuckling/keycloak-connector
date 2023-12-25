@@ -92,7 +92,7 @@ export const KeycloakConnectorProvider = ({children, config}: ConnectorProviderP
         // Add event listener to pass events down to components
         kccClient.addEventListener('*', (clientEvent, payload) => {
 
-            console.debug(`KCP received event: ${clientEvent}`);
+            // console.debug(`KCP received event: ${clientEvent}`);
 
             // Build a custom event
             const event = new CustomEvent(clientEvent, {detail: payload});
