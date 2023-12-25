@@ -95,10 +95,7 @@ export class KeycloakConnectorClient {
         }
 
         // Set the auth to happen on the next tick
-        setImmediate(async () => {
-            if (this.isDestroyed) return;
-            await this.authCheck();
-        });
+        this.authCheckNextTick();
 
         // Set the started flag
         this.started = true;
@@ -261,7 +258,11 @@ export class KeycloakConnectorClient {
         if (KeycloakConnectorClient.isTokenCurrent(TokenType.ACCESS)) {
             // Initial check if the user status has not been populated
             if (this.userStatusHash === undefined && this.config.fastInitialAuthCheck) {
+                // Attempt to update the user status with cached data immediately
                 this.handleUpdatedUserStatus();
+
+                // Perform a background check of the login status
+                this.authCheckNextTick(true);
             }
 
             return true;
@@ -330,14 +331,20 @@ export class KeycloakConnectorClient {
         return false;
     }
 
-    public authCheck = async () => {
+    private authCheckNextTick = (force?: boolean) => setImmediate(async () => {
+        if (this.isDestroyed) return;
+        await this.authCheck(force);
+    });
+
+    public authCheck = async (force?: boolean) => {
 
         // Execute the synchronous auth check portion
-        if (this.authCheckNoWait() && (this.userStatusHash !== undefined || this.config.fastInitialAuthCheck)) return;
+        if (!force && this.authCheckNoWait() && this.userStatusHash !== undefined) return;
 
         // Prevent multiple async auth checks from occurring
         if (this.isAuthChecking) {
             console.debug(`Is already auth checking, will not make another attempt`);
+            return;
         }
 
         // Set the flag
