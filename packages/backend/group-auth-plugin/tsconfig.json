@@ -13,5 +13,8 @@
     "./tests/**/*",
     "./dist/**/*"
   ],
+  "paths": {
+    "*": ["../server/dist/*"]
+  },
   "baseUrl": "./src"
 }
