@@ -23,7 +23,7 @@ jobs:
           node-version: '20.10'
           cache: 'npm'
       - run: npm ci
-      - run: npm run build
+      - run: npm run build -v
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
