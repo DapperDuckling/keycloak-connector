@@ -28,6 +28,8 @@ jobs:
         run: npm ci
       - name: Build Project
         run: npm run build -v
+      - name: Show the directory now
+        run: ls -l
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v2
         with: 
