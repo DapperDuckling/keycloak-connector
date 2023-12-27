@@ -43,7 +43,7 @@ jobs:
       - run: ls -lh docs
       - run: ls -lh docs/build
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v2
+        uses: actions/upload-pages-artifact@v3
         with:
           path: "docs/build/"
   # Deploy documentation
@@ -57,6 +57,7 @@ jobs:
     permissions:
       pages: write      # to deploy to Pages
       id-token: write   # to verify the deployment originates from an appropriate source
+      actions: read     # to download an artifact uploaded by `actions/upload-pages-artifact@v3`
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
