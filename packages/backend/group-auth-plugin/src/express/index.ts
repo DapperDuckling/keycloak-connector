@@ -1,3 +1,3 @@
 export * from "./group-auth-express.js";
 
-export type * from "./express.d.ts";
+export type * from "./express-types.ts";

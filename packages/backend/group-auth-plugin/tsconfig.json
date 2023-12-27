@@ -5,8 +5,8 @@
   "compilerOptions": {
     "rootDir": "./src",
     "outDir": "./dist/",
-    "traceResolution": true,
-    "diagnostics": true
+//    "traceResolution": true,
+//    "diagnostics": true
   },
   "include": [
     "./src/**/*"

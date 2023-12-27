@@ -12,4 +12,4 @@ declare module 'fastify' {
 }
 
 // export const groupAuthFastifyPlugin: FastifyRegister<GroupAuthData>;
-export default groupAuthFastifyPlugin;
+// export default groupAuthFastifyPlugin;

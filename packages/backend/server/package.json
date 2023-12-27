@@ -22,7 +22,7 @@
   "homepage": "https://github.com/DapperDuckling/keycloak-connector#readme",
   "scripts": {
     "clean": "rimraf ./dist/",
-    "build": "npm run clean && tsc && cpy ./src/**/*.d.ts ./dist && cpy ./src/static/* ./dist/static && cpy --flat ./../../../node_modules/trianglify/dist/trianglify.bundle.js ./dist/static",
+    "build": "npm run clean && tsc && cpy ./src/static/* ./dist/static && cpy --flat ./../../../node_modules/trianglify/dist/trianglify.bundle.js ./dist/static",
     "tsc": "tsc",
     "prepublishOnly": "npm run build",
     "test:start:fastify": "cd ./tests/integration/fastify/ && nodemon ./fastify-server.ts",
@@ -42,7 +42,7 @@
     "@types/fastify-static": "^2.2.1",
     "@types/jest": "^29.5.1",
     "@types/object-hash": "^3.0.6",
-    "cpy": "^10.1.0",
+    "cpy-cli": "^5.0.0",
     "nodemon": "^3.0.1",
     "pino-http": "^8.4.0",
     "readline-sync": "^1.4.10",

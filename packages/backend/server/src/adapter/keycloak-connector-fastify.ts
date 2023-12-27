@@ -8,7 +8,7 @@ import type {
 import {fastifyPlugin} from "fastify-plugin";
 import {FastifyAdapter} from "./fastify-adapter.js";
 import type {Logger} from "pino";
-import type {KeycloakRouteConfigFastify} from "./fastify.js";
+import type {KeycloakRouteConfigFastify} from "./fastify-types.js";
 
 const keycloakConnectorFastifyPlugin: FastifyPluginAsync<KeycloakConnectorConfigCustom> = async (fastify, customConfig): Promise<void> => {
 

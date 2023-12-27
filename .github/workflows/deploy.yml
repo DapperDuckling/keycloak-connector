@@ -26,19 +26,20 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-      # - name: Build Project
-        # run: npm run build
-      - run: npm run build -w @dapperduckling/keycloak-connector-common
-      - run: npm run build -w @dapperduckling/keycloak-connector-server
-      - run: npm run build -w @dapperduckling/keycloak-connector-cluster-redis
-      - run: ls -lh packages/backend/server/dist/adapter
-      - run: cd packages/backend/server/dist/adapter && pwd
-      - run: touch packages/backend/server/dist/adapter/express.d.ts
-      - run: npm run build -w @dapperduckling/keycloak-connector-group-auth-plugin
-      - run: npm run build -w @dapperduckling/keycloak-connector-client
-      - run: npm run build -w @dapperduckling/keycloak-connector-react
-      - run: npm run build -w @dapperduckling/keycloak-connector-react-custom-darksaber
-      - run: npm run build -w docs
+      - name: Build Project
+        run: npm run build
+#      - run: npm run build -w @dapperduckling/keycloak-connector-common
+#      - run: npm run build -w @dapperduckling/keycloak-connector-server
+#      - run: npm run build -w @dapperduckling/keycloak-connector-cluster-redis
+#      - run: ls -lh packages/backend/server/dist/adapter
+#      - run: cd packages/backend/server/dist/adapter && pwd
+#      - run: touch packages/backend/server/dist/adapter/express.d.ts
+#      - uses: npm install -w @dapperduckling/keycloak-connector-group-auth-plugin
+#        run: npm run build -w @dapperduckling/keycloak-connector-group-auth-plugin
+#      - run: npm run build -w @dapperduckling/keycloak-connector-client
+#      - run: npm run build -w @dapperduckling/keycloak-connector-react
+#      - run: npm run build -w @dapperduckling/keycloak-connector-react-custom-darksaber
+#      - run: npm run build -w docs
       - run: ls -lh docs
       - run: ls -lh docs/build
       - name: Upload Pages artifact
