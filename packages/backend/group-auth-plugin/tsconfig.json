@@ -5,6 +5,8 @@
   "compilerOptions": {
     "rootDir": "./src",
     "outDir": "./dist/",
+    "traceResolution": true,
+    "diagnostics": true
   },
   "include": [
     "./src/**/*"
@@ -13,8 +15,5 @@
     "./tests/**/*",
     "./dist/**/*"
   ],
-  "paths": {
-    "*": ["../server/dist/*"]
-  },
   "baseUrl": "./src"
 }
