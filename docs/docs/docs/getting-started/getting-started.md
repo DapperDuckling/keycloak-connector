@@ -4,11 +4,13 @@ sidebar_position: 1
 
 # Getting Started
 
-Let's discover **Keycloak Connector** in less than 10 minutes.
+Let's discover **Keycloak Connector** in less than 15 minutes.
 
-#### Want to experience it without any setup time?
+<sub>Can't wait? Run it out-of-the-box in Docker.</sub>
 
-- Experience it now with our [kcc-jumpstart.zip](/assets/kcc-jumpstart.zip), extract, and run `docker compose up`. 
+#### Or jump right in with Docker!
+
+- Download [kcc-quickstart.zip](/assets/kcc-quickstart.zip), extract, and run `docker compose up` 
 
 ### What you'll need
 
@@ -17,7 +19,7 @@ Let's discover **Keycloak Connector** in less than 10 minutes.
 
 #### Or experience it now with Docker
 
-- Download [kcc-jumpstart.zip](/assets/kcc-jumpstart.zip), extract, and run `docker compose up`.
+- Download [kcc-quickstart.zip](/assets/kcc-quickstart.zip), extract, and run `docker compose up`.
 
 ## Getting Started
 
