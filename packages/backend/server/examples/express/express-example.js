@@ -1,7 +1,7 @@
 import express from 'express';
 import {keycloakConnectorExpress, lock} from "@dapperduckling/keycloak-connector-server";
 import cookieParser from "cookie-parser"
-import {getPinoLogger, responses} from "../common.js";
+import {getPinoLogger, responses} from "../common.mjs";
 
 const serverPort = 3000;
 
