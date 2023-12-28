@@ -6,6 +6,10 @@ sidebar_position: 1
 
 Let's discover **Keycloak Connector** in less than 10 minutes.
 
+#### Want to experience it without any setup time?
+
+- Experience it now with our [kcc-jumpstart.zip](/assets/kcc-jumpstart.zip), extract, and run `docker compose up`. 
+
 ### What you'll need
 
 - [Node.js 18.0+](https://nodejs.org/en/download/)
@@ -13,7 +17,7 @@ Let's discover **Keycloak Connector** in less than 10 minutes.
 
 #### Or experience it now with Docker
 
-- Download [kcc-docker-jumpstart.zip](/assets/kcc-docker-jumpstart.zip), extract and run `docker up`.
+- Download [kcc-jumpstart.zip](/assets/kcc-jumpstart.zip), extract, and run `docker compose up`.
 
 ## Getting Started
 
