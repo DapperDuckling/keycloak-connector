@@ -300,7 +300,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     private handleLoginGet = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
         // Check if the user is already logged in
-        const redirectIfAuthenticated = await this.redirectIfAuthenticated(req);
+        const redirectIfAuthenticated = await this.redirectIfAuthenticated(req, false);
         if (redirectIfAuthenticated) return redirectIfAuthenticated;
 
         // Otherwise, serve the login page
@@ -328,13 +328,13 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return typeof sourceOriginParam === "string" ? sourceOriginParam : undefined;
     }
 
-    private redirectIfAuthenticated = async (req: ConnectorRequest): Promise<ConnectorResponse<Server> | false> => {
+    private redirectIfAuthenticated = async (req: ConnectorRequest, originRequired = true): Promise<ConnectorResponse<Server> | false> => {
         // Check if the user is already logged in
         if (req.kccUserData?.isAuthenticated !== true) return false;
 
         // Do a quick origin check
         try {
-            this.validateOriginOrThrow(req);
+            this.validateOriginOrThrow(req, originRequired);
         } catch (e) {
             // Do not continue auth redirect
             return false;
@@ -368,12 +368,12 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     private handleLoginPost = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
+        // Ensure the request comes from an allowed origin
+        const sourceOrigin = this.validateOriginOrThrow(req);
+
         // Check if the user is already logged in
         const redirectIfAuthenticated = await this.redirectIfAuthenticated(req);
         if (redirectIfAuthenticated) return redirectIfAuthenticated;
-
-        // Ensure the request comes from an allowed origin
-        const sourceOrigin = this.validateOriginOrThrow(req);
 
         // Generate random values
         const cv = generators.codeVerifier();

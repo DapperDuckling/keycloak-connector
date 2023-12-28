@@ -4,14 +4,17 @@ sidebar_position: 1
 
 # Getting Started
 
-Let's discover **Keycloak Connector for React** in less than 15 minutes.
+Let's discover **Keycloak Connector** in less than 10 minutes.
 
 ### What you'll need
 
-- [Node.js](https://nodejs.org/en/download/) version 18.0 or above
-- Keycloak version 16.0 or above
+- [Node.js 18.0+](https://nodejs.org/en/download/)
+- [Keycloak 16.0+](https://www.keycloak.org/downloads)
 
-[//]: # (Todo: link this to the keycloak docker container)
+#### Or experience it now with Docker
+
+- Download our Keycloak-docker-example and run `docker up --flag keycloak-docker-example`
+- Start a new codepen.io Node.js instance running **Keycloak Connector**
 
 ## Getting Started
 

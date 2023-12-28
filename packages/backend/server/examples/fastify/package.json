@@ -1,0 +1,18 @@
+{
+  "name": "kcc-fastify-example",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node fastify-example.js"
+  },
+  "dependencies": {
+    "@dapperduckling/keycloak-connector-server": "^1.1.3",
+    "@fastify/cookie": "9.2.0",
+    "pino": "^8.17.2",
+    "pino-pretty": "^10.3.1"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  }
+}
