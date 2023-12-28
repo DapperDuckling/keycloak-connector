@@ -17,7 +17,7 @@ await fastify.register(cookie);
 // Initialize the keycloak connector
 await fastify.register(keycloakConnectorFastify(), {
     realm: 'kcc-example',
-    clientId: 'example-app',
+    clientId: 'example-fastify-app',
     clientSecret: 'EXAMPLE_SECRET_ONLY_IN_DEV',      // A password is not allowed in non-dev environments
     DANGEROUS_disableJwtClientAuthentication: true, // Only allowed in dev environments
     fetchUserInfo: true,
@@ -45,18 +45,21 @@ await fastify.register(keycloakConnectorFastify(), {
 
 // A public route
 fastify.get('/', {config: {public: true}}, async (request, reply) => {
+    reply.type('text/html')
     return responses.public;
 });
 
 // Only authentication required route
 fastify.get('/no-role-required', async (request, reply) => {
+    reply.type('text/html')
     return responses.noRole;
 });
 
 // Requires "COOL_GUY" role
 fastify.get('/cool-guy', {config: {roles: ['COOL_GUY']}}, async (request, reply) => {
+    reply.type('text/html')
     return responses.coolGuy;
 });
 
 // Launch the server
-await fastify.listen({ port: serverPort, host: '0.0.0.0'});
+await fastify.listen({ port: serverPort, listenTextResolver: () => `Server listening at http://localhost:${serverPort}`});

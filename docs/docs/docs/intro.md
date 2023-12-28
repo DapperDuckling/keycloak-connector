@@ -13,8 +13,7 @@ Let's discover **Keycloak Connector** in less than 10 minutes.
 
 #### Or experience it now with Docker
 
-- Download our Keycloak-docker-example and run `docker up --flag keycloak-docker-example`
-- Start a new codepen.io Node.js instance running **Keycloak Connector**
+- Download [kcc-docker-jumpstart.zip](./kcc-docker-jumpstart.zip), extract and run `docker up`
 
 ## Getting Started
 

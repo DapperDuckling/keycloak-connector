@@ -6,13 +6,13 @@ services:
   express:
     container_name: kcc-express
     image: node:21.5-alpine3.19
-    working_dir: /usr/src/app
+    working_dir: /usr/src/app/express
     command: >
       sh -c "npm ci && npm start"
     ports:
       - "3000:3000"
     volumes:
-      - ./express:/usr/src/app
+      - ./examples:/usr/src/app
     depends_on:
       - keycloak
     networks:
@@ -21,13 +21,13 @@ services:
   fastify:
     container_name: kcc-fastify
     image: node:21.5-alpine3.19
-    working_dir: /usr/src/app
+    working_dir: /usr/src/app/fastify
     command: >
       sh -c "npm install && npm run build && npm start"
     ports:
       - "4000:4000"
     volumes:
-      - ./fastify:/usr/src/app
+      - ./examples:/usr/src/app
     depends_on:
       - keycloak
     networks:
@@ -49,15 +49,6 @@ services:
         source: ./realm
         target: /opt/keycloak/data/import
         read_only: true
-    extra_hosts:
-      - host.docker.internal:host-gateway
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8080" ]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 40s
-      start_interval: 5s
     networks:
       - kcc-internal
 

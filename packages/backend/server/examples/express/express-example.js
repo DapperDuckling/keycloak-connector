@@ -60,5 +60,5 @@ app.use(lock(), router);
 
 // Start the server
 app.listen(serverPort, () => {
-    console.log(`express :: listening on ${serverPort}`);
+    console.log(`express :: listening at http://localhost:${serverPort}`);
 });

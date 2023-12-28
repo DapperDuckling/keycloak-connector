@@ -2347,7 +2347,8 @@
     "requiredActions" : [ ],
     "realmRoles" : [ "default-roles-kcc-example" ],
     "clientRoles" : {
-      "example-express-app" : [ "COOL_GUY" ]
+      "example-express-app" : [ "COOL_GUY" ],
+      "example-fastify-app" : [ "COOL_GUY" ]
     },
     "clientConsents" : [ {
       "clientId" : "example-express-app",
