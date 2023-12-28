@@ -7,7 +7,7 @@
     "docusaurus": "docusaurus",
     "start": "npm run clean:typedocs && docusaurus start",
     "build": "npm run clean:typedocs && npm run build:docker-jumpstart && docusaurus build",
-    "build:docker-jumpstart": "cpy ./docker-jumpstart ./build/ && cpy ../packages/backend/server/examples ./build/docker-jumpstart && node ./zip-docker.js && rimraf ./build/docker-jumpstart",
+    "build:docker-jumpstart": "cpy ./docker-jumpstart ./build/ && cpy ../packages/backend/server/examples ./build/docker-jumpstart && ls -lh ./build/docker-jumpstart && node ./zip-docker.js && rimraf ./build/docker-jumpstart",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
     "clear": "docusaurus clear",
