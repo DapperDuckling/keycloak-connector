@@ -13,7 +13,7 @@ Let's discover **Keycloak Connector** in less than 10 minutes.
 
 #### Or experience it now with Docker
 
-- Download [kcc-docker-jumpstart.zip](./kcc-docker-jumpstart.zip), extract and run `docker up`
+- Download [kcc-docker-jumpstart.zip](/assets/kcc-docker-jumpstart.zip), extract and run `docker up`.
 
 ## Getting Started
 
