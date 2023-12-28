@@ -1,0 +1,57 @@
+version: '3.1'
+
+
+services:
+
+  express:
+    container_name: kcc-express
+    image: node:21.5-alpine3.19
+    working_dir: /usr/src/app/express
+    command: >
+      sh -c "npm ci && npm start"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./examples:/usr/src/app
+    depends_on:
+      - keycloak
+    networks:
+      - kcc-internal
+
+  fastify:
+    container_name: kcc-fastify
+    image: node:21.5-alpine3.19
+    working_dir: /usr/src/app/fastify
+    command: >
+      sh -c "npm install && npm run build && npm start"
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./examples:/usr/src/app
+    depends_on:
+      - keycloak
+    networks:
+      - kcc-internal
+
+
+  keycloak:
+    container_name: kcc-keycloak
+    image: quay.io/keycloak/keycloak:23.0
+    command: ["start-dev", "--import-realm"]
+    environment:
+      JAVA_OPTS_APPEND: "-Djava.net.preferIPv4Stack=true" # Set to use IPV4 only, due to weird Docker issues causing super slow connections otherwise
+      KEYCLOAK_ADMIN: "admin"
+      KEYCLOAK_ADMIN_PASSWORD: "dev"
+    ports:
+      - "8080:8080"
+    volumes:
+      - type: bind
+        source: ./realm
+        target: /opt/keycloak/data/import
+        read_only: true
+    networks:
+      - kcc-internal
+
+networks:
+  kcc-internal:
+    driver: bridge
