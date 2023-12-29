@@ -665,15 +665,15 @@
       "name": "",
       "description": "",
       "rootUrl": "http://localhost:3000",
-      "adminUrl": "http://express:3000/auth/k-admin-url",
-      "baseUrl": "http://localhost:3000",
+      "adminUrl": "/auth/k-admin-url",
+      "baseUrl": "/",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "secret": "EXAMPLE_SECRET_ONLY_IN_DEV",
       "redirectUris": [
-        "http://localhost:3000/auth/callback*"
+        "/auth/callback*"
       ],
       "webOrigins": [
         "+"
@@ -692,7 +692,7 @@
         "user.info.response.signature.alg": "PS256",
         "request.object.signature.alg": "PS256",
         "token.endpoint.auth.signing.alg": "PS256",
-        "post.logout.redirect.uris": "http://localhost:3000/auth/logout-callback*",
+        "post.logout.redirect.uris": "/auth/logout-callback*",
         "oauth2.device.authorization.grant.enabled": "false",
         "use.jwks.url": "false",
         "backchannel.logout.revoke.offline.tokens": "false",
@@ -736,15 +736,15 @@
       "name": "",
       "description": "",
       "rootUrl": "http://localhost:4000",
-      "adminUrl": "http://express:4000/auth/k-admin-url",
-      "baseUrl": "http://localhost:4000",
+      "adminUrl": "/auth/k-admin-url",
+      "baseUrl": "/",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "secret": "EXAMPLE_SECRET_ONLY_IN_DEV",
       "redirectUris": [
-        "http://localhost:4000/auth/callback*"
+        "/auth/callback*"
       ],
       "webOrigins": [
         "+"
@@ -763,7 +763,7 @@
         "user.info.response.signature.alg": "PS256",
         "request.object.signature.alg": "PS256",
         "token.endpoint.auth.signing.alg": "PS256",
-        "post.logout.redirect.uris": "http://localhost:4000/auth/logout-callback*",
+        "post.logout.redirect.uris": "/auth/logout-callback*",
         "oauth2.device.authorization.grant.enabled": "false",
         "use.jwks.url": "false",
         "backchannel.logout.revoke.offline.tokens": "false",
@@ -771,7 +771,7 @@
         "oidc.ciba.grant.enabled": "false",
         "id.token.signed.response.alg": "PS256",
         "backchannel.logout.session.required": "true",
-        "backchannel.logout.url": "http://express:4000/auth/k-logout",
+        "backchannel.logout.url": "http://fastify:4000/auth/k-logout",
         "client_credentials.use_refresh_token": "false",
         "require.pushed.authorization.requests": "false",
         "pkce.code.challenge.method": "S256",

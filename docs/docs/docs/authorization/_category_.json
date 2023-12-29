@@ -1,8 +1,8 @@
 {
-  "label": "Securing routes",
+  "label": "Securing Routes",
   "position": 3,
   "link": {
     "type": "generated-index",
-    "description": "Securing routes"
+    "description": "Securing routes beyond basic user authentication can occur the following authorization methods (or bring your own!)"
   }
 }
