@@ -51,11 +51,15 @@ Changing Realm configurations may impact existing Clients if they are not simila
 - Valid redirect URIs **`/auth/callback*`**
 - Web origins **`+`**
 - Admin URL **`/auth/k-admin-url*`**
-
 - Client authentication **`On`**
 - Authentication flow **`Standard flow`**
 - Front channel logout **`Off`**
-- Backchannel logout URL **`/auth/k-logout`**
+
+:::tip Backchannel logout URL
+When running Keycloak in a Docker instance and your NodeJs server on your host machine, try: http://host.docker.internal:5000/auth/k_logout
+:::
+
+- Backchannel logout URL **`http://localhost:5000/auth/k-logout`**
 - Backchannel logout session required **`On`**
 
 #### Credentials
