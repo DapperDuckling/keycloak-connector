@@ -2,4 +2,10 @@
 sidebar_position: 1
 ---
 
-# Role Based Auth
+# Using Roles
+
+:::tip
+For multi-organizational apps, we recommend using `Group` based authentication, not `Roles`.
+:::
+
+Todo
