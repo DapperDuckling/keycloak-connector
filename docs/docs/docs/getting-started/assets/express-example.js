@@ -1,9 +1,8 @@
 import express from 'express';
 import {keycloakConnectorExpress, lock} from "@dapperduckling/keycloak-connector-server";
 import cookieParser from "cookie-parser"
-import {getPinoLogger, responses} from "../common.mjs";
 
-const serverPort = 3000;
+const serverPort = 5000;
 
 // Grab express app
 const app = express();
@@ -15,9 +14,8 @@ app.use(cookieParser());
 await keycloakConnectorExpress(app, {
     realm: 'kcc-example',
     clientId: 'example-express-app',
-    clientSecret: 'EXAMPLE_SECRET_ONLY_IN_DEV',      // A password is not allowed in non-dev environments
-    DANGEROUS_disableJwtClientAuthentication: true, // Only allowed in dev environments
-    pinoLogger: getPinoLogger,
+    clientSecret: '***REPLACE WITH CLIENT SECRET FROM KEYCLOAK***', // Dev only
+    DANGEROUS_disableJwtClientAuthentication: true, // Dev only
     fetchUserInfo: true,
     serverOrigin: `http://localhost:${serverPort}`, // This server's origin
     authServerUrl: 'http://localhost:8080/',        // Your keycloak server here
@@ -25,20 +23,15 @@ await keycloakConnectorExpress(app, {
 
 // Register a public route on the app
 app.get('/', (req, res) => {
-    res.send(responses.public);
+    res.send(`Public route`);
 });
 
 // Create a new router to secure all routes behind
 const router = express.Router();
 
 // Only authentication required route
-router.get('/no-role-required', (req, res) => {
-    res.send(responses.noRole);
-});
-
-// Requires "COOL_GUY" role
-router.get('/cool-guy', lock(['COOL_GUY']), (req, res) => {
-    res.send(responses.coolGuy);
+router.get('/private', (req, res) => {
+    res.send(`Private route`);
 });
 
 // Lock all routes in the router behind a login page

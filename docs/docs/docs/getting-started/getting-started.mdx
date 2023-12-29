@@ -1,0 +1,101 @@
+---
+sidebar_position: 1
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import CodeBlock from '@theme/CodeBlock';
+import ExpressExample from '!!raw-loader!./assets/express-example.js';
+import FastifyExample from '!!raw-loader!./assets/fastify-example.js';
+
+# Getting Started
+
+Let's discover **Keycloak Connector** in less than 15 minutes.
+
+<sub>🕒 **_Can't wait?_** Run it now with [Docker Quickstart](./docker-quickstart).</sub>
+
+### What you'll need
+
+- [Keycloak 16.0+](https://www.keycloak.org/downloads)
+- [Node.js 18.0+](https://nodejs.org/en/download/)
+
+## Configure Keycloak
+
+Following [FAPI guidance](https://oauth.net/fapi/), several changes to your Keycloak configuration may be required.
+
+:::info
+
+Changing Realm configurations may impact existing Clients if they are not similarly configured.
+
+:::
+
+### Realm Configuration
+
+#### Sessions
+
+- SSO Session Idle: **`4 hours`** _optional_
+- SSO Session Max: **`1 day`** _optional_
+
+#### Tokens
+
+- Default Signature Algorithm: **`PS256`**
+- Revoke Refresh Token: **`Enabled`** _recommended_
+- Refresh token max reuse: **`0`** _recommended_
+- Access Token Lifespan: **`15 minutes`** _optional_
+
+### Client Configuration
+
+#### Settings
+
+- Root URL **`http://localhost:5000*`** _your backend server_
+- Valid redirect URIs **`/auth/callback*`**
+- Web origins **`+`**
+- Admin URL **`/auth/k-admin-url*`**
+
+- Client authentication **`On`**
+- Authentication flow **`Standard flow`**
+- Front channel logout **`Off`**
+- Backchannel logout URL **`/auth/k-logout`**
+- Backchannel logout session required **`On`**
+
+#### Credentials
+
+:::warning
+
+Clients must authenticate using `Signed JWT (PS256)` in production, Keycloak Connector will not start otherwise.
+
+:::
+
+- Client Authenticator **`Client Id and Secret`** _dev only_
+- Access token signature algorithm **`PS256`**
+- ID token signature algorithm **`PS256`**
+- User info signed response algorithm  **`PS256`**
+- Request object signature algorithm **`PS256`**
+- Authorization response signature algorithm **`PS256`**
+- Proof Key for Code Exchange Code Challenge Method  **`S256`**
+
+
+## Configure Webserver
+<Tabs groupId="webserver">
+    <TabItem value="Express" default>
+        <CodeBlock language="js" title="server.js">{ExpressExample}</CodeBlock>
+    </TabItem>
+    <TabItem value="Fastify">
+        <CodeBlock language="js" title="server.js">{FastifyExample}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+#### Launch the server
+```sh
+node server.js
+```
+
+## Test it!
+
+| Purpose       | Url                               |
+|---------------|-----------------------------------|
+| Public Route  | http://localhost:5000             |
+| Private Route | http://localhost:5000/private     |
+| Login         | http://localhost:5000/auth/login  |
+| Logout        | http://localhost:5000/auth/logout |
+
