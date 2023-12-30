@@ -1181,6 +1181,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             // Check if this route wants to verify user info
             if (connectorRequest.routeConfig.verifyUserInfoWithServer) {
                 // Invalidate user info cache
+                this._config.pinoLogger?.debug(`Route requires user info verification with server, invalidating cache matching JWT.`);
                 await this.components.userInfoCache.invalidateFromJwt(validatedAccessJwt);
             }
 
