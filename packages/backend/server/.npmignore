@@ -1,7 +1,0 @@
-*
-!dist/**/*
-!package.json
-!README.md
-!COPYING
-!CHANGELOG.md
-!dev-post-install.cjs
