@@ -33,7 +33,10 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
-    "./dist"
+    "dist",
+    "src",
+    "COPYING",
+    "README.md"
   ],
   "exports": {
     ".": "./dist/index.js",

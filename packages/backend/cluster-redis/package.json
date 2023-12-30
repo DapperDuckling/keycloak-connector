@@ -25,7 +25,10 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
-    "./dist"
+    "dist",
+    "src",
+    "COPYING",
+    "README.md"
   ],
   "dependencies": {
     "@dapperduckling/keycloak-connector-server": "file:../server",
