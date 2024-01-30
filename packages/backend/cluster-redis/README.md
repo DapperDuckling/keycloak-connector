@@ -41,8 +41,8 @@ const fastify = Fastify({
 ### Authenticating each application
 1. Create new users (under "User management")
    - User settings: \<see below>
-     - Recommend creating `<app name>-prod` & `<app name>-dev` accounts
-   - Authentication mode: ~~IAM authentication~~ (not yet implemented by AWS SDKs), use password
+     - Recommend creating `kcc-<app name>-prod` & `kcc-<app name>-dev` accounts
+   - Authentication mode: ~~IAM authentication~~ (not yet implemented by AWS SDKs. see: https://github.com/aws/aws-sdk/issues/556), use password
    - Access string: \<see below>
      - To restrict access to a specific of commands & partition data between users, we'll build a unique authentication string.
      - Template (fill in blanks): `on clearselectors resetkeys ~<app name>-<prod|dev>:* resetchannels &<app name>-<prod|dev>:* -@all +@fast +@pubsub +@keyspace +@string +@read +@write +@scripting -@dangerous +client|setname +info`
