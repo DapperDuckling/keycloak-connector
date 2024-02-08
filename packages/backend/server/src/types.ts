@@ -63,6 +63,9 @@ export interface KeycloakConnectorConfigBase {
     /** The OP server url */
     authServerUrl: string;
 
+    /** Override the origin set by the OP server for frontend connections */
+    authServerFrontendOrigin?: string;
+
     /** Authorized origins */
     validOrigins?: string[];
 
@@ -74,6 +77,10 @@ export interface KeycloakConnectorConfigBase {
 
     /** The keycloak client secret **/
     clientSecret?: string;
+
+    /** Only allows the server to validate the access token, the server will not attempt to refresh if it is invalid */
+    validateAccessOnly?: boolean;
+    readOnlyServer?: boolean;
 
     /** Option to disable signed JWT authentication **/
     DANGEROUS_disableJwtClientAuthentication?: boolean;

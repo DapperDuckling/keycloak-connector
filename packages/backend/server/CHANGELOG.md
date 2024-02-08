@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.4] - 2024-02-08
+
+### Added
+
+- `readOnlyServer`/`validateAccessOnly` to force a server to not attempt to refresh an invalid access token
+- Added option to override the authorization endpoint origin returned from the keycloak instance
+
 ## [1.1.2] - 2023-12-24
 
 ### Fixed

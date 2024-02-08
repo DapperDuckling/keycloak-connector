@@ -1285,6 +1285,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
             // Check for no refresh jwt
             if (refreshJwt === undefined) return;
 
+            // Check for a read only server
+            if (this._config.readOnlyServer) return;
+
             // Grab a new pair of tokens using the refresh token
             const refreshTokenSetResult = await this.refreshTokenSet(refreshJwt);
 
@@ -1688,6 +1691,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
             }
         }
 
+        // Check for a read only server
+        if (config.validateAccessOnly) config.readOnlyServer ??= config.validateAccessOnly;
+
         // Build the oidc discovery url (ref: https://issues.redhat.com/browse/KEYCLOAK-571)
         const authPath = (config.keycloakVersionBelow18) ? "/auth" : "";
         const oidcDiscoveryUrl = config.oidcDiscoveryUrlOverride ?? `${config.authServerUrl}${authPath}/realms/${config.realm}/.well-known/openid-configuration`;
@@ -1823,6 +1829,17 @@ export class KeycloakConnector<Server extends SupportedServers> {
             }
 
             // Grab the json value
+            const issuerMetadata = await result.json() as IssuerMetadata;
+
+            // Override the frontend url
+            if (config.authServerFrontendOrigin && issuerMetadata.authorization_endpoint) {
+                // Parse the authorization endpoint url
+                const authEndpointUrl = new URL(issuerMetadata.authorization_endpoint);
+
+                // Override the auth endpoint url
+                issuerMetadata.authorization_endpoint = config.authServerFrontendOrigin + authEndpointUrl.pathname + authEndpointUrl.search + authEndpointUrl.hash;
+            }
+
             return Object.freeze(await result.json()) as IssuerMetadata;
 
         } catch (e) {
