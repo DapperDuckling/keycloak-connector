@@ -217,7 +217,7 @@ export class GroupAuthPlugin extends AbstractAuthPlugin {
 
         // Check for a "groups" scope in the user info
         if (userData.userInfo?.groups === undefined) {
-            this.logger?.warn(`User info does not contain groups scope. Check settings in Keycloak and ensure "Add to userinfo" is selected for the mapped "groups" scope.`);
+            this.logger?.warn(`User info does not contain groups scope. Either user is not a member of any group or Keycloak configuration issue exists. Check settings in Keycloak and ensure "Add to userinfo" is selected for the mapped "groups" scope.`);
         }
 
         // Loop through the group auth options

@@ -1829,24 +1829,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             }
 
             // Grab the json value
-            const issuerMetadata = await result.json() as IssuerMetadata;
-
-            // Override the frontend url
-            if (config.authServerFrontendOrigin && issuerMetadata.authorization_endpoint) {
-                // Parse the authorization endpoint url
-                const authEndpointUrl = new URL(issuerMetadata.authorization_endpoint);
-
-                // Override the auth endpoint url
-                issuerMetadata.authorization_endpoint = config.authServerFrontendOrigin + authEndpointUrl.pathname + authEndpointUrl.search + authEndpointUrl.hash;
-
-                // Parse the issuer
-                const issuer = new URL(issuerMetadata.issuer);
-
-                // Override the issuer
-                issuerMetadata.issuer = config.authServerFrontendOrigin + issuer.pathname + issuer.search + issuer.hash;
-            }
-
-            return issuerMetadata;
+            return Object.freeze(await result.json()) as IssuerMetadata;
 
         } catch (e) {
             // Log the error

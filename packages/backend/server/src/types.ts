@@ -63,9 +63,6 @@ export interface KeycloakConnectorConfigBase {
     /** The OP server url */
     authServerUrl: string;
 
-    /** Override the origin set by the OP server for frontend connections */
-    authServerFrontendOrigin?: string;
-
     /** Authorized origins */
     validOrigins?: string[];
 
