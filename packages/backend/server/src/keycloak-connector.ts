@@ -1840,7 +1840,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 issuerMetadata.authorization_endpoint = config.authServerFrontendOrigin + authEndpointUrl.pathname + authEndpointUrl.search + authEndpointUrl.hash;
             }
 
-            return Object.freeze(await result.json()) as IssuerMetadata;
+            return issuerMetadata;
 
         } catch (e) {
             // Log the error
