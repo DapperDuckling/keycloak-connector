@@ -1838,6 +1838,12 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
                 // Override the auth endpoint url
                 issuerMetadata.authorization_endpoint = config.authServerFrontendOrigin + authEndpointUrl.pathname + authEndpointUrl.search + authEndpointUrl.hash;
+
+                // Parse the issuer
+                const issuer = new URL(issuerMetadata.issuer);
+
+                // Override the issuer
+                issuerMetadata.issuer = config.authServerFrontendOrigin + issuer.pathname + issuer.search + issuer.hash;
             }
 
             return issuerMetadata;
