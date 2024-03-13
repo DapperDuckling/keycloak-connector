@@ -43,7 +43,7 @@
     "@types/jest": "^29.5.1",
     "@types/object-hash": "^3.0.6",
     "cpy-cli": "^5.0.0",
-    "nodemon": "^3.0.1",
+    "nodemon": "^3.1.0",
     "pino-http": "^8.4.0",
     "readline-sync": "^1.4.10",
     "trianglify": "^4.1.1",
