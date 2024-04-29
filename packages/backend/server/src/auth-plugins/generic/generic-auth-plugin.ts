@@ -8,7 +8,7 @@ import {
     type DecorateUserStatus,
     type IsUserAuthorized,
     type UserData
-} from "../../index";
+} from "../../index.js";
 import type {Logger} from "pino";
 import {GenericAuthConfig} from "./types.js";
 
