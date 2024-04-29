@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2024-04-29
+
+### Added
+
+- `genericAuthExpress` / `genericAuthFastify` to allow for simple authentication injections by developers (without having to build out an entire plugin)
+
 ## [1.2.3] - 2024-02-08
 
 ### Added
