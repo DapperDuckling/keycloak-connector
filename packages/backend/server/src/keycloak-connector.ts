@@ -1488,7 +1488,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Member is not authorized
         return {
             statusCode: 403,
-            responseText: 'unauthorized',
+            responseText: 'unauthorized', //todo: customizable
         }
     }
 
