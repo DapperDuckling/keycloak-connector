@@ -36,6 +36,7 @@ const keycloakConnectorFastifyPlugin: FastifyPluginAsync<KeycloakConnectorConfig
 
     // Add keycloak data to the request params
     fastify.decorateRequest<UserData | null>('kccUserData', null);
+    fastify.decorateRequest<boolean>('kccBypass', false);
     fastify.addHook<RouteGenericInterface, KeycloakRouteConfigFastify>('onRequest', async function(request, reply) {
 
         // Ignore 404 routes
@@ -43,6 +44,9 @@ const keycloakConnectorFastifyPlugin: FastifyPluginAsync<KeycloakConnectorConfig
 
         // Ignore bypass all check routes
         if (request.routeOptions.config.bypassAllChecks) return;
+
+        // Check for a single use bypass from an upstream middleware
+        if (request.kccBypass === true) return;
 
         // Grab user data
         const connectorReq = await adapter.buildConnectorRequest(request);

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.3] - 2024-04-30
+
+### Added
+
+- `req.kccBypass` to allow for upstream middleware packages to skip keycloak connector for the specific request
+
 ## [1.3.0] - 2024-04-29
 
 ### Added

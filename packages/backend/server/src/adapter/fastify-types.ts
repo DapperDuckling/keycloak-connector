@@ -7,6 +7,7 @@ declare module 'fastify' {
 
     interface FastifyRequest {
         kccUserData: UserData;
+        kccBypass: boolean;
         [key: string]: unknown;
         // routeConfig: KeycloakRouteConfigOrRoles;
     }

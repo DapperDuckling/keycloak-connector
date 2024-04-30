@@ -167,6 +167,12 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         // Extract the request handler params
         const [req, res, next] = args;
 
+        // Check for a bypass request
+        if (req.kccBypass === true) {
+            next();
+            return;
+        }
+
         // Check for cookie-parser plugin
         if (req.cookies === undefined) {
             throw new Error('`cookies` parameter not found on request, is `cookie-parser` package installed and in use?');
