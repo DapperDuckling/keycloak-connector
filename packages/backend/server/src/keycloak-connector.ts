@@ -1121,7 +1121,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             const audClaim = verifyResult.payload['aud'];
             const clientId = this._config.oidcClientMetadata.client_id;
 
-            // Check if the audience claim is or includes the client id
+            // Check if the audience claim is or includes the client id in the aud claim array
             if (audClaim === clientId ||
                 (Array.isArray(audClaim) && clientId.includes(clientId))
             ) {

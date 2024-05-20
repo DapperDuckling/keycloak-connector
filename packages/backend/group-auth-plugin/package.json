@@ -49,12 +49,12 @@
     "cpy-cli": "^5.0.0"
   },
   "dependencies": {
-    "@dapperduckling/keycloak-connector-common": "file:../../common",
-    "@dapperduckling/keycloak-connector-server": "file:../server",
+    "@dapperduckling/keycloak-connector-common": "^1.0.6",
+    "@dapperduckling/keycloak-connector-server": "^1.5.0",
     "fastify-plugin": "^4.5.1"
   },
   "publishConfig": {
     "access": "public"
   },
-  "gitHead": "87c31d67ad8faad0f0ad56f1c1b5b29b0b8367f0"
+  "gitHead": "fe11bf3a72b16a45816654f9ec6745eacf9cb38a"
 }

@@ -5,7 +5,7 @@
 
 - Authenticate to the registry
     ```
-    `npm login --scope dapperduckling
+    npm login --scope dapperduckling
     ```
 
 - Update version and publish the package
