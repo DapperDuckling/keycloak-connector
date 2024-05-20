@@ -1074,7 +1074,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Setup special configurations for each token type
         switch (type) {
             case VerifiableJwtTokenTypes.ID:
-                requiredClaims = ['exp', 'sub', 'sid', 'auth_time'];
+                requiredClaims = ['exp', 'sub', 'sid'];
                 break;
 
             case VerifiableJwtTokenTypes.LOGOUT:
@@ -1096,7 +1096,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             //     break;
 
             case VerifiableJwtTokenTypes.ACCESS:
-                requiredClaims = ['exp', 'sub', 'sid', 'auth_time'];
+                requiredClaims = ['exp', 'sub', 'sid'];
 
                 // No audience is set for access tokens
                 audience = null;
