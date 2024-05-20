@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2024-05-19
+
+### Added
+
+- Added option to verify audience claim instead of azp if it exists and matches what we expect
+
 ## [1.4.0] - 2024-04-30
 
 ### Added
