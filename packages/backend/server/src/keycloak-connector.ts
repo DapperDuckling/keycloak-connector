@@ -1115,6 +1115,21 @@ export class KeycloakConnector<Server extends SupportedServers> {
             requiredClaims: requiredClaims,
         });
 
+        // For access tokens, check if there is an audience that matches this client_id
+        let accessTokenAudienceCheckPass = false;
+        if (type === VerifiableJwtTokenTypes.ACCESS) {
+            const audClaim = verifyResult.payload['aud'];
+            const clientId = this._config.oidcClientMetadata.client_id;
+
+            // Check if the audience claim is or includes the client id
+            if (audClaim === clientId ||
+                (Array.isArray(audClaim) && clientId.includes(clientId))
+            ) {
+                // Allow this token to bypass the loose azp check
+                accessTokenAudienceCheckPass = true;
+            }
+        }
+
         // Validate the typ declaration
         const jwtTyp = verifyResult.payload['typ'];
         if (jwtTyp !== type) {
@@ -1125,7 +1140,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Note - Based on OIDC Core 1.0 - draft 32 errata 2.0, we are encouraged not to use azp & ignore it when it does occur.
         //          The configuration below blends the requirement, verifying the azp if it exists otherwise ignoring it.
         const jwtAzp = verifyResult.payload['azp'];
-        if (authorizedParty && jwtAzp !== authorizedParty)  {
+        if (!accessTokenAudienceCheckPass && jwtAzp !== undefined && authorizedParty !== null && jwtAzp !== authorizedParty)  {
             throw new Error(`Mismatch AZP claim, expected ${this.components.oidcClient.metadata.client_id}`);
         }
 
