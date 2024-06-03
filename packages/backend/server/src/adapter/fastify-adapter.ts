@@ -52,7 +52,7 @@ export class FastifyAdapter extends AbstractAdapter<SupportedServers.fastify> {
     public async handleResponse(connectorResponse: ConnectorResponse<SupportedServers.fastify>, reply: FastifyReply): Promise<void> {
 
         // Set any cookies
-        connectorResponse.cookies?.forEach(cookieParam => reply.setCookie(cookieParam.name, cookieParam.value, cookieParam.options));
+        connectorResponse.cookies?.get().forEach(cookieParam => reply.setCookie(cookieParam.name, cookieParam.value, cookieParam.options));
 
         // Set the response code
         if (connectorResponse.statusCode) void reply.code(connectorResponse.statusCode);

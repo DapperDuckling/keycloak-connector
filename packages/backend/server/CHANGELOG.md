@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- None
+
+## [2.1.0] - 2024-06-03
+
+### Added
+
+- Added `wildcardCookieBaseDomain` to allow keycloak connector to share cookies with other subdomains off a shared base domain
+
 ## [2.0.0] - 2024-05-19
 
 ### Removed

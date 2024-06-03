@@ -1,11 +1,12 @@
 import type {ConnectorResponse, CookieParams} from "../types.js";
 import type {SupportedServers} from "../types.js";
+import {CookieStore} from "../cookie-store.js";
 
 export class ConnectorErrorRedirect<Server extends SupportedServers> implements ConnectorResponse<Server> {
     responseText?: string;
     serveFileFullPath?: string;
     redirectUrl?: string;
-    cookies?: CookieParams<Server>[];
+    cookies?: CookieStore<Server>;
     statusCode: number;
 
     private readonly originalRedirectUrl: string;

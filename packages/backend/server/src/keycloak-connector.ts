@@ -59,6 +59,7 @@ import RPError = errors.RPError;
 import OPError = errors.OPError;
 import {loginListenerHTML} from "./browser-login-helpers/login-listener.js";
 import * as fs from "fs";
+import {CookieStore} from "./cookie-store.js";
 
 const STATIC_FILE_DIR = [dirname(fileURLToPath(import.meta.url)), 'static', ""].join(path.sep);
 
@@ -75,6 +76,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private readonly roleHelper: RoleHelper;
     private readonly authPluginManager: AuthPluginManager;
     private readonly validRedirectOrigins: string[];
+    private readonly cookieStoreGenerator: ReturnType<typeof CookieStore.generator>;
     private oidcConfigTimer: ReturnType<typeof setTimeout> | null = null;
     private updateOidcConfig: Promise<boolean> | null = null;
     private updateOidcConfigPending: Promise<boolean> | null = null;
@@ -149,6 +151,22 @@ export class KeycloakConnector<Server extends SupportedServers> {
             // Simple match and replace
             this.HTML_PAGES[fileKey] = htmlContents.replaceAll(/\${(\w*)}/g, (match, key) => staticPageReplacements[key] ?? match);
         }
+
+        const globalCookieOptions: CookieParams<Server>['options'] = {};
+
+        // Determine the wildcard cookie base domain
+        if (this._config.wildcardCookieBaseDomain) {
+            // Validate the domain
+            try {
+                const url = new URL(`https://${this._config.wildcardCookieBaseDomain}`);
+                globalCookieOptions.domain = `.` + url.hostname; // Prepend a wildcard marker
+            } catch (e) {
+                throw new Error(`Value provided for wildcardCookieBaseDomain not a valid domain. Got "${this._config.wildcardCookieBaseDomain}".`);
+            }
+        }
+
+        // Setup the cookie generator
+        this.cookieStoreGenerator = CookieStore.generator(globalCookieOptions);
     }
 
     public getExposed = () => ({
@@ -349,7 +367,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Silent, return data via silent login response
         if (silentRequestType !== SilentLoginTypes.NONE) {
-            return this.handleSilentLoginResponse(req, [], SilentLoginEvent.LOGIN_SUCCESS, req.origin);
+            return this.handleSilentLoginResponse(req, this.cookieStoreGenerator(), SilentLoginEvent.LOGIN_SUCCESS, req.origin);
         }
 
         // Validate the redirect uri (or throw)
@@ -403,10 +421,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
         });
 
         // Collect the cookies we would like the server to send back
-        const cookies: CookieParams<Server>[] = [];
+        const cookies = this.cookieStoreGenerator();
 
         // Build the code verifier cookie
-        cookies.push({
+       cookies.add({
             name: `${ConnectorCookies.CODE_VERIFIER}-${authFlowNonce}`,
             value: cv,
             options: {
@@ -421,7 +439,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             authFlowNonce: authFlowNonce,
         });
 
-        cookies.push(...redirectCookie);
+       cookies.add(redirectCookie);
 
         return {
             redirectUrl: authorizationUrl,
@@ -614,7 +632,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             // Silent, return data via silent login response
             if (silentRequestType !== SilentLoginTypes.NONE) {
-                return this.handleSilentLoginResponse(req, [], SilentLoginEvent.LOGIN_ERROR, req.origin);
+                return this.handleSilentLoginResponse(req, this.cookieStoreGenerator(), SilentLoginEvent.LOGIN_ERROR, req.origin);
             }
 
             // Rethrow on non-silent requests
@@ -695,7 +713,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
         this.validateRedirectUriOrThrow(postAuthRedirectUri);
 
         // Grab and add the cookies to remove (for immediate expiration)
-        const cookies = this.removeAuthFlowCookies(req.cookies, authFlowNonce);
+        const cookies = this.cookieStoreGenerator().removeAuthFlowCookies(req.cookies, authFlowNonce, {
+            ...this.CookieOptionsLax,
+        });
 
         try {
             const tokenSet = await this.components.oidcClient.callback(
@@ -709,7 +729,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
             );
 
             // Pass the new TokenSet to the handler and grab the resultant cookie(s)
-            cookies.push(...this.validateAndHandleTokenSet(tokenSet));
+            const tokenSetCookies = this.validateAndHandleTokenSet(tokenSet);
+
+            // Merge in the token set cookies
+            cookies.merge(tokenSetCookies);
 
             // Return a silent login response if required
             if (silentRequestType !== SilentLoginTypes.NONE) {
@@ -789,6 +812,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
             isLogout: true,
         });
 
+        const redirectCookies = this.cookieStoreGenerator().add(redirectCookie);
+
         // Grab the ID token
         const idToken = req.cookies?.[ConnectorCookies.ID_TOKEN];
 
@@ -807,17 +832,19 @@ export class KeycloakConnector<Server extends SupportedServers> {
             ...corsHeaders && {headers: corsHeaders},
             redirectUrl: logoutUrl,
             statusCode: 303,
-            cookies: redirectCookie,
+            cookies: redirectCookies,
         }
     }
 
     private handleLogoutCallback = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
         // Collect cookies to remove
-        const cookies: CookieParams<Server>[] = [];
+        const cookies = this.cookieStoreGenerator();
 
         // Strip auth cookies
-        cookies.push(...this.removeAuthCookies(req.cookies));
+        cookies.removeAuthCookies(req.cookies, {
+            ...(this.hasOtherOrigins()) ? this.CookieOptionsUnrestricted : this.CookieOptions
+        });
 
         // Grab the auth flow nonce
         const authFlowNonce = this.getAuthFlowNonce(req);
@@ -828,7 +855,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Check for an auth flow nonce
         if (authFlowNonce) {
             // Strip auth flow cookies
-            cookies.push(...this.removeAuthFlowCookies(req.cookies, authFlowNonce));
+            cookies.removeAuthFlowCookies(req.cookies, authFlowNonce);
 
             // Grab the base64 logout redirect uri
             const logoutRedirectUri64 = req.cookies?.[`${ConnectorCookies.LOGOUT_REDIRECT_URI_B64}-${authFlowNonce}`];
@@ -938,32 +965,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
         };
     }
 
-    // private handleServePublic = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
-    //     return this.servePublic(req.urlParams['file'] ?? "login-start.html");
-    // }
-    //
-    // private servePublic = async (fileToServe: string): Promise<ConnectorResponse<Server>> => {
-    //     // Ensure the requested file matches regex
-    //     if (!/^(?=.*\w)[-_\w.]+$/.test(fileToServe)) {
-    //         return {
-    //             statusCode: 404,
-    //         }
-    //     }
-    //
-    //     // Serve the file
-    //     return {
-    //         serveFileFullPath: `${STATIC_FILE_DIR}${fileToServe}`
-    //     }
-    // }
-
-    private cookieArrayToObject = (cookies: CookieParams<Server>[]): ReqCookies => {
+    private handleSilentLoginResponse = async (req: ConnectorRequest, cookies: CookieStore<Server>, event: SilentLoginEvent, sourceOrigin: string | undefined): Promise<ConnectorResponse<Server>> => {
         // Convert the cookies into an object based store
-        return cookies.reduce((cookieStore,currentCookie) => ({...cookieStore, [currentCookie.name]: currentCookie.value}),{});
-    }
-
-    private handleSilentLoginResponse = async (req: ConnectorRequest, cookies: CookieParams<Server>[], event: SilentLoginEvent, sourceOrigin: string | undefined): Promise<ConnectorResponse<Server>> => {
-        // Convert the cookies into an object based store
-        const requestCookies = this.cookieArrayToObject(cookies);
+        const requestCookies = cookies.updatedReqCookies(req.cookies);
 
         // Manipulate the request with updated cookies
         req.cookies = {
@@ -982,7 +986,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         // Combine the resultant cookies (browser should accept newer cookies over old ones)
-        const finalCookies = [...cookies, ...userDataResponse.cookies ?? []];
+        if (userDataResponse.cookies) cookies.merge(userDataResponse.cookies);
 
         // Update request decorator
         req.kccUserData = userDataResponse.userData;
@@ -1002,7 +1006,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         return  {
             statusCode: 200,
-            cookies: finalCookies,
+            cookies: cookies,
             responseHtml: silentLoginResponseHTML(message,
                 silentRequestToken,
                 silentRequestType === SilentLoginTypes.PARTIAL,
@@ -1011,52 +1015,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
             )
         }
 
-    }
-
-    private removeAuthFlowCookies<Server extends SupportedServers>(reqCookies: unknown, authFlowNonce: string): CookieParams<Server>[] {
-        const cookies: CookieParams<Server>[] = [];
-
-        // Check if input is truthy
-        if (!reqCookies) return cookies;
-
-        // Scan through request cookies to find ones to remove
-        for (const cookieName of Object.keys(reqCookies)) {
-            if (ConnectorCookieNames.some(name => `${name}-${authFlowNonce}` === cookieName) && !ConnectorCookiesToKeep.includes(cookieName)) {
-                cookies.push({
-                    name: cookieName,
-                    value: "",
-                    options: {
-                        ...this.CookieOptionsLax,
-                        expires: new Date(0),
-                    }
-                })
-            }
-        }
-
-        return cookies;
-    }
-
-    private removeAuthCookies<Server extends SupportedServers>(reqCookies: unknown): CookieParams<Server>[] {
-        const cookies: CookieParams<Server>[] = [];
-
-        // Check if input is truthy
-        if (!reqCookies) return cookies;
-
-        // Scan through request cookies to find ones to remove
-        for (const cookieName of Object.keys(reqCookies)) {
-            if (ConnectorCookiesToKeep.includes(cookieName)) {
-                cookies.push({
-                    name: cookieName,
-                    value: "",
-                    options: {
-                        ...(this.hasOtherOrigins()) ? this.CookieOptionsUnrestricted : this.CookieOptions,
-                        expires: new Date(0),
-                    }
-                })
-            }
-        }
-
-        return cookies;
     }
 
     private validateJwtOrThrow = async (jwt: string, type: VerifiableJwtTokenTypes): Promise<JWTVerifyResult> => {
@@ -1320,8 +1278,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             // Record the token pair in the response cookies
             if (shouldUpdateCookies) {
-                userDataResponse.cookies ??= [];
-                userDataResponse.cookies.push(...cookies);
+                userDataResponse.cookies ??= this.cookieStoreGenerator();
+                userDataResponse.cookies.merge(cookies);
             }
 
             // Return the validated access token
@@ -1414,7 +1372,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
      * @param tokenSet
      * @private
      */
-    private validateAndHandleTokenSet(tokenSet: TokenSet | RefreshTokenSet): CookieParams<Server>[] {
+    private validateAndHandleTokenSet(tokenSet: TokenSet | RefreshTokenSet): CookieStore<Server> {
 
         // Check the state configuration
         //todo: add support for stateful
@@ -1435,10 +1393,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const refreshTokenExpiration = jose.decodeJwt(tokenSet.refresh_token).exp ?? tokenSet.expires_at;
 
         // Collect the cookies we would like the server to send back
-        const cookies: CookieParams<Server>[] = [];
+        const cookies = this.cookieStoreGenerator();
 
         // Store the access token
-        cookies.push({
+       cookies.add({
             name: ConnectorCookies.ACCESS_TOKEN,
             value: tokenSet.access_token,
             options: {
@@ -1448,7 +1406,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         });
 
         // Store the refresh token
-        cookies.push({
+       cookies.add({
             name: ConnectorCookies.REFRESH_TOKEN,
             value: tokenSet.refresh_token,
             options: {
@@ -1458,7 +1416,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         });
 
         // Store refresh token expiration date in a javascript accessible location
-        cookies.push({
+       cookies.add({
             name: ConnectorCookies.REFRESH_TOKEN_EXPIRATION,
             value: refreshTokenExpiration.toString(),
             options: {
@@ -1468,7 +1426,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         });
 
         // Store the id token
-        cookies.push({
+       cookies.add({
             name: ConnectorCookies.ID_TOKEN,
             value: tokenSet.id_token,
             options: {

@@ -63,7 +63,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             req._keycloakReqHandled = true;
 
             // Set any cookies
-            connectorResponse.cookies?.forEach(cookieParam => res.cookie(cookieParam.name, cookieParam.value, cookieParam.options));
+            connectorResponse.cookies?.get().forEach(cookieParam => res.cookie(cookieParam.name, cookieParam.value, cookieParam.options));
 
             /** Test code for partitioned cookies if required to handle cross-origin requests **/
             // const responseCookies = res.getHeaders()['set-cookie'] ?? [];
@@ -183,7 +183,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         const userDataResponse = await this.keycloakConnector.getUserData(connectorReq);
 
         // Set any cookies from user data response
-        userDataResponse.cookies?.forEach(cookieParam => res.cookie(cookieParam.name, cookieParam.value, cookieParam.options));
+        userDataResponse.cookies?.get().forEach(cookieParam => res.cookie(cookieParam.name, cookieParam.value, cookieParam.options));
 
         // Store the user data
         req.kccUserData = userDataResponse.userData;

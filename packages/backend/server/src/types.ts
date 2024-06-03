@@ -13,6 +13,7 @@ import type {UserinfoResponse} from "openid-client";
 import {UserInfoCache} from "./cache-adapters/index.js";
 import type {KeycloakConnector} from "./keycloak-connector.js";
 import type {CustomRouteUrl} from "@dapperduckling/keycloak-connector-common";
+import {CookieStore} from "./cookie-store.js";
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -147,6 +148,13 @@ export interface KeycloakConnectorConfigBase {
      * @default true
      */
     fetchUserInfo?: boolean | ((userInfo: UserinfoResponse) => UserinfoResponse);
+
+    /**
+     * Holds the base domain used for setting the wildcard domain property of cookies sent to the browser.
+     * Allows cookies to be accessible across all subdomains of the specified base domain and
+     * the base domain itself.
+     */
+    wildcardCookieBaseDomain?: string;
 }
 
 export type KeyProvider = (keyProviderConfig: KeyProviderConfig) => Promise<AbstractKeyProvider>;
@@ -183,7 +191,7 @@ export interface ConnectorRequest<
 
 export interface UserDataResponse<Server extends SupportedServers> {
     userData: UserData,
-    cookies?: CookieParams<Server>[],
+    cookies?: CookieStore<Server>,
 }
 
 export interface ConnectorResponse<Server extends SupportedServers> {
@@ -193,7 +201,7 @@ export interface ConnectorResponse<Server extends SupportedServers> {
     responseHtml?: string,
     headers?: Record<string, string>,
     statusCode?: number,
-    cookies?: CookieParams<Server>[],
+    cookies?: CookieStore<Server>,
 }
 
 export interface CookieParams<Server extends SupportedServers> {
