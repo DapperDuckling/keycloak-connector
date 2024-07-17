@@ -544,8 +544,13 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const {req, authFlowNonce, isLogout} = opts;
 
         // Handle the post login redirect uri
-        const inputUrlObj = new URL(req.url, req.origin);
-        const rawPostAuthRedirectUri = inputUrlObj.searchParams.get('post_auth_redirect_uri');
+        let rawPostAuthRedirectUri: string|null;
+        try {
+            const inputUrlObj = new URL(req.url, req.origin);
+            rawPostAuthRedirectUri = inputUrlObj.searchParams.get('post_auth_redirect_uri');
+        } catch (e) {
+            return [];
+        }
 
         try {
             this.validateRedirectUriOrThrow(rawPostAuthRedirectUri);
