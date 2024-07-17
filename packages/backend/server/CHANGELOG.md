@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - None
 
+## [2.1.1] - 2024-07-16
+
+### Fixed
+
+- In dev mode when `localhost` is accessed, origin checks are bypassed which will result in the server crashing if the origin header is not sent
+
 ## [2.1.0] - 2024-06-03
 
 ### Added
