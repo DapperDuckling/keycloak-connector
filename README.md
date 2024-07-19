@@ -4,6 +4,8 @@
 
 An opinionated series of libraries for Node.js applications and frontend clients to interface with keycloak.
 
+Minimum Keycloak version: 21.1.0
+
 [//]: # (### keycloak-connector-client)
 [//]: # (`npm install @dapperducklingdev/keycloak-connector-client`)
 
