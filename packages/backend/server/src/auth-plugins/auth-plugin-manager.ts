@@ -77,12 +77,27 @@ export class AuthPluginManager {
     }
 
     public decorateRequestDefaults = async (connectorRequest: ConnectorRequest, userData: UserData): Promise<void> => {
+
+        const input = {connectorRequest, userData, logger: this.logger};
+
+        // Check for a manual request decorator
+        if (this.keycloakConfig.manualDecorators?.request) {
+            try {
+                const decorations = await this.keycloakConfig.manualDecorators?.request(input);
+                Object.entries(decorations).forEach(([key, value]) => connectorRequest.pluginDecorators![key] = value);
+            } catch (e) {
+                console.debug(e);
+                throw new Error(`Issue invoking manualDecorators.request()`);
+            }
+        }
+
         // Loop through plugins
         for (const [name, plugin] of this.plugins.entries()) {
             try {
-                const decorators = await plugin.decorateRequestDefaults({connectorRequest, userData, logger: this.logger});
+                const decorators = await plugin.decorateRequestDefaults(input);
                 Object.entries(decorators).forEach(([key, value]) => connectorRequest.pluginDecorators![key] = value);
             } catch (e) {
+                console.debug(e);
                 throw new Error(`Issue invoking decorateRequestDefaults from auth plugin ${name}`);
             }
         }
@@ -90,6 +105,19 @@ export class AuthPluginManager {
 
     public decorateUserStatus = async (connectorRequest: ConnectorRequest): Promise<Record<string, any>> => {
         let userStatus = {}
+
+        // Check for a manual user status decorator
+        if (this.keycloakConfig.manualDecorators?.userStatus) {
+            try {
+                userStatus = {
+                    ...userStatus,
+                    ...await this.keycloakConfig.manualDecorators?.userStatus(connectorRequest, this.logger),
+                }
+            } catch (e) {
+                console.debug(e);
+                throw new Error(`Issue invoking manualDecorators.userStatus()`);
+            }
+        }
 
         // Loop through the plugins
         for (const [name, plugin] of this.plugins.entries()) {
