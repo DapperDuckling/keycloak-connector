@@ -19,7 +19,8 @@ root.render(
                 apiServerOrigin: "http://localhost:3005",
             },
             react: {
-                loginModalChildren: <DarkSaberLoginChild />,
+                loginModalChildren: <DarkSaberLoginChild />, // Optional
+                globalEventListener: handleKccEvent, // Optional
             }
         }}>
             <Content />

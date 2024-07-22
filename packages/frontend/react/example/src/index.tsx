@@ -10,6 +10,7 @@ root.render(
   <KeycloakConnectorProvider config={{
       client: {
           apiServerOrigin: "http://localhost:3005",
+          fastInitialAuthCheck: true,
       },
       react: {
           loginModalChildren: <DapperDucklingLoginChild />,

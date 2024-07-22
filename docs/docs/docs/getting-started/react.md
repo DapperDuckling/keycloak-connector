@@ -22,7 +22,11 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 const keycloakConnectorConfig = {
    client: {
      apiServerOrigin: "http://localhost:5000"   // The backend NodeJs webserver
-   }
+   },
+    react: {
+        loginModalChildren: <DarkSaberLoginChild />, // Optional
+        globalEventListener: handleKccEvent, // Optional
+    }
 }
 
 root.render(
