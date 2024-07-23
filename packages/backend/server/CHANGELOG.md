@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - None
 
+## [2.2.0] - 2024-07-22
+
+### Added
+
+- Allows developers to decorate the `/user-status` endpoint and ultimately pass data to their frontend using the `decorateUserStatus` config
+
 ## [2.1.1] - 2024-07-16
 
 ### Fixed
