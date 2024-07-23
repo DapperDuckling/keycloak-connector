@@ -14,7 +14,7 @@ import {UserInfoCache} from "./cache-adapters/index.js";
 import type {KeycloakConnector} from "./keycloak-connector.js";
 import type {CustomRouteUrl} from "@dapperduckling/keycloak-connector-common";
 import {CookieStore} from "./cookie-store.js";
-import type {DecorateResponse, DecorateUserStatus} from "./auth-plugins/index.js";
+import type {DecorateUserStatusBackend} from "./auth-plugins/index.js";
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -56,11 +56,6 @@ export enum VerifiableJwtTokenTypes {
     LOGOUT = "Logout",
     ACCESS = "Bearer",
     // REFRESH token is NOT verifiable. Keycloak uses symmetric signature (HS256) on these tokens.
-}
-
-export type ManualDecorators = {
-    request: DecorateResponse;
-    userStatus: DecorateUserStatus;
 }
 
 export interface KeycloakConnectorConfigBase {
@@ -162,8 +157,8 @@ export interface KeycloakConnectorConfigBase {
      */
     wildcardCookieBaseDomain?: string;
 
-    /** Allows injection of shorthand decorators unassociated with a plugin */
-    manualDecorators?: ManualDecorators;
+    /** Allows decoration of the user status endpoint */
+    decorateUserStatus?: DecorateUserStatusBackend;
 }
 
 export type KeyProvider = (keyProviderConfig: KeyProviderConfig) => Promise<AbstractKeyProvider>;

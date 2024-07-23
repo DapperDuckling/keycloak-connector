@@ -31,6 +31,12 @@ const {registerAuthPlugin} = await keycloakConnectorExpress(app, {
     refreshConfigMins: -1, // Disable for dev testing
     pinoLogger: loggerHttp.logger,
     fetchUserInfo: true,
+    decorateUserStatus: async (connectorRequest, logger) => {
+        return {
+            decorations: true,
+            theTimeNow: new Date().toISOString(),
+        };
+    }
 });
 
 const router = express.Router();

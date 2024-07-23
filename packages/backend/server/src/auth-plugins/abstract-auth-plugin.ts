@@ -14,6 +14,7 @@ export type AuthPluginOnRegisterConfig = {
 
 export type DecorateResponse = (input: {connectorRequest: ConnectorRequest, userData: UserData, logger: Logger | undefined}) => Promise<Record<string, unknown>>;
 export type DecorateUserStatus<UserStatus = Record<string, any>> = (connectorRequest: ConnectorRequest, logger: Logger | undefined) => Promise<Record<string, UserStatus>>;
+export type DecorateUserStatusBackend<UserStatus = Record<string, any>> = (...args: Parameters<DecorateUserStatus<UserStatus>>) => Promise<UserStatus>;
 export type IsUserAuthorized = (connectorRequest: ConnectorRequest, userData: UserData, logger?: Logger) => Promise<boolean>;
 
 export abstract class AbstractAuthPlugin {
