@@ -12,6 +12,7 @@ export const RouteUrlDefaults: Required<CustomRouteUrl> = {
     publicKeys: '/k-jwks',
     adminUrl: '/k-admin-url',
     backChannelLogout: '/k-logout',
+    offlineToken: '/offline-token',
     userStatus: '/user-status',
     publicDir: "/static"
 }

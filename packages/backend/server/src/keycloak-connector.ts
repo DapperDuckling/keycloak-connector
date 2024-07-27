@@ -277,6 +277,24 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }, this.handleUserStatus);
 
         /**
+         * Provides generic endpoint for users to see offline tokens
+         */
+        this.registerRoute(adapter, {
+            url: this.getRoutePath(RouteEnum.OFFLINE_TOKEN),
+            method: "GET",
+            isUnlocked: false,
+        }, this.handleOfflineToken);
+
+        /**
+         * Provides generic endpoint for users to manage offline tokens
+         */
+        this.registerRoute(adapter, {
+            url: this.getRoutePath(RouteEnum.OFFLINE_TOKEN),
+            method: "POST",
+            isUnlocked: false,
+        }, this.handleOfflineTokenAction);
+
+        /**
          * Provides access to the public directory of this plugin
          */
         this.registerRoute(adapter, {
@@ -903,6 +921,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     private handleBackChannelLogout = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
+        // Todo: Awaiting fix: https://github.com/keycloak/keycloak/issues/22914
+
         //todo: finish backchannel logout. what does keycloak send us???
         console.log(req);
 
@@ -968,6 +988,39 @@ export class KeycloakConnector<Server extends SupportedServers> {
             statusCode: 200,
             responseText: JSON.stringify(userStatus),
         };
+    }
+
+    private handleOfflineToken = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
+        // Request offline token list
+
+        //
+
+        // Send the user back to the handle action page
+        return {
+            statusCode: 200,
+        }
+
+    }
+
+    private handleOfflineTokenAction = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
+        // Grab the offline token action request
+        const action = "sup";
+
+        switch (action) {
+            case "create":
+                break;
+            case "revoke":
+                break;
+            default:
+                // Send user an error
+                // throw new LoginError(ErrorHints.CODE_400, {description: 'Invalid action'});
+        }
+
+        // Send the user back to the handle action page
+        return {
+            statusCode: 200,
+        }
+
     }
 
     private handleSilentLoginResponse = async (req: ConnectorRequest, cookies: CookieStore<Server>, event: SilentLoginEvent, sourceOrigin: string | undefined): Promise<ConnectorResponse<Server>> => {

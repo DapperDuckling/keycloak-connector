@@ -56,6 +56,7 @@ export type CustomRouteUrl = {
     adminUrl?: string;
     backChannelLogout?: string;
     userStatus?: string;
+    offlineToken?: string;
     publicDir?: string;
 }
 
@@ -72,6 +73,7 @@ export enum RouteEnum {
     ADMIN_URL = "adminUrl",
     BACK_CHANNEL_LOGOUT = "backChannelLogout",
     USER_STATUS = "userStatus",
+    OFFLINE_TOKEN = "offlineToken",
     PUBLIC_DIR = "publicDir",
 }
 
