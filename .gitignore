@@ -1,3 +1,7 @@
+# Various package-lock.json files
+./package-lock.json
+example/package-lock.json
+example/**/package-lock.json
 
 # dependencies
 node_modules/
