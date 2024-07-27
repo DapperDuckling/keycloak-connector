@@ -1,6 +1,6 @@
 import {isDev} from "./utils.js";
 
-const STORAGE_SECURE_PREFIX = isDev() ? "__DEV_ONLY__" : "__Host__";
+const STORAGE_SECURE_PREFIX = isDev() ? "__DEV_ONLY-" : "__SECURE-";
 const STORAGE_KCC_PREFIX = "kcc-";
 export const STORAGE_PREFIX_COMBINED = `${STORAGE_SECURE_PREFIX}${STORAGE_KCC_PREFIX}`;
 

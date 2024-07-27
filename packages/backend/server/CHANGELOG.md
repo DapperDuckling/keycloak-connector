@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - None
 
+## [2.2.1] - 2024-07-26
+
+### Fixed
+
+- Cookie prefix typo provided false sense of security. Due to desire for subdomain-sharable configuration, moved to using `__SECURE-` prefix
+
 ## [2.2.0] - 2024-07-22
 
 ### Added
