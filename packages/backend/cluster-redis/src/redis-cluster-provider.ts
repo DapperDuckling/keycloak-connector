@@ -308,7 +308,10 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
         if (this.clusterConfig.prefix !== undefined || process.env["CLUSTER_REDIS_NO_PREFIX"]?.toLowerCase() === "true") return;
 
         // No prefix, show a warning
-        this.clusterConfig.pinoLogger?.warn("***CHECK CONFIGURATION*** It is highly recommended to set a prefix when using Redis in order to allow for easier permission management configuration.");
+        this.clusterConfig.pinoLogger?.warn("***CONFIRM CONFIGURATION***\n" +
+            "It is highly recommended to set a prefix when using Redis in order to allow for easier permission management configuration.\n" +
+            "Set CLUSTER_REDIS_PREFIX='your-prefix::'\n" +
+            "Or to hide this message, set CLUSTER_REDIS_NO_PREFIX=true");
 
     }
 
