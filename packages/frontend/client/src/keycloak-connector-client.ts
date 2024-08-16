@@ -420,17 +420,18 @@ export class KeycloakConnectorClient {
 
     }
 
-    private sendEndpointAlert = async () => rateLimit(async () => {
+    private sendEndpointAlert = rateLimit(async () => {
         // Check if the endpoint alerting is not enabled
         if (this.config.alertEndpoint === undefined) return;
 
         try {
             await fetch(this.config.alertEndpoint, {
-                method: 'GET', // or 'POST', 'PUT', 'DELETE', etc.
-                credentials: 'include', // This option sends cookies with the request
+                method: 'GET',
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                ...this.config.alertEndpointOpts ?? {},
             });
         } catch (error) {
             console.error(`Failed to fetch alert endpoint at "${this.config.alertEndpoint}"`);

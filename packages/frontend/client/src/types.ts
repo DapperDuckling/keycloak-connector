@@ -1,6 +1,7 @@
 import type {CustomRouteUrl} from "@dapperduckling/keycloak-connector-common";
 import type {Logger} from "pino";
 import {STORAGE_PREFIX_COMBINED} from "@dapperduckling/keycloak-connector-common";
+import type {RequestInit} from "node/globals.js";
 
 export enum ClientEvent {
     INVALID_TOKENS = "INVALID_TOKENS",
@@ -66,6 +67,7 @@ export interface ClientConfig {
      * @example "https://xyz123.abc/random-page"
      */
     alertEndpoint?: string;
+    alertEndpointOpts?: RequestInit;
 }
 
 export const LocalStorage = Object.freeze({
