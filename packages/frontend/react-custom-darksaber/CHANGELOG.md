@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.3] - 2024-08-16
+
+### Fixed
+
+- Fixed logo handling so that a broke asset does not appear as such on screen
+
 ## [1.0.2] - 2023-12-04
 
 ### Fixed
