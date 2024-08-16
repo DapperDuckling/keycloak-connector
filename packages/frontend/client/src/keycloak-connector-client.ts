@@ -450,7 +450,7 @@ export class KeycloakConnectorClient {
         if (this.expirationWatchSignal) clearTimeout(this.expirationWatchSignal);
 
         // Calculate time remaining until eager refresh should occur
-        const secondsRemaining = userStatus.accessExpires - Date.now() - (this.config.eagerRefreshTime * 1000 * 60);
+        const secondsRemaining = userStatus.accessExpires - Date.now()/1000 - (this.config.eagerRefreshTime * 60);
 
         // Set up the expiration listener
         this.expirationWatchSignal = setTimeout(async () => {

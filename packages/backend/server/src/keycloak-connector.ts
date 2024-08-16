@@ -1251,7 +1251,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             this.config.eagerRefreshTime > 0) {
 
             // Calculate the time until we need to perform an eager refresh
-            const timeUntilEager = accessToken.exp - Date.now() - (this.config.eagerRefreshTime * 1000 * 60);
+            const timeUntilEager = accessToken.exp - Date.now()/1000 - (this.config.eagerRefreshTime * 60);
             eagerRefresh = (timeUntilEager <= 0);
         }
 
