@@ -1,0 +1,6 @@
+node_modules
+yarn.lock
+.parcel-cache
+dist
+yarn-error.log
+/.yalc/

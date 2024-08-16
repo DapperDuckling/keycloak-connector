@@ -1,0 +1,28 @@
+{
+  "name": "example",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "npm run clean && parcel -p 3000 src/index.html",
+    "clean": "rimraf ./.parcel-cache/",
+    "yalc:add": "npm run yalc:add:react && npm run yalc:add:client && npm run yalc:add:common && npm run yalc:add:custom && npm i",
+    "yalc:add:react": "yalc add --dev @dapperduckling/keycloak-connector-react",
+    "yalc:add:client": "yalc add --dev @dapperduckling/keycloak-connector-client",
+    "yalc:add:common": "yalc add --dev @dapperduckling/keycloak-connector-common",
+    "yalc:add:custom": "yalc add --dev @dapperduckling/keycloak-connector-react-custom-darksaber",
+    "yalc:add:custom-darksaber": "yalc add --dev @dapperduckling/keycloak-connector-react-custom-darksaber"
+  },
+  "devDependencies": {
+    "@dapperduckling/keycloak-connector-client": "file:.yalc/@dapperduckling/keycloak-connector-client",
+    "@dapperduckling/keycloak-connector-common": "file:.yalc/@dapperduckling/keycloak-connector-common",
+    "@dapperduckling/keycloak-connector-react": "file:.yalc/@dapperduckling/keycloak-connector-react",
+    "@dapperduckling/keycloak-connector-react-custom-darksaber": "file:.yalc/@dapperduckling/keycloak-connector-react-custom-darksaber",
+    "@types/react": "^18.0.13",
+    "@types/react-dom": "^18.0.5",
+    "parcel": "^2.6.0",
+    "process": "^0.11.10",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "dependencies": {}
+}
