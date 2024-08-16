@@ -8,6 +8,12 @@
       <excludeFolder url="file://$MODULE_DIR$/packages/frontend/client/dist" />
       <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react-custom-darksaber/dist" />
       <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react-custom-darksaber/example/.parcel-cache" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react-custom-darksaber/example/.yalc" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react-custom-darksaber/example/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react/example/.parcel-cache" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react/example/.yalc" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react/example/dist" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
