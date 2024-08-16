@@ -1,6 +1,6 @@
 {
   "name": "@dapperduckling/keycloak-connector-react-custom-darksaber",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "Custom DarkSaber component for the kcc react plugin",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
