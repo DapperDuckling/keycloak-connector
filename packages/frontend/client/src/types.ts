@@ -1,7 +1,6 @@
 import type {CustomRouteUrl} from "@dapperduckling/keycloak-connector-common";
 import type {Logger} from "pino";
 import {STORAGE_PREFIX_COMBINED} from "@dapperduckling/keycloak-connector-common";
-import type {RequestInit} from "node/globals.js";
 
 export enum ClientEvent {
     INVALID_TOKENS = "INVALID_TOKENS",
