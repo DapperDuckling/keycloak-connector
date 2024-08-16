@@ -9,7 +9,7 @@ import {
     SilentLoginTypes,
     URL, isObject,
 } from "@dapperduckling/keycloak-connector-common";
-import {setImmediate} from "./utils.js";
+import {rateLimit, setImmediate} from "./utils.js";
 import {silentLoginIframeHTML} from "./silent-login-iframe.js";
 import {is} from "typia";
 import {type ClientConfig, ClientEvent, LocalStorage} from "./types.js";
@@ -46,10 +46,15 @@ export class KeycloakConnectorClient {
     private uniqueSilentIframeId = `${KeycloakConnectorClient.IFRAME_ID}-${this.token}`;
     private uniqueListenerIframeId = `${KeycloakConnectorClient.LISTENER_IFRAME_ID}-${this.token}`;
     private isDestroyed = false;
+    private expirationWatchTimestamp: null | number = null;
+    private expirationWatchSignal: null | NodeJS.Timeout = null;
 
     public constructor(config: ClientConfig) {
         // Store the config
         this.config = config;
+
+        // Add defaults
+        this.config.eagerRefreshTime ??= 2.5;
 
         // Update the logger reference
         if (this.config.logger) {
@@ -405,7 +410,56 @@ export class KeycloakConnectorClient {
         // Update the user status hash
         this.userStatusHash = userStatusWrapped["md5"];
 
+        // Set up the access token expiration function
+        this.setupExpirationListener(userStatus);
+
+        // Hit alert endpoint
+        void this.sendEndpointAlert();
+
         this.eventListener.dispatchEvent<UserStatus>(ClientEvent.USER_STATUS_UPDATED, userStatus);
+
+    }
+
+    private sendEndpointAlert = async () => rateLimit(async () => {
+        // Check if the endpoint alerting is not enabled
+        if (this.config.alertEndpoint === undefined) return;
+
+        try {
+            await fetch(this.config.alertEndpoint, {
+                method: 'GET', // or 'POST', 'PUT', 'DELETE', etc.
+                credentials: 'include', // This option sends cookies with the request
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+        } catch (error) {
+            console.error(`Failed to fetch alert endpoint at "${this.config.alertEndpoint}"`);
+        }
+    }, 5000);
+
+    private setupExpirationListener = (userStatus: UserStatus) => {
+
+        // Check if eager refresh is disabled
+        if (typeof this.config.eagerRefreshTime !== "number") return;
+
+        // Check if there is already an expiration listener
+        if (this.expirationWatchSignal && this.expirationWatchTimestamp === userStatus.accessExpires) return;
+
+        // Abort any previous expiration listener
+        if (this.expirationWatchSignal) clearTimeout(this.expirationWatchSignal);
+
+        // Calculate time remaining until eager refresh should occur
+        const secondsRemaining = userStatus.accessExpires - Date.now() - (this.config.eagerRefreshTime * 1000 * 60);
+
+        // Set up the expiration listener
+        this.expirationWatchSignal = setTimeout(async () => {
+            console.debug(`Access token expiration in ${this.config.eagerRefreshTime}, eagerly fetching new token`);
+            await this.authCheck(true);
+        }, secondsRemaining);
+
+        // Record the timeout's target timestamp
+        this.expirationWatchTimestamp = userStatus.accessExpires;
+
     }
 
     private handleStorageEvent = (event: StorageEvent) => {

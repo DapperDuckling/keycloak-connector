@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - None
 
+## [2.3.0] - 2024-08-15
+
+### Added
+
+- Added `eagerRefreshTime` enabling earlier access token refreshes prior to expiration
+
 ## [2.2.1] - 2024-07-26
 
 ### Fixed

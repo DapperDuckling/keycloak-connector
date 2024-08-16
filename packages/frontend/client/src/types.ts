@@ -51,6 +51,21 @@ export interface ClientConfig {
      * @default false
      */
     fastInitialAuthCheck?: boolean;
+
+    /**
+     * @desc    The amount of time in minutes the client should attempt to refresh the access token in order
+     *          to keep it from expiring (NOTE: KCC server MUST be configured with a time at or greater).
+     *          Set false to disable.
+     * @default 2.5 minutes
+     */
+    eagerRefreshTime?: number | false;
+
+    /**
+     * @desc    An endpoint to hit when a user's session information is updated
+     * @default undefined
+     * @example "https://xyz123.abc/random-page"
+     */
+    alertEndpoint?: string;
 }
 
 export const LocalStorage = Object.freeze({

@@ -159,6 +159,14 @@ export interface KeycloakConnectorConfigBase {
 
     /** Allows decoration of the user status endpoint */
     decorateUserStatus?: DecorateUserStatusBackend;
+
+    /**
+     * @desc    The amount of time in minutes the client should attempt to refresh the access token in order
+     *          to keep it from expiring (NOTE: KCC server MUST be configured with a time at or greater).
+     *          Set false to disable.
+     * @default 5 minutes
+     */
+    eagerRefreshTime?: number | false;
 }
 
 export type KeyProvider = (keyProviderConfig: KeyProviderConfig) => Promise<AbstractKeyProvider>;

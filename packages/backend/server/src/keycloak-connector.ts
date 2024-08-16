@@ -18,7 +18,6 @@ import {
     type KeycloakConnectorInternalConfiguration,
     type RefreshTokenSet,
     type RefreshTokenSetResult,
-    type ReqCookies,
     StateOptions,
     type SupportedServers,
     type UserData,
@@ -30,9 +29,7 @@ import type {JWK} from "jose";
 import * as jose from 'jose';
 import {ConnectorErrorRedirect, ErrorHints, LoginError} from "./helpers/errors.js";
 import {
-    ConnectorCookieNames,
     ConnectorCookies,
-    ConnectorCookiesToKeep,
     epoch,
     getRoutePath,
     isDev, isObject,
@@ -1247,8 +1244,19 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Grab the access token
         const accessToken = await this.accessTokenFromJwt(accessJwt, validateAccessTokenWithServer);
 
+        // Check for eager refresh
+        let eagerRefresh = false;
+        if (accessToken?.exp &&
+            typeof this.config.eagerRefreshTime === "number" &&
+            this.config.eagerRefreshTime > 0) {
+
+            // Calculate the time until we need to perform an eager refresh
+            const timeUntilEager = accessToken.exp - Date.now() - (this.config.eagerRefreshTime * 1000 * 60);
+            eagerRefresh = (timeUntilEager <= 0);
+        }
+
         // Check for an access token
-        if (accessToken) {
+        if (accessToken && !eagerRefresh) {
             // Store access token in response
             userDataResponse.userData.accessToken = accessToken;
 
@@ -1596,6 +1604,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             stateType: StateOptions.STATELESS,
             fetchUserInfo: true,
             DANGEROUS_disableJwtClientAuthentication: (process.env?.['DANGEROUS_KC_DISABLE_JWT_CLIENT_AUTHENTICATION'] === "true"),
+            eagerRefreshTime: 5,
 
             // Consumer provided configuration
             ...customConfig,
