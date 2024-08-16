@@ -455,7 +455,7 @@ export class KeycloakConnectorClient {
         this.expirationWatchSignal = setTimeout(async () => {
             console.debug(`Access token expiration in ${this.config.eagerRefreshTime}, eagerly fetching new token`);
             await this.authCheck(true);
-        }, secondsRemaining);
+        }, Math.max(secondsRemaining, 15000));
 
         // Record the timeout's target timestamp
         this.expirationWatchTimestamp = userStatus.accessExpires;

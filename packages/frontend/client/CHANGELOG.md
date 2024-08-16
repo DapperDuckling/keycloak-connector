@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2024-08-15
+
+### Fixed
+
+- Fixed to ensure timeout is not less than 15 seconds
+
 ## [1.1.0] - 2024-08-15
 
 ### Added
