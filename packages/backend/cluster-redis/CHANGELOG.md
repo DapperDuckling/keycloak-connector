@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.39] - 2024-08-21
+
+### Added
+
+- Added `CLUSTER_REDIS_CLIENT_NAME_DISABLE` to disable redis client renaming. Useful on redis providers that strictly forbid the `client` command
+
 ## [1.0.36] - 2024-07-27
 
 ### Bugfix

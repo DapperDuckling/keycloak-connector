@@ -163,11 +163,14 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
         // Create a host options if not already declared
         config.hostOptions ??= [defaultHostOption];
 
+        // Check if we are disabling the redis cluster name
+        const disableRedisClusterName = process.env["CLUSTER_REDIS_CLIENT_NAME_DISABLE"]?.toLowerCase() !== "true";
+
         config.redisOptions = {
             ...defaultHostOption,
             ...username && {username: username},
             ...password && {password: password},
-            connectionName: process.env["CLUSTER_REDIS_CLIENT_NAME"] ?? `keycloak-connector-client-${config.prefix}${this.uniqueClientId}`,
+            ...!disableRedisClusterName && {connectionName: process.env["CLUSTER_REDIS_CLIENT_NAME"] ?? `keycloak-connector-client-${config.prefix}${this.uniqueClientId}`},
             reconnectOnError: (err) => {
                 // Attempt to update credentials
                 // Dev note: This is an async function, but there is no good way to make
