@@ -67,7 +67,7 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
         // Create the pub-sub client
         const overrideOptions = {
-            connectionName: `keycloak-connector-${this.uniqueClientId}-subscriber`
+            ...this.clusterConfig.redisOptions?.connectionName && {connectionName: `${this.clusterConfig.redisOptions.connectionName}-subscriber`},
         }
         this.subscriber = this.isClientClusterMode(this.client) ? this.client.duplicate([], overrideOptions) : this.client.duplicate(overrideOptions);
 
@@ -165,13 +165,12 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
         // Check if we are disabling the redis cluster name
         const disableRedisClusterName = process.env["CLUSTER_REDIS_CLIENT_NAME_DISABLE"]?.toLowerCase() === "true";
-        console.warn(`disableRedisClusterName: ${disableRedisClusterName}`); //todo: remove
 
         config.redisOptions = {
             ...defaultHostOption,
             ...username && {username: username},
             ...password && {password: password},
-            ...!disableRedisClusterName && {connectionName: process.env["CLUSTER_REDIS_CLIENT_NAME"] ?? `keycloak-connector-client-${config.prefix}${this.uniqueClientId}`},
+            ...!disableRedisClusterName && {connectionName: process.env["CLUSTER_REDIS_CLIENT_NAME"] ?? `keycloak-connector-${config.prefix}${this.uniqueClientId}`},
             reconnectOnError: (err) => {
                 // Attempt to update credentials
                 // Dev note: This is an async function, but there is no good way to make
@@ -193,8 +192,6 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
             ...config.redisOptions,
             lazyConnect: true,
         }
-
-        console.warn(`redis options: ${config.redisOptions}`); //todo: remove
 
         return config;
     }
