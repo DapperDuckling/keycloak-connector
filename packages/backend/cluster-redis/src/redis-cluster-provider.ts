@@ -164,7 +164,8 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
         config.hostOptions ??= [defaultHostOption];
 
         // Check if we are disabling the redis cluster name
-        const disableRedisClusterName = process.env["CLUSTER_REDIS_CLIENT_NAME_DISABLE"]?.toLowerCase() !== "true";
+        const disableRedisClusterName = process.env["CLUSTER_REDIS_CLIENT_NAME_DISABLE"]?.toLowerCase() === "true";
+        console.warn(`disableRedisClusterName: ${disableRedisClusterName}`); //todo: remove
 
         config.redisOptions = {
             ...defaultHostOption,
@@ -192,6 +193,8 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
             ...config.redisOptions,
             lazyConnect: true,
         }
+
+        console.warn(`redis options: ${config.redisOptions}`); //todo: remove
 
         return config;
     }
