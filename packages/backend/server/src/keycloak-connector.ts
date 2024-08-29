@@ -944,13 +944,23 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Ensure the refresh token is a number
         const refreshTokenExp = (!!refreshTokenExpRaw) ? parseInt(refreshTokenExpRaw) : null;
 
-        return ({
-            ...await this.authPluginManager.decorateUserStatus(req), // Grab additional decoration from plugins
+        // Build the basic user status
+        const userStatus: UserStatus = {
             loggedIn: req.kccUserData?.isAuthenticated ?? false,
             userInfo: req.kccUserData?.userInfo,
             accessExpires: req.kccUserData?.accessToken?.exp ?? -1,
             refreshExpires: (refreshTokenExp && !isNaN(refreshTokenExp)) ? refreshTokenExp : -1,
-        });
+        }
+
+        // Decorate the connector with the user status
+        if (req.kccUserData) {
+            req.kccUserData.userStatus = userStatus;
+        }
+
+        // Grab additional decoration from plugins
+        await this.authPluginManager.decorateUserStatus(req, userStatus);
+
+        return userStatus;
     };
 
     private handleUserStatus = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
@@ -1189,14 +1199,14 @@ export class KeycloakConnector<Server extends SupportedServers> {
             return userDataResponse;
         }
 
-        // Add user status information to the connector
-        connectorRequest.kccUserData.userStatus = await this.buildUserStatus(connectorRequest);
-
         // User is authenticated since they have a valid access token
         userData.isAuthenticated = true;
 
         // Handle authorizing user based on request and user data
         userData.isAuthorized = await this.authPluginManager.isUserAuthorized(connectorRequest, userData);
+
+        // Add user status information to the connector
+        await this.buildUserStatus(connectorRequest);
 
         return userDataResponse;
     }

@@ -59,7 +59,7 @@ router.get('/public', lock(false), (req, res) => {
 
 
 // Define protected routes
-router.get('/protected', (req, res) => {
+router.get('/protected', lock(), (req, res) => {
     // Send the response
     res.send({ hello: 'PROTECTED BOI -- but no role requirement' });
 });

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - None
 
+## [2.4.2] - 2024-08-29
+
+### Fixed
+
+- Ensured `kccUserData` was decorated with `userStatus` before calling user defined `decorateUserStatus` function
+
+
 ## [2.4.0] - 2024-08-29
 
 ### Added

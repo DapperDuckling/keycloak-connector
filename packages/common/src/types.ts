@@ -5,6 +5,7 @@ export type UserStatus<Data extends Record<string, any> = Record<string, any>> =
     userInfo: UserinfoResponse | undefined;
     accessExpires: number;
     refreshExpires: number;
+    backend?: Data;
 }
 
 export enum TokenType {

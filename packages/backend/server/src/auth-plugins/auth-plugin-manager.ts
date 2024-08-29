@@ -2,6 +2,7 @@ import type {DecorateResponse, IsUserAuthorized} from "./abstract-auth-plugin.js
 import {AbstractAuthPlugin} from "./abstract-auth-plugin.js";
 import type {ConnectorRequest, KeycloakConnectorConfigBase, UserData} from "../types.js";
 import type {Logger} from "pino";
+import type {UserStatus} from "@dapperduckling/keycloak-connector-common";
 
 export enum AuthPluginOverride {
     DISABLE_BASE_FUNCTION,  // Used to make this plugin play with all other plugins (excluding the base function)
@@ -88,16 +89,16 @@ export class AuthPluginManager {
         }
     }
 
-    public decorateUserStatus = async (connectorRequest: ConnectorRequest): Promise<Record<string, any>> => {
-        let userStatus: Record<string, any> = {}
+    public decorateUserStatus = async (connectorRequest: ConnectorRequest, userStatus: UserStatus): Promise<Record<string, any>> => {
 
         // Loop through the plugins
         for (const [name, plugin] of this.plugins.entries()) {
             try {
-                userStatus = {
-                    ...userStatus,
-                    ...await plugin.decorateUserStatus(connectorRequest, this.logger),
-                }
+                // Add new properties to user status
+                Object.assign(
+                    userStatus,
+                    await plugin.decorateUserStatus(connectorRequest, this.logger)
+                );
             } catch (e) {
                 throw new Error(`Issue invoking decorateUserStatus from auth plugin ${name}`);
             }
@@ -106,7 +107,6 @@ export class AuthPluginManager {
         // Check for a manual user status decorator
         if (this.keycloakConfig.decorateUserStatus) {
             try {
-                const userStatusSnapshot = structuredClone(userStatus);
                 userStatus['backend'] = await this.keycloakConfig.decorateUserStatus(connectorRequest, this.logger);
             } catch (e) {
                 throw new Error(`Issue invoking config provided decorateUserStatus() function. Resuming without "backend" user-status decoration.`);
