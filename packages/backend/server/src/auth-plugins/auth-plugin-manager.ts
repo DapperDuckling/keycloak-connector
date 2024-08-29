@@ -106,6 +106,7 @@ export class AuthPluginManager {
         // Check for a manual user status decorator
         if (this.keycloakConfig.decorateUserStatus) {
             try {
+                const userStatusSnapshot = structuredClone(userStatus);
                 userStatus['backend'] = await this.keycloakConfig.decorateUserStatus(connectorRequest, this.logger);
             } catch (e) {
                 throw new Error(`Issue invoking config provided decorateUserStatus() function. Resuming without "backend" user-status decoration.`);

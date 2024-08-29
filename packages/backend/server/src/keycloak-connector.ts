@@ -1189,6 +1189,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
             return userDataResponse;
         }
 
+        // Add user status information to the connector
+        connectorRequest.kccUserData.userStatus = await this.buildUserStatus(connectorRequest);
+
         // User is authenticated since they have a valid access token
         userData.isAuthenticated = true;
 

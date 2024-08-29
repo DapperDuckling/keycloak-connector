@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - None
 
+## [2.4.0] - 2024-08-29
+
+### Added
+
+- Decorated `kccUserData` with `userStatus` to pass data found at `/user-status` to the backend natively
+
 ## [2.3.1] - 2024-08-16
 
 ### Fixed

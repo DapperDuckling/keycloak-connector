@@ -12,7 +12,7 @@ import type {TokenSetParameters} from "openid-client";
 import type {UserinfoResponse} from "openid-client";
 import {UserInfoCache} from "./cache-adapters/index.js";
 import type {KeycloakConnector} from "./keycloak-connector.js";
-import type {CustomRouteUrl} from "@dapperduckling/keycloak-connector-common";
+import type {CustomRouteUrl, UserStatus} from "@dapperduckling/keycloak-connector-common";
 import {CookieStore} from "./cookie-store.js";
 import type {DecorateUserStatusBackend} from "./auth-plugins/index.js";
 
@@ -498,6 +498,7 @@ export interface UserData<KcClaims extends object = Record<string, unknown>> {
     // roles: KeycloakRole[];
     accessToken?: KcAccessJWT;
     userInfo?: UserinfoResponse<KcAccessClaims & KcClaims> | undefined;
+    userStatus?: UserStatus
 }
 
 export enum RoleConfigurationStyle {

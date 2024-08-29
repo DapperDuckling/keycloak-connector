@@ -25,19 +25,19 @@ app.use(loggerHttp);
 // Register the cookie parser
 app.use(cookieParser());
 
-const clusterProvider = await redisClusterProvider({
-    pinoLogger: loggerHttp.logger,
-});
+// const clusterProvider = await redisClusterProvider({
+//     pinoLogger: loggerHttp.logger,
+// });
 
 // Initialize the keycloak connector
 const {registerAuthPlugin} = await keycloakConnectorExpress(app, {
     serverOrigin: `http://localhost:3005`,
-    authServerUrl: 'http://localhost:8080/',
+    authServerUrl: 'http://localhost:8080',
     validOrigins: ['http://localhost:3000'],
     realm: 'local-dev',
     refreshConfigMins: -1, // Disable for dev testing
-    clusterProvider: clusterProvider,
-    keyProvider: clusterKeyProvider,
+    // clusterProvider: clusterProvider,
+    // keyProvider: clusterKeyProvider,
     pinoLogger: loggerHttp.logger,
     fetchUserInfo: true,
 });
