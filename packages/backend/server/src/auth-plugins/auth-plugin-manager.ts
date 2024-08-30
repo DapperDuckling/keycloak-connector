@@ -89,7 +89,7 @@ export class AuthPluginManager {
         }
     }
 
-    public decorateUserStatus = async (connectorRequest: ConnectorRequest, userStatus: UserStatus): Promise<Record<string, any>> => {
+    public decorateUserStatus = async (connectorRequest: ConnectorRequest, userStatus: UserStatus): Promise<void> => {
 
         // Loop through the plugins
         for (const [name, plugin] of this.plugins.entries()) {
@@ -114,7 +114,6 @@ export class AuthPluginManager {
             }
         }
 
-        return userStatus;
     }
 
     public isUserAuthorized: IsUserAuthorized = async (connectorRequest: ConnectorRequest, userData: UserData): Promise<boolean> => {
