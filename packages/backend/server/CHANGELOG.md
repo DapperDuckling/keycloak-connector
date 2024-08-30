@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - None
 
+## [2.4.3] - 2024-08-29
+
+### Fixed
+
+- Corrected throw to log during catch of failed user provided `decorateUserStatus` function
+
 ## [2.4.2] - 2024-08-29
 
 ### Fixed

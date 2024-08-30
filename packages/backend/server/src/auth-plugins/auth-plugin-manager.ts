@@ -109,7 +109,8 @@ export class AuthPluginManager {
             try {
                 userStatus['backend'] = await this.keycloakConfig.decorateUserStatus(connectorRequest, this.logger);
             } catch (e) {
-                throw new Error(`Issue invoking config provided decorateUserStatus() function. Resuming without "backend" user-status decoration.`);
+                this.logger?.error(e);
+                this.logger?.error(`Issue invoking config provided decorateUserStatus() function. Resuming without "backend" user-status decoration.`);
             }
         }
 
