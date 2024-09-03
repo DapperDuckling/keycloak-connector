@@ -1694,6 +1694,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Check for a read only server
         if (config.validateAccessOnly) config.readOnlyServer ??= config.validateAccessOnly;
 
+        // Disable eager refresh if the server is read only
+        if (config.readOnlyServer) config.eagerRefreshTime = false;
+
         // Build the oidc discovery url (ref: https://issues.redhat.com/browse/KEYCLOAK-571)
         const authPath = (config.keycloakVersionBelow18) ? "/auth" : "";
         const oidcDiscoveryUrl = config.oidcDiscoveryUrlOverride ?? `${config.authServerUrl}${authPath}/realms/${config.realm}/.well-known/openid-configuration`;

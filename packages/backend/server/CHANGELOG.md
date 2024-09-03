@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - None
 
+## [2.4.4] - 2024-09-03
+
+### Fixed
+
+- When a server is readonly, disabled `eagerRefreshTime` to prevent access token from failing early
+
 ## [2.4.3] - 2024-08-29
 
 ### Fixed
