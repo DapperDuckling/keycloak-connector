@@ -1472,6 +1472,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Check if unauthenticated
         if (!userData.isAuthenticated) {
 
+            this._config.pinoLogger?.debug(`Unauthenticated request`);
+
             // Auto-show login page
             if (connectorRequest.routeConfig.autoRedirect !== false && connectorRequest.headers['sec-fetch-mode'] === 'navigate') {
                 return await this.handleLoginGet(connectorRequest);
@@ -1483,6 +1485,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 responseText: 'unauthenticated', //todo: customizable
             }
         }
+
+        this._config.pinoLogger?.debug(`Unauthorized request`);
 
         // Member is not authorized
         return {
