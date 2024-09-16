@@ -1686,7 +1686,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             config.pinoLogger?.warn(`DANGEROUS_disableJwtClientAuthentication is enabled, DO NOT USE THIS SETTING IN PRODUCTION`);
 
             // Check if this is production (not guaranteed to catch, but as a last chance catch)
-            if (process.env?.['NODE_ENV'] === "production") {
+            if (process.env?.['NODE_ENV'] === "production" && process.env?.["DANGEROUS__DO_NOT_USE_UNLESS_YOU_KNOW_WHAT_YOU_ARE_DOING"] !== "BYPASS_PRODUCTION_AUTH_PROTECTION") {
                 throw new Error(`DANGEROUS_disableJwtClientAuthentication is set to "true" in production. Keycloak client WILL NOT start in this configuration for your safety.`);
             }
         }
