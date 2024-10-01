@@ -325,7 +325,7 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
         // Register the event listeners
         client.on(RedisClusterEvents.READY, (msg: string) => {
-            this.clusterConfig.pinoLogger?.debug(`Redis ${clientNameTag} ready to use`);
+            this.clusterConfig.pinoLogger?.info(`Redis ${clientNameTag} ready to use`);
             this.clusterConfig.pinoLogger?.debug(msg);
             this.setIsConnected(isSubscriber, true);
             this.emitEvent(RedisClusterEvents.READY, msg);
