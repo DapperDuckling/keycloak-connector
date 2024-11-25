@@ -3,7 +3,7 @@ import {keycloakConnectorExpress, lock} from "@dapperduckling/keycloak-connector
 import cookieParser from "cookie-parser"
 import {getPinoLogger, responses} from "../common.mjs";
 
-const serverPort = 3000;
+const serverPort = 3005;
 
 // Grab express app
 const app = express();
@@ -21,6 +21,7 @@ await keycloakConnectorExpress(app, {
     fetchUserInfo: true,
     serverOrigin: `http://localhost:${serverPort}`, // This server's origin
     authServerUrl: 'http://localhost:8080/',        // Your keycloak server here
+    validOrigins: ['http://localhost:3000'],
 });
 
 // Register a public route on the app
