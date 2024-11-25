@@ -36,7 +36,7 @@ const silentLoginResponse = (
     const token = new URLSearchParams(window.location.search).get('silent-token');
 
     // Validate the token
-    if (token === null || !/^[a-zA-Z0-9]{1,36}$/.test(token)) {
+    if (token === null || !/^[a-fA-F0-9-]{1,36}$/.test(token)) {
         console.error(`Invalid silent token!`);
         return;
     }
