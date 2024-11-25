@@ -39,8 +39,8 @@ export type UserStatusWrapped = {
 }
 
 export type SilentLoginMessage = {
-    token: string,
     event: SilentLoginEvent,
+    token?: string,
     data?: UserStatusWrapped,
 }
 

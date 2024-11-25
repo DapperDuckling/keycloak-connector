@@ -1007,11 +1007,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const userStatusWrapped = await this.buildWrappedUserStatus(req);
 
         // Get the silent type configuration
-        const [silentRequestType, silentRequestToken] = this.silentRequestConfig(req);
+        const [silentRequestType] = this.silentRequestConfig(req);
 
         // Build the silent login response message
         const message: SilentLoginMessage = {
-            token: silentRequestToken,
             event: event,
             data: userStatusWrapped,
         }
@@ -1020,7 +1019,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
             statusCode: 200,
             cookies: cookies,
             responseHtml: silentLoginResponseHTML(message,
-                silentRequestToken,
                 silentRequestType === SilentLoginTypes.PARTIAL,
                 sourceOrigin ?? req.origin,
                 process.env?.['DEBUG_SILENT_IFRAME'] !== undefined

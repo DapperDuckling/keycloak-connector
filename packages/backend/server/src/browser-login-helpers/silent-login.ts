@@ -6,7 +6,6 @@ import {LOGIN_LISTENER_BROADCAST_CHANNEL, SILENT_LOGIN_EVENT_JSON} from "./commo
 
 const silentLoginResponse = (
     messageJson: string,
-    token: string,
     silentLoginEventJson: string,
     loginListenerChannel: string,
     autoClose: boolean,
@@ -33,6 +32,15 @@ const silentLoginResponse = (
         return;
     }
 
+    // Grab the token from the uri
+    const token = new URLSearchParams(window.location.search).get('silent-token');
+
+    // Validate the token
+    if (token === null || !/^[a-zA-Z0-9]{1,36}$/.test(token)) {
+        console.error(`Invalid silent token!`);
+        return;
+    }
+
     const messageToParent: SilentLoginMessage = {
         token: token,
         event: SilentLoginEvent.LOGIN_ERROR,
@@ -46,7 +54,7 @@ const silentLoginResponse = (
         }
 
         // Ensure we can parse the message
-        const message = JSON.parse(messageJson);
+        const message = JSON.parse(messageJson) as SilentLoginMessage;
 
         // Update the message to parent event
         messageToParent.event = message.event;
@@ -91,7 +99,7 @@ const silentLoginResponse = (
     }
 }
 
-export const silentLoginResponseHTML = (message: SilentLoginMessage, token: string, autoClose: boolean, sourceOrigin: string | undefined, enableDebugger: boolean) => {
+export const silentLoginResponseHTML = (message: SilentLoginMessage, autoClose: boolean, sourceOrigin: string | undefined, enableDebugger: boolean) => {
     // Build the html for the silent login iframe
     const silentLoginResponseFunction = silentLoginResponse.toString();
 
@@ -109,7 +117,7 @@ export const silentLoginResponseHTML = (message: SilentLoginMessage, token: stri
       <h3>Silent Login Response</h3>
       <p>This page loaded in error. <a id="back-to-main" href="#">Back to main</a></p>
       <script>
-        (${silentLoginResponseFunction})("${messageJson}", "${token}", "${SILENT_LOGIN_EVENT_JSON}", "${LOGIN_LISTENER_BROADCAST_CHANNEL}", ${autoClose}, ${sourceOriginFormatted}, ${enableDebugger});
+        (${silentLoginResponseFunction})("${messageJson}", "${SILENT_LOGIN_EVENT_JSON}", "${LOGIN_LISTENER_BROADCAST_CHANNEL}", ${autoClose}, ${sourceOriginFormatted}, ${enableDebugger});
       </script>
       </body>
     </html>

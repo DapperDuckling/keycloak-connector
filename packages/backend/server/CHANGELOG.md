@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - None
 
+## [2.5.1] - 2024-11-25
+
+### Fixed
+
+- [Security] Resolved an issue in the authentication flow to improve input validation. Users are strongly encouraged to update to this version for enhanced security.
+
 ## [2.5.0] - 2024-09-16
 
 ### Added
