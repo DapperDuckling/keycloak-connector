@@ -3,7 +3,7 @@ import {keycloakConnectorFastify} from "@dapperduckling/keycloak-connector-serve
 import cookie from '@fastify/cookie';
 import {pinoLoggerOptions, responses} from "../common.mjs";
 
-const serverPort = 4000;
+const serverPort = 3005;
 
 // Configure fastify
 const fastify = Fastify({

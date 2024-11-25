@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@dapperduckling/keycloak-connector-server": "^1.1.3",
-    "@fastify/cookie": "9.2.0",
+    "@fastify/cookie": "^11.0.1",
     "pino": "^8.17.2",
     "pino-pretty": "^10.3.1"
   },
