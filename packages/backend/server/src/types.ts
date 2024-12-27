@@ -167,7 +167,14 @@ export interface KeycloakConnectorConfigBase {
      * @default 5 minutes (normally) or false (if `readOnlyServer` or `validateAccessOnly` is true)
      */
     eagerRefreshTime?: number | false;
+
+    /**
+     *
+     */
+    errorResponseHandler?: ErrorResponseHandler;
 }
+
+export type ErrorResponseHandler = (statusCode: number) => ConnectorResponse<any> | undefined;
 
 export type KeyProvider = (keyProviderConfig: KeyProviderConfig) => Promise<AbstractKeyProvider>;
 

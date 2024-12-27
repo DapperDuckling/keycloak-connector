@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - None
 
+## [2.6.0] - 2024-12-26
+
+### Added
+
+- Allow customizing error responses by registering an `errorResponseHandler`
+
 ## [2.5.5] - 2024-11-25
 
 ### Fixed
@@ -38,7 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Ensured `kccUserData` was decorated with `userStatus` before calling user defined `decorateUserStatus` function
-
 
 ## [2.4.0] - 2024-08-29
 

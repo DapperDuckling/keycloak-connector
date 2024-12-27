@@ -1475,17 +1475,17 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 return await this.handleLoginGet(connectorRequest);
             }
 
-            //todo: make customizable
-            return {
+            // Member is unauthenticated
+            return this.config.errorResponseHandler?.(401) ?? {
                 statusCode: 401,
-                responseText: 'unauthenticated', //todo: customizable
+                responseText: 'unauthenticated',
             }
         }
 
         // Member is not authorized
-        return {
+        return this.config.errorResponseHandler?.(403) ?? {
             statusCode: 403,
-            responseText: 'unauthorized', //todo: customizable
+            responseText: 'unauthorized',
         }
     }
 
