@@ -1,3 +1,4 @@
+import './env-override.js';
 import express from 'express';
 import {keycloakConnectorExpress, lock} from "@dapperduckling/keycloak-connector-server";
 import cookieParser from "cookie-parser"

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node express-example.js"
+    "start": "nodemon express-example.js"
   },
   "dependencies": {
     "@dapperduckling/keycloak-connector-server": "^2.5.1",
