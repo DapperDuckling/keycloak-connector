@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2024-12-30
+
+### Fixed
+
+- Lengthy login timeout now correctly clears when a login is successful 
+
 ## [1.1.0] - 2024-12-30
 
 ### Added
