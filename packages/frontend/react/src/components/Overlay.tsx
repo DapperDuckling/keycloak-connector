@@ -57,7 +57,7 @@ export const Overlay = (props: OverlayProps) => {
                 }
                 {props.children}
                 <Box sx={{textAlign: "center"}}>
-                    <Typography variant="h6" align="center" sx={{marginTop: 1}}>{props.mainMsg}</Typography>
+                    <Typography variant="h6" align="center" sx={{marginTop: 1, minWidth: "250px"}}>{props.mainMsg}</Typography>
                     <Typography
                         variant="caption"
                         display="block"
