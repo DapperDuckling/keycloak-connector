@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2024-12-30
+
+### Added
+
+- Added `hasInvalidTokens` to allow for developers to show a persistent popup informing the user they are unauthenticated
+
 ## [1.0.9] - 2023-12-22
 
 ### Fixed

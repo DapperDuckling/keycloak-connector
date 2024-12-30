@@ -22,6 +22,7 @@ export const InitialContext: KeycloakConnectorContextProps = {
         showMustLoginOverlay: false,
         showLogoutOverlay: false,
         loginError: false,
+        hasInvalidTokens: false,
     }
 }
 

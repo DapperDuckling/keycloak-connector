@@ -18,6 +18,7 @@ export interface KeycloakConnectorState {
         silentLoginInitiated: boolean;
         lengthyLogin: boolean;
         loginError: boolean;
+        hasInvalidTokens: boolean;
     }
 }
 

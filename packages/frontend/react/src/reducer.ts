@@ -20,6 +20,7 @@ const keycloakConnectorClientEventHandler: ImmerReducerType = (draft, action) =>
     switch (eventType) {
         case ClientEvent.INVALID_TOKENS:
             draft.ui.showLoginOverlay = true;
+            draft.ui.hasInvalidTokens = true;
             break;
         case ClientEvent.START_SILENT_LOGIN:
             draft.ui.silentLoginInitiated = true;
@@ -34,6 +35,7 @@ const keycloakConnectorClientEventHandler: ImmerReducerType = (draft, action) =>
         case ClientEvent.USER_STATUS_UPDATED:
             const payload = action.payload as CustomEvent<UserStatus>;
             draft.userStatus = payload.detail;
+            if (payload.detail.loggedIn) draft.ui.hasInvalidTokens = false;
             resetUiHelperStates(draft);
             draft.ui.showLoginOverlay = draft.ui.showMustLoginOverlay = !payload.detail.loggedIn;   // Show hide the overlay and must log in
             draft.hasAuthenticatedOnce = draft.hasAuthenticatedOnce || payload.detail.loggedIn;     // Potentially set the auth once flag

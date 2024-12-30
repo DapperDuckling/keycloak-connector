@@ -42,6 +42,10 @@ export const Content = () => {
 
             <h3>Example of force refresh of user data</h3>
             <Button onClick={refreshProfile}>Force refresh of user data</Button>
+            <Button onClick={() => {
+                const result = kccContext.kccClient?.authCheckNoWait();
+                console.log(result);
+            }}>No wait auth check</Button>
             <div><sub><b>Delete your access token first, if you want to see "accessExpires" change</b></sub></div>
             <div>
                 <h4>UI Data</h4>
