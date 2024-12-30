@@ -27,7 +27,11 @@ export const Overlay = (props: OverlayProps) => {
     const [kccContext, kccDispatch] = useKeycloakConnector();
 
     return (
-        <Dialog open={true} scroll={"body"}>
+        <Dialog
+            open={true}
+            scroll={"body"}
+            disableEnforceFocus={false} // Play nicely with other dialogs
+        >
             <Stack
                 p={2}
                 spacing={3}
