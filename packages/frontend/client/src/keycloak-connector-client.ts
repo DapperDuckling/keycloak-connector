@@ -280,6 +280,9 @@ export class KeycloakConnectorClient {
         // Check for a valid refresh token
         const validRefreshToken = KeycloakConnectorClient.isTokenCurrent(TokenType.REFRESH);
 
+        // Perform background login
+        this.authCheckNextTick(true);
+
         // Check for an invalid refresh token as well
         if (!validRefreshToken) {
             // Send an invalid tokens event

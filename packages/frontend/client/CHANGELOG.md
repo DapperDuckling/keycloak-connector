@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.9] - 2024-12-30
+
+### Fixed
+
+- Issue where a user's access and refresh tokens were both expired, but the client did not attempt to do a background loginAdded `hasInvalidTokens` to allow for developers to show a persistent popup informing the user they are unauthenticated
+
 ## [1.1.5] - 2024-08-16
 
 ### Fixed
