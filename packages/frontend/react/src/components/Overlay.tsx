@@ -1,4 +1,4 @@
-import {Button, Dialog, IconButton, Stack, Typography} from "@mui/material";
+import {Box, Button, Dialog, IconButton, Stack, Typography} from "@mui/material";
 import type {ReactNode} from "react";
 import {OpenInNew, Close} from '@mui/icons-material';
 import { useKeycloakConnector } from "../use-keycloak-connector.js";
@@ -6,7 +6,7 @@ import {KccDispatchType} from "../types.js";
 
 export type ButtonExpressionLevel = "subdued" | "regular" | "expressed";
 
-interface OverlayProps {
+export interface OverlayProps {
     children?: ReactNode;
     mainMsg: string;
     subMsg?: string | undefined;
@@ -52,7 +52,7 @@ export const Overlay = (props: OverlayProps) => {
                     </IconButton>
                 }
                 {props.children}
-                <div>
+                <Box sx={{textAlign: "center"}}>
                     <Typography variant="h6" align="center" sx={{marginTop: 1}}>{props.mainMsg}</Typography>
                     <Typography
                         variant="caption"
@@ -65,7 +65,7 @@ export const Overlay = (props: OverlayProps) => {
                             visibility: props.subMsg !== undefined && props.subMsg.trim() !== "" ? "visible" : "hidden",
                         }}
                     >{props.subMsg ?? "&nbsp;"}</Typography>
-                </div>
+                </Box>
                 <Button
                     component="label"
                     {...props.button.newWindow && {endIcon: <OpenInNew />}}

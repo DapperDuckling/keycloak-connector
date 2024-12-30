@@ -108,10 +108,11 @@ export const KeycloakConnectorProvider = ({children, config}: ConnectorProviderP
                 }, 7000);
             }
 
-            // Clear timeout on login
-            if (event.type === ClientEvent.USER_STATUS_UPDATED) {
-                const typedPayload = payload as UserStatus;
-                if (typedPayload.loggedIn) clearTimeout(lengthyLoginTimeout);
+            // Clear timeout on login or error
+            if ((event.type === ClientEvent.USER_STATUS_UPDATED && (payload as UserStatus)['loggedIn']) ||
+                event.type === ClientEvent.LOGIN_ERROR
+            ) {
+                clearTimeout(lengthyLoginTimeout);
             }
         });
 

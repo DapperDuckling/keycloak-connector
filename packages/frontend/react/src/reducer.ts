@@ -24,9 +24,11 @@ const keycloakConnectorClientEventHandler: ImmerReducerType = (draft, action) =>
             break;
         case ClientEvent.START_SILENT_LOGIN:
             draft.ui.silentLoginInitiated = true;
+            draft.ui.loginError = false;
             break;
         case ClientEvent.LOGIN_ERROR:
             draft.ui.loginError = true;
+            draft.ui.silentLoginInitiated = false;
             break;
         case ClientEvent.LOGOUT_SUCCESS:
             // Reset the state

@@ -1,23 +1,25 @@
 import {useKeycloakConnector} from "../use-keycloak-connector.js";
-import {ButtonExpressionLevel, Overlay} from "./Overlay.js";
+import {ButtonExpressionLevel, Overlay, type OverlayProps} from "./Overlay.js";
 import {AuthProps} from "../types.js";
 
 export const Login = ({children, reactConfig}: AuthProps) => {
     const [kccContext] = useKeycloakConnector();
+    
+    const {ui} = kccContext;
 
     let expressionLevel: ButtonExpressionLevel;
 
-    if (kccContext.ui.showMustLoginOverlay) {
+    if (ui.showMustLoginOverlay || ui.loginError) {
         expressionLevel = "expressed";
-    } else if (kccContext.ui.lengthyLogin) {
+    } else if (ui.lengthyLogin) {
         expressionLevel = "regular";
     } else {
         expressionLevel = "subdued";
     }
 
-    const overlayProps = {
-        mainMsg: kccContext.ui.showMustLoginOverlay ? "Authentication Required" : "Checking credentials",
-        subMsg: !kccContext.ui.showMustLoginOverlay && kccContext.ui.lengthyLogin ? "this is taking longer than expected" : undefined,
+    const overlayProps: OverlayProps = {
+        mainMsg: ui.loginError ? "Error Checking Credentials" : ui.showMustLoginOverlay ? "Authentication Required" : "Checking Credentials",
+        subMsg: ui.loginError ? "Failed to communicate with server" : !ui.showMustLoginOverlay && ui.lengthyLogin ? "this is taking longer than expected" : undefined,
         button: {
             label: "Login",
             onClick: () => kccContext.kccClient?.handleLogin(kccContext.hasAuthenticatedOnce),

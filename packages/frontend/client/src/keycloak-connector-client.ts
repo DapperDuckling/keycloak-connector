@@ -47,7 +47,10 @@ export class KeycloakConnectorClient {
     private uniqueListenerIframeId = `${KeycloakConnectorClient.LISTENER_IFRAME_ID}-${this.token}`;
     private isDestroyed = false;
     private expirationWatchTimestamp: null | number = null;
-    private expirationWatchSignal: null | NodeJS.Timeout = null;
+    private expirationWatchSignal: null | number = null;
+
+    private silentLoginTimeout: number | undefined = undefined;
+    private silentLoginListenerTimeout: number | undefined = undefined;
 
     public constructor(config: ClientConfig) {
         // Store the config
@@ -142,6 +145,20 @@ export class KeycloakConnectorClient {
         }
     }
 
+    private handleLoginError = () => {
+        // Remove the iframe
+        this.removeSilentIframe();
+
+        // Reset the auth check flag
+        this.isAuthChecking = false;
+
+        // // Check for a valid token at this point
+        // if (KeycloakConnectorClient.isTokenCurrent(TokenType.ACCESS)) return;
+
+        // Send the login error event
+        this.eventListener.dispatchEvent(ClientEvent.LOGIN_ERROR);
+    }
+
     private handleWindowMessage = (event: MessageEvent<SilentLoginMessage>) => {
 
         // Ignore message not from our an allowed origin or does not have the correct token
@@ -154,10 +171,11 @@ export class KeycloakConnectorClient {
         // Handle the message
         switch (silentLoginMessage.event) {
             case SilentLoginEvent.CHILD_ALIVE:
-                // NO-OP
+                clearTimeout(this.silentLoginTimeout);
                 break;
             case SilentLoginEvent.LOGIN_LISTENER_ALIVE:
                 this.loginListenerAwake = true;
+                clearTimeout(this.silentLoginListenerTimeout);
                 break;
             case SilentLoginEvent.LOGIN_REQUIRED:
             case SilentLoginEvent.LOGIN_SUCCESS:
@@ -176,17 +194,7 @@ export class KeycloakConnectorClient {
                 break;
             case SilentLoginEvent.LOGIN_ERROR:
             default:
-                // Remove the iframe
-                this.removeSilentIframe();
-
-                // Reset the auth check flag
-                this.isAuthChecking = false;
-
-                // // Check for a valid token at this point
-                // if (KeycloakConnectorClient.isTokenCurrent(TokenType.ACCESS)) return;
-
-                // Send the login error event
-                this.eventListener.dispatchEvent(ClientEvent.LOGIN_ERROR);
+                this.handleLoginError();
         }
     }
 
@@ -208,6 +216,15 @@ export class KeycloakConnectorClient {
             "allow-scripts allow-same-origin allow-forms"
         );
         iframe.style.display = "none";
+        iframe.onload = () => {
+            this.silentLoginTimeout = window.setTimeout(() => {
+                // Log
+                console.debug(`Failed to execute silent login`);
+
+                // Handle error
+                this.handleLoginError();
+            }, 500);
+        }
 
         // Mount the iframe
         document.body.appendChild(iframe);
@@ -238,6 +255,18 @@ export class KeycloakConnectorClient {
             "allow-scripts allow-same-origin"
         );
         iframe.style.display = "none";
+        iframe.onload = () => {
+            this.silentLoginListenerTimeout = window.setTimeout(() => {
+                // Check for a successful listener
+                if (this.loginListenerAwake) return;
+
+                // Log
+                console.debug(`Failed to start silent login listener`);
+
+                // Wipe the login listener
+                this.removeListenerIframe();
+            }, 500);
+        }
 
         // Mount the iframe
         document.body.appendChild(iframe);
@@ -260,7 +289,11 @@ export class KeycloakConnectorClient {
     }
 
     private removeSilentIframe = () => document.querySelectorAll(`#${this.uniqueSilentIframeId}`).forEach(elem => elem.remove());
-    private removeListenerIframe = () => document.querySelectorAll(`#${this.uniqueListenerIframeId}`).forEach(elem => elem.remove());
+    private removeListenerIframe = () => {
+        document.querySelectorAll(`#${this.uniqueListenerIframeId}`).forEach(elem => elem.remove());
+        this.loginListenerInitiated = undefined;
+        this.loginListenerAwake = false;
+    };
 
     public authCheckNoWait = () => {
         // Check for a valid access token
@@ -456,7 +489,7 @@ export class KeycloakConnectorClient {
         const secondsRemaining = userStatus.accessExpires - Date.now()/1000 - (this.config.eagerRefreshTime * 60);
 
         // Set up the expiration listener
-        this.expirationWatchSignal = setTimeout(async () => {
+        this.expirationWatchSignal = window.setTimeout(async () => {
             console.debug(`Access token expiration within ${this.config.eagerRefreshTime} minutes, eagerly fetching new token`);
             await this.authCheck(true);
         }, Math.max(secondsRemaining * 1000, 15000));

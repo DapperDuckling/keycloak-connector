@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2024-12-30
+
+### Added
+
+- Added error handling to silent login and silent login listener
+
 ## [1.1.1] - 2024-12-30
 
 ### Fixed
