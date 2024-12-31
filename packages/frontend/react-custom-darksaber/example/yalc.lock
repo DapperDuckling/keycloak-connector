@@ -2,7 +2,7 @@
   "version": "v1",
   "packages": {
     "@dapperduckling/keycloak-connector-react": {
-      "signature": "2e669f5536465191377c154927179fc7",
+      "signature": "ded674e2aae5c4bdf9c48187927deea1",
       "file": true
     },
     "@dapperduckling/keycloak-connector-common": {
