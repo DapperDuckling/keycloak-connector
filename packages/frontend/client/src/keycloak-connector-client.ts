@@ -32,25 +32,26 @@ export class KeycloakConnectorClient {
 
 
     private userStatusHash: string | undefined = undefined;
-    // private eventTarget = new EventTarget();
     private eventListener = new EventListener<ClientEvent>();
 
     private config: ClientConfig;
     private acceptableOrigins: string[];
-    private loginListenerAwake = false;
-    private loginListenerInitiated: number | undefined = undefined;
     private userStatusAbortController: AbortController | undefined = undefined;
     private started = false;
     private isAuthCheckedWithServer = false;
     private isAuthChecking = false;
-    private uniqueSilentIframeId = `${KeycloakConnectorClient.IFRAME_ID}-${this.token}`;
-    private uniqueListenerIframeId = `${KeycloakConnectorClient.LISTENER_IFRAME_ID}-${this.token}`;
     private isDestroyed = false;
     private expirationWatchTimestamp: null | number = null;
     private expirationWatchSignal: null | number = null;
 
+    private listenerAwake = false;
     private silentLoginTimeout: number | undefined = undefined;
+    private uniqueSilentIframeId = `${KeycloakConnectorClient.IFRAME_ID}-${this.token}`;
+
+    private loginListenerInitiated: number | undefined = undefined;
+    private loginListenerAwake = false;
     private silentLoginListenerTimeout: number | undefined = undefined;
+    private uniqueListenerIframeId = `${KeycloakConnectorClient.LISTENER_IFRAME_ID}-${this.token}`;
 
     public constructor(config: ClientConfig) {
         // Store the config
@@ -171,6 +172,7 @@ export class KeycloakConnectorClient {
         // Handle the message
         switch (silentLoginMessage.event) {
             case SilentLoginEvent.CHILD_ALIVE:
+                this.listenerAwake = true;
                 clearTimeout(this.silentLoginTimeout);
                 break;
             case SilentLoginEvent.LOGIN_LISTENER_ALIVE:
@@ -218,6 +220,9 @@ export class KeycloakConnectorClient {
         iframe.style.display = "none";
         iframe.onload = () => {
             this.silentLoginTimeout = window.setTimeout(() => {
+                // Check for a successful listener
+                if (this.listenerAwake) return;
+
                 // Log
                 console.debug(`Failed to execute silent login`);
 
@@ -225,6 +230,9 @@ export class KeycloakConnectorClient {
                 this.handleLoginError();
             }, 500);
         }
+
+        // Reset the listener awake flag
+        this.loginListenerAwake = false;
 
         // Mount the iframe
         document.body.appendChild(iframe);

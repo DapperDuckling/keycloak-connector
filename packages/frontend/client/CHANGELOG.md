@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2024-12-30
+
+### Fixed
+
+- Fixed race condition caused by race between iframe source code sending parent window a message before iframe onload function was called
+
 ## [1.2.0] - 2024-12-30
 
 ### Added

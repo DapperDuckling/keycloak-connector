@@ -2,7 +2,7 @@
   "version": "v1",
   "packages": {
     "@dapperduckling/keycloak-connector-react": {
-      "signature": "ded674e2aae5c4bdf9c48187927deea1",
+      "signature": "dcddbc6361cc7d74edee0add6a552361",
       "file": true
     },
     "@dapperduckling/keycloak-connector-common": {
@@ -10,7 +10,7 @@
       "file": true
     },
     "@dapperduckling/keycloak-connector-client": {
-      "signature": "ba1cd1c5c50f00062c34b39c56b75a10",
+      "signature": "d85f3a7f6a759594ed7b945d352fe23c",
       "file": true
     },
     "@dapperduckling/keycloak-connector-react-custom-darksaber": {
