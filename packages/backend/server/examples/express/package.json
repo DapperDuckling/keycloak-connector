@@ -7,11 +7,15 @@
     "start": "nodemon express-example.js"
   },
   "dependencies": {
-    "@dapperduckling/keycloak-connector-server": "^2.5.1",
+    "@dapperduckling/keycloak-connector-server": "file:.yalc/@dapperduckling/keycloak-connector-server",
+    "@fastify/websocket": "^11.0.2",
+    "cookie": "^1.0.2",
     "cookie-parser": "^1.4.6",
     "express": "^4.19.2",
+    "fastify": "^5.2.1",
     "pino": "^8.17.2",
-    "pino-pretty": "^10.3.1"
+    "pino-pretty": "^10.3.1",
+    "ws": "^8.18.0"
   },
   "publishConfig": {
     "access": "restricted"

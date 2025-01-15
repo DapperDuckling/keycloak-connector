@@ -239,7 +239,10 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         //     lock: adapter.lock,
         //     ...adapter._keycloakConnector.getExposed()
         // };
-        return adapter._keycloakConnector.getExposed()
+        return {
+            ...adapter._keycloakConnector.getExposed(),
+            onRequest: adapter.onRequest,
+        }
     };
 }
 

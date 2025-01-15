@@ -499,7 +499,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Check for dev and the server has a "localhost" origin
         const hostname = (URL.canParse(this._config.serverOrigin)) ? (new URL(this._config.serverOrigin))?.hostname : undefined;
-        if (isDev() && hostname === "localhost") return req.origin;
+        if (isDev() && hostname === "localhost") {
+            this._config.pinoLogger?.debug('Skipping origin check for localhost dev');
+            return req.origin;
+        }
 
         // Check for good origin
         if (req.origin && this.validRedirectOrigins.includes(req.origin)) return req.origin;
