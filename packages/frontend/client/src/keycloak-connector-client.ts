@@ -560,12 +560,12 @@ export class KeycloakConnectorClient {
         document.body.removeChild(form);
     }
 
-    handleLogout = async () => {
+    handleLogout = async (args: { redirectUri?: string } = {}) => {
         // Clear the local storage
         this.clearUserStatus();
 
         // Build the logout url
-        const logoutUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGOUT_POST, this.config.routePaths)}?post_auth_redirect_uri=${self.location.href}`;
+        const logoutUrl = `${this.config.apiServerOrigin}${getRoutePath(RouteEnum.LOGOUT_POST, this.config.routePaths)}?post_auth_redirect_uri=${args?.redirectUri ?? self.location.href}`;
 
         /** Remove until plugin added to keycloak to allow CORS request to certain endpoints
         try {
