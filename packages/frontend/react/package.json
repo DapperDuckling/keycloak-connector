@@ -1,6 +1,6 @@
 {
   "name": "@dapperduckling/keycloak-connector-react",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "An opinionated library for securing react apps without all the fuss",
   "keywords": [
     "react",
