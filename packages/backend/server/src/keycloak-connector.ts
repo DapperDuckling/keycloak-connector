@@ -1818,7 +1818,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private static async fetchOpenIdConfig(oidcDiscoveryUrl: string, config: KeycloakConnectorConfigBase): Promise<IssuerMetadata | null> {
 
         try {
-            config.pinoLogger?.debug(`Fetching oidc configuration from ${oidcDiscoveryUrl}`);
+            config.pinoLogger?.info(`Fetching oidc configuration from ${oidcDiscoveryUrl}`);
 
             // Fetch latest openid-config data
             const result = await fetch(oidcDiscoveryUrl, {signal: AbortSignal.timeout(60000)});
