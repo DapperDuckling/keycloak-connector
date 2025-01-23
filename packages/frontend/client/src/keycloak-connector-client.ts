@@ -232,7 +232,7 @@ export class KeycloakConnectorClient {
         }
 
         // Reset the listener awake flag
-        this.loginListenerAwake = false;
+        this.listenerAwake = false;
 
         // Mount the iframe
         document.body.appendChild(iframe);

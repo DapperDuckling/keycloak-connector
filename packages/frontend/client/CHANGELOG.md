@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2025-01-23
+
+### Fix
+
+- Small logic fix to correct background login handling
+
 ## [1.3.0] - 2025-01-16
 
 ### Added
