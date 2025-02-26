@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - None
 
+## [2.6.1] - 2025-02-25
+
+### Fixed
+
+- Fixed silent listener message passing to handle unsanitized input. Now base64 encodes the event data to ensure message is wrapped properly.
+
 ## [2.6.0] - 2024-12-26
 
 ### Added
