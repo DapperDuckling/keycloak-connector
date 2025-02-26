@@ -18,7 +18,7 @@ const loggerHttp = logger.default({
 // Grab express app
 const app = express();
 
-app.use(loggerHttp);
+// app.use(loggerHttp);
 
 // Register the cookie parser
 app.use(cookieParser());
@@ -26,8 +26,9 @@ app.use(cookieParser());
 // Initialize the keycloak connector
 const {registerAuthPlugin} = await keycloakConnectorExpress(app, {
     serverOrigin: `http://localhost:3005`,
-    authServerUrl: 'http://localhost:8080',
-    realm: 'local-dev',
+    authServerUrl: process.env?.['KC_SERVER'] ?? 'http://localhost:8080',
+    realm: process.env?.['KC_REALM'] ?? 'local-dev',
+    keycloakVersionBelow18: process.env?.['KC_OLD_VERSION'] !== undefined ?? false,
     refreshConfigMins: -1, // Disable for dev testing
     pinoLogger: loggerHttp.logger,
     fetchUserInfo: true,

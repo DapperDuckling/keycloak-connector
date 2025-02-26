@@ -5,7 +5,7 @@ import {
 import {LOGIN_LISTENER_BROADCAST_CHANNEL, SILENT_LOGIN_EVENT_JSON} from "./common.js";
 
 const silentLoginResponse = (
-    messageJson: string,
+    messageJson64: string,
     silentLoginEventJson: string,
     loginListenerChannel: string,
     autoClose: boolean,
@@ -48,13 +48,13 @@ const silentLoginResponse = (
 
     try {
         // Check for a message from the server
-        if (messageJson === undefined) {
+        if (messageJson64 === undefined) {
             console.error(`Missing message from auth server, cannot process silent login!`);
             return;
         }
 
         // Ensure we can parse the message
-        const message = JSON.parse(messageJson) as SilentLoginMessage;
+        const message = JSON.parse(decodeURIComponent(window.atob(messageJson64))) as SilentLoginMessage;
 
         // Update the message to parent event
         messageToParent.event = message.event;
@@ -103,8 +103,8 @@ export const silentLoginResponseHTML = (message: SilentLoginMessage, autoClose: 
     // Build the html for the silent login iframe
     const silentLoginResponseFunction = silentLoginResponse.toString();
 
-    // Convert the message to a json string and add slashes
-    const messageJson = JSON.stringify(message).replaceAll('"', '\\"');
+    // Convert the message to a json string and base64 encode it USING LEGACY METHODS (for browser compatibility)
+    const messageJson64 = Buffer.from(encodeURIComponent(JSON.stringify(message))).toString('base64');
 
     // Prepare the source origin
     const sourceOriginFormatted = (sourceOrigin === undefined) ? undefined : `"${sourceOrigin}"`
@@ -117,7 +117,7 @@ export const silentLoginResponseHTML = (message: SilentLoginMessage, autoClose: 
       <h3>Silent Login Response</h3>
       <p>This page loaded in error. <a id="back-to-main" href="#">Back to main</a></p>
       <script>
-        (${silentLoginResponseFunction})("${messageJson}", "${SILENT_LOGIN_EVENT_JSON}", "${LOGIN_LISTENER_BROADCAST_CHANNEL}", ${autoClose}, ${sourceOriginFormatted}, ${enableDebugger});
+        (${silentLoginResponseFunction})("${messageJson64}", "${SILENT_LOGIN_EVENT_JSON}", "${LOGIN_LISTENER_BROADCAST_CHANNEL}", ${autoClose}, ${sourceOriginFormatted}, ${enableDebugger});
       </script>
       </body>
     </html>
