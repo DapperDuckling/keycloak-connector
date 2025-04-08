@@ -101,6 +101,7 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
 
     protected override async handleCacheMiss(key: string, wrappedCacheMissCallback: WrappedCacheMissCallback<T>, expiration?: number): Promise<CacheResult<T>> {
 
+        // TODO: Likely need to move this line down into the try-catch block just before the existing result check. then add the deferredrefresh line just after
         // Start listening to cluster messages for this update id
         const listeningChannel = `${this.constants._PREFIX}:${this.constants.LISTENING_CHANNEL}:${this.config.title}:${key}`;
         await this.clusterProvider.subscribe(listeningChannel, this.handleIncomingUpdateData);
