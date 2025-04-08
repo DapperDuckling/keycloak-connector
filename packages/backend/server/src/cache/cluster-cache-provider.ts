@@ -134,7 +134,7 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
 
                 // Store the pending refresh
                 const deferredRefresh = deferredFactory<T | undefined>();
-                this.pendingRefresh.set(key, deferredRefresh);
+                this.pendingRefresh.set(key, deferredRefresh); // ** TODO: IS THIS ENOUGH TOO? WHAT ABOUT MULTIPLE REQUESTS THAT NEED PENDING REFRESHES FOR THE SAME KEY???
 
                 try {
                     // Wait for a pending refresh
