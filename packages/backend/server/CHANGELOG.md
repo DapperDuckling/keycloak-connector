@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - None
 
+## [2.6.3] - 2025-04-07
+
+### Fixed
+
+- Swapped cache provider logic to use deferred promise instead due to improper event listener usage
+- Added logic to retry syncing keys if the oidc provider reports issue with public key
+
 ## [2.6.0] - 2024-12-26
 
 ### Added

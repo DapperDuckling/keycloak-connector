@@ -14,6 +14,7 @@
       <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react/example/.parcel-cache" />
       <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react/example/.yalc" />
       <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react/example/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/backend/server/examples/express/.yalc" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

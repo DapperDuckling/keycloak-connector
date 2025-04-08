@@ -32,6 +32,11 @@ export abstract class AbstractKeyProvider {
 
     protected abstract generateKeys(): Promise<ConnectorKeys>;
 
+    public triggerKeySync(): void {
+        // Defaults to no-op
+        this.keyProviderConfig.pinoLogger?.info("No sync keys override provided, unable to sync keys.");
+    }
+
     public async getActiveKeys(): Promise<ConnectorKeys> {
         // Get existing keys or generate & save then return new keys
         return this.connectorKeys ?? (this.connectorKeys = await this.generateKeys());

@@ -48,7 +48,7 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
 
         // Build the lock options
         this.lockOptions = {
-            key: `${this.constants._PREFIX}:${this.constants.UPDATE_DATA}:${this.config.title}`,
+            key: `${this.constants._PREFIX}:${this.constants.UPDATE_DATA}:${this.config.title}`, //TODO: Ducky, this should be based off of the key of the individual item
             ttl: 60,
         }
 
@@ -125,7 +125,7 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
 
             do {
                 // Grab a lock
-                lock = await this.clusterProvider.lock(this.lockOptions);
+                lock = await this.clusterProvider.lock(this.lockOptions); // ** TODO: DO BELIEVE THIS IS A PROBLEM. Needs more specific locking key for some operations
 
                 // Check for a lock
                 if (lock) break;

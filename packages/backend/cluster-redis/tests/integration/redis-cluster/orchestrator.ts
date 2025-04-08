@@ -10,13 +10,13 @@ import type {
 } from "@dapperduckling/keycloak-connector-server";
 import {AbstractKeyProvider} from "@dapperduckling/keycloak-connector-server";
 import {fromNodeProviderChain} from "@aws-sdk/credential-providers";
-import { ElastiCacheClient } from '@aws-sdk/client-elasticache';
 
 import pino from "pino";
 import {SignatureV4} from "@smithy/signature-v4";
 import type {HttpRequest} from "@aws-sdk/types";
 import {Hash} from "@aws-sdk/hash-node";
 import { formatUrl } from '@aws-sdk/util-format-url';
+import {isDev} from "@dapperduckling/keycloak-connector-common";
 
 // Use AWS SDK to get temporary credentials
 const awsCredentialProvider = fromNodeProviderChain({

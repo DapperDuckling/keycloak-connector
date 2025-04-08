@@ -778,6 +778,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
                     throw new LoginError(ErrorHints.UNKNOWN);
                 }
             } else if (e instanceof OPError) {
+                // Check for inability to load a public key
+                if (e.message.includes("load public key")) {
+                    this.components.keyProvider.triggerKeySync();
+                }
+
                 // Log the issue
                 this._config.pinoLogger?.error(e);
                 this._config.pinoLogger?.error(`Unexpected response from OP`);

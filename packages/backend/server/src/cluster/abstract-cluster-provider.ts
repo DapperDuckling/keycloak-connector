@@ -91,7 +91,7 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
     public async subscribe(channel: string, listener: SubscriberListener, ignoreOwnMessages = false): Promise<boolean> {
 
         // Wrap the listener
-        const wrappedListener = (encodedMessage: string, channel: string) => setImmediate(async () => {
+        const wrappedListener = (encodedMessage: string) => setImmediate(async () => {
             try {
                 // Decode the message
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -157,7 +157,7 @@ export abstract class AbstractClusterProvider<CustomEvents extends string | void
     }
 
     protected abstract handleUnsubscribe(channel: string, listener: Listener): Promise<boolean>;
-    protected abstract handleSubscribe(channel: string, listener: Listener): Promise<boolean>;
+    protected abstract  handleSubscribe(channel: string, listener: Listener): Promise<boolean>;
     protected abstract handlePublish(channel: string, message: string): Promise<boolean>;
     public abstract get(key: string): Promise<string | null>;
     public abstract store(key: string, value: string | number | Buffer, ttl: number | null, lockKey?: string): Promise<boolean>;

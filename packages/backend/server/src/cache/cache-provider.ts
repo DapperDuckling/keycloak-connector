@@ -1,12 +1,11 @@
 import {AbstractClusterProvider} from "../cluster/index.js";
 import type {Logger} from "pino";
-import {EventEmitter} from "node:events";
 import {LRUCache} from "lru-cache";
 import {promiseWait, promiseWaitTimeout, ttlFromExpiration, WaitTimeoutError} from "../helpers/utils.js";
 import {webcrypto} from "crypto";
 import * as jose from 'jose';
 import type {JWTPayload} from "jose/dist/types/types.js";
-import {isObject} from "@dapperduckling/keycloak-connector-common";
+import {type Deferred, deferredFactory, isObject} from "@dapperduckling/keycloak-connector-common";
 
 export type CacheMissCallback<T, A extends any[] = any[]> = (...args: A) => Promise<T | undefined>;
 
@@ -25,6 +24,11 @@ export type CacheResult<T> = undefined | {
     dataGenerator?: true,
 }
 
+type InstanceLock<T> = {
+    instanceLockId: string,
+    promise: Deferred<CacheResult<T>>['promise'],
+}
+
 export type WrappedCacheMissCallback<T> = () => Promise<T | undefined>;
 
 export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any[]> {
@@ -34,8 +38,7 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
     protected static CACHE_MISS_MAX_WAIT_SECS = 120;
 
     protected readonly config: CacheProviderConfig<T, A>;
-    protected readonly updateEmitter = new EventEmitter();
-    protected readonly instanceLevelUpdateLock: LRUCache<string, string>;
+    private readonly instanceLevelUpdateLock: LRUCache<string, InstanceLock<T>>;
     protected readonly cachedResult: LRUCache<string, T>;
 
     constructor(config: CacheProviderConfig<T, A>) {
@@ -44,15 +47,8 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
             config.pinoLogger = config.pinoLogger.child({"Source": "CacheProvider"}).child({"Source": config.title});
         }
 
-        // Add generic error handler to the token update emitter
-        this.updateEmitter.on('error', (e) => {
-            // Log the error
-            this.config.pinoLogger?.error(e);
-            this.config.pinoLogger?.error(`Error in cache`);
-        });
-
         // Build the LRU caches
-        this.instanceLevelUpdateLock = new LRUCache<string, string>({
+        this.instanceLevelUpdateLock = new LRUCache<string, InstanceLock<T>>({
             max: 10000,
             ttl: config.ttl * 1000,
         });
@@ -148,16 +144,23 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         this.config.pinoLogger?.debug(`Cache miss`);
 
         // Check if there is already an update occurring on this instance
-        if (this.instanceLevelUpdateLock.get(key) !== undefined) {
+        const existingInstanceLock = this.instanceLevelUpdateLock.get(key);
+        if (existingInstanceLock !== undefined) {
             this.config.pinoLogger?.debug(`Waiting for result from a different provider`);
-            return await this.waitForResult(key);
+            return await this.waitForResult(existingInstanceLock.promise);
         }
 
         this.config.pinoLogger?.debug(`No other update occurring this instance, attempting to update cache`);
 
+        // Grab a deferred promise for other requests on this instance to await
+        const deferred = deferredFactory<CacheResult<T>>();
+
         // Grab instance level lock for updating the refresh token
         const instanceLockId = webcrypto.randomUUID();
-        this.instanceLevelUpdateLock.set(key, instanceLockId);
+        this.instanceLevelUpdateLock.set(key, {
+            instanceLockId,
+            promise: deferred.promise,
+        });
 
         // Build the cache miss callback
         const wrappedCacheMissCallback = this.wrapCacheMissCallback(callbackArgs);
@@ -170,16 +173,16 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
 
         // Ensure we still have the instance lock
         const currentInstanceLock = this.instanceLevelUpdateLock.get(key);
-        const stillHadLock = (currentInstanceLock === instanceLockId);
+        const stillHadLock = (currentInstanceLock?.instanceLockId === instanceLockId);
 
         // Check if we still have a lock
         if (stillHadLock) {
             // Clear the instance level lock
             this.instanceLevelUpdateLock.delete(key);
 
-            // Emit the result
+            // Resolve the promise with the result
             this.config.pinoLogger?.debug(`Emitting result locally`);
-            this.updateEmitter.emit(key, result?.data);
+            deferred.resolve(result);
 
             // Store valid result in local cache
             if (result) {
@@ -235,43 +238,21 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         }
     }
 
-    private waitForResult = (updateId: string): Promise<CacheResult<T>> => {
+    private waitForResult = async (promise: Deferred<CacheResult<T>>['promise']): Promise<CacheResult<T>> => {
 
         // Record final retry time
         const finalRetryTimeMs = Date.now() + (this.config.maxWaitSecs ?? CacheProvider.MAX_WAIT_SECS) * 1000;
 
-        // Make typescript happy
-        type RefreshListener = (data: T | undefined) => void;
-
-        // Store the update listener in a higher scope, so we can disable it later if need be
-        let updateListener: RefreshListener | undefined = undefined;
-
-        // Build the update promise wrapper
-        const updatePromise = new Promise<CacheResult<T>>(resolve => {
-            // Build a generic update listener
-            updateListener = (data: T | undefined) => {
-                // Build the response
-                const response = (data !== undefined) ? {data: data} : undefined;
-
-                // Resolve with the response
-                resolve(response);
-            };
-
-            // Set event listener
-            this.updateEmitter.once(updateId, updateListener);
-        });
-
         // Wait for the result (or timeout)
-        return promiseWait(updatePromise, finalRetryTimeMs).catch(e => {
-            // Stop listening
-            if (updateListener) this.updateEmitter.removeListener(updateId, updateListener);
+        try {
+            return await promiseWait(promise, finalRetryTimeMs);
+        } catch (e) {
 
             if (e instanceof WaitTimeoutError) {
                 // Log this in order to inform the owner they may need to increase the wait timeout
                 this.config.pinoLogger?.warn(`Timed out waiting for cache update promise to complete. May consider increasing the wait time or investigating why the request is taking so long.`);
             }
-
             return undefined;
-        });
+        }
     }
 }

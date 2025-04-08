@@ -47,3 +47,19 @@ export const sleep = (ms: number, extraVariability?: number, setNodeTimeout?: (n
     const nodeTimeout = setTimeout(() => resolve(true), timeout);
     setNodeTimeout?.(nodeTimeout);
 });
+
+export const debounce = <T extends (...args: any[]) => void>(
+    func: T,
+    wait: number
+): (...args: Parameters<T>) => void => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    return (...args: Parameters<T>) => {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+        timeoutId = setTimeout(() => {
+            func(...args);
+        }, wait);
+    };
+};
