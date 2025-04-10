@@ -1,40 +1,38 @@
-import type {Client, ClientMetadata, Issuer, IssuerMetadata} from "openid-client";
+import type {ClientMetadata, JsonValue} from "openid-client";
+import type * as OpenidClient from "openid-client";
 import type {CookieSerializeOptions} from "@fastify/cookie";
 import type {CookieOptions} from "express-serve-static-core";
-import type {JWK, KeyLike} from "jose";
 import type {Logger} from "pino";
 import type {IncomingHttpHeaders} from "node:http";
 import type {JWTPayload} from "jose/dist/types/types.js";
 import type {AbstractKeyProvider, KeyProviderConfig} from "./crypto/index.js";
 import type {AbstractClusterProvider} from "./cluster/index.js";
 import {TokenCache} from "./cache-adapters/index.js";
-import type {TokenSetParameters} from "openid-client";
-import type {UserinfoResponse} from "openid-client";
 import {UserInfoCache} from "./cache-adapters/index.js";
 import type {KeycloakConnector} from "./keycloak-connector.js";
 import type {CustomRouteUrl, UserStatus} from "@dapperduckling/keycloak-connector-common";
 import {CookieStore} from "./cookie-store.js";
 import type {DecorateUserStatusBackend} from "./auth-plugins/index.js";
+import type {TokenEndpointResponse, UserInfoResponse} from "oauth4webapi";
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
 export interface KeycloakConnectorInternalConfiguration {
     oidcDiscoveryUrl: string;
-    oidcConfig: IssuerMetadata;
-    oidcIssuer: Issuer;
-    oidcClient: Client;
+    oidcConfig: OpenidClient.Configuration;
     keyProvider: AbstractKeyProvider;
     tokenCache: TokenCache;
     userInfoCache: UserInfoCache;
-    remoteJWKS: () => Promise<KeyLike>;
-    connectorKeys: ConnectorKeys;
+    remoteJWKS: () => Promise<CryptoKey>;
     notBefore?: number;
 }
 
 export type ConnectorKeys = {
     kid: string,
-    publicJwk: JWK;
-    privateJwk: JWK;
+    alg: string,
+    use: string,
+    publicKey: CryptoKey,
+    privateKey: CryptoKey,
 }
 
 export type KeycloakConnectorExposedProperties = ReturnType<KeycloakConnector<any>['getExposed']>;
@@ -42,7 +40,12 @@ export type KeycloakConnectorExposedProperties = ReturnType<KeycloakConnector<an
 export type KeycloakConnectorConfigCustom =
     Omit<Partial<KeycloakConnectorConfigBase>, 'oidcClientMetadata'> &
     Pick<KeycloakConnectorConfigBase, 'authServerUrl' | 'realm' | 'serverOrigin'> & {
-    oidcClientMetadata?: Partial<ClientMetadata>,
+    oidcClientMetadata?: Partial<ClientMetadata> & {
+        /** @deprecated Use {@link KeycloakConnectorConfigBase#redirectUris} */
+        redirect_uris?: string[],
+        /** @deprecated Use {@link KeycloakConnectorConfigBase#postLogoutRedirectUris} */
+        post_logout_redirect_uris?: string[],
+    },
 }
 
 export enum StateOptions {
@@ -96,6 +99,12 @@ export interface KeycloakConnectorConfigBase {
     /** How often should we ping the OP for an updated oidc configuration */
     refreshConfigMins?: number;
 
+    /** Override valid redirect uris for post-login */
+    redirectUris?: string[];
+
+    /** Override valid redirect uris for post-logout */
+    postLogoutRedirectUris?: string[];
+
     /** Pino logger reference */
     pinoLogger?: Logger;
 
@@ -148,7 +157,7 @@ export interface KeycloakConnectorConfigBase {
      * Requires server to fetch user info for each validated access token
      * @default true
      */
-    fetchUserInfo?: boolean | ((userInfo: UserinfoResponse) => UserinfoResponse);
+    fetchUserInfo?: boolean | ((userInfo: UserInfoResponse) => UserInfoResponse);
 
     /**
      * Holds the base domain used for setting the wildcard domain property of cookies sent to the browser.
@@ -191,7 +200,7 @@ export type PluginDecorators = Record<string, unknown>;
 
 export interface ConnectorRequest<
     KcRouteConfig extends object = Record<string, unknown>,
-    KcClaims extends object = Record<string, unknown>
+    KcClaims extends Record<string, JsonValue | undefined> = NonNullable<unknown>
 > {
     origin?: string;
     url: string;
@@ -304,12 +313,14 @@ export type RequiredRoles<
 
 export type KcAccessJWT = OidcIdToken & OidcStandardClaims & KcAccessClaims;
 
-export type RefreshTokenSet = TokenSetParameters & Required<Pick<TokenSetParameters, 'access_token' | 'refresh_token'>> & {
+export type ExtendedRefreshTokenSet = {
     accessToken: KcAccessJWT,
+    expiresAt: number,
+    tokenSet: TokenEndpointResponse & Required<Pick<TokenEndpointResponse, 'refresh_token'>>
 }
 
 export type RefreshTokenSetResult = {
-    refreshTokenSet: RefreshTokenSet,
+    extendedRefreshTokenSet: ExtendedRefreshTokenSet,
     shouldUpdateCookies: boolean,
 }
 
@@ -497,14 +508,22 @@ interface OidcStandardClaims {
     updated_at?: number;
 }
 
+export type OidcDiscoveryConfig =
+    Pick<KeycloakConnectorConfigBase, 'oidcClientMetadata' | 'pinoLogger' | 'DANGEROUS_disableJwtClientAuthentication'> & {
+    connectorKeys: ConnectorKeys,
+}
 
 
-export interface UserData<KcClaims extends object = Record<string, unknown>> {
+export type UserInfoResponseExtended<
+    KcClaims extends Record<string, JsonValue | undefined> = NonNullable<unknown>
+> = UserInfoResponse & KcAccessClaims & KcClaims;
+
+export interface UserData<KcClaims extends Record<string, JsonValue | undefined> = NonNullable<unknown>> {
     isAuthenticated: boolean;
     isAuthorized: boolean;
     // roles: KeycloakRole[];
     accessToken?: KcAccessJWT;
-    userInfo?: UserinfoResponse<KcAccessClaims & KcClaims> | undefined;
+    userInfo?: UserInfoResponseExtended<KcClaims> | undefined;
     userStatus?: UserStatus
 }
 

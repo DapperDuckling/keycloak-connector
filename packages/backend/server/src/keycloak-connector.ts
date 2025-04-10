@@ -1,13 +1,5 @@
 import {sleep} from "./helpers/utils.js";
-import {
-    type ClientMetadata,
-    errors,
-    generators,
-    Issuer,
-    type IssuerMetadata,
-    TokenSet,
-    type UserinfoResponse
-} from "openid-client";
+import * as OpenidClient from "openid-client";
 import {
     type ConnectorRequest,
     type ConnectorResponse,
@@ -15,8 +7,8 @@ import {
     type CookieParams,
     type KeycloakConnectorConfigBase,
     type KeycloakConnectorConfigCustom,
-    type KeycloakConnectorInternalConfiguration,
-    type RefreshTokenSet,
+    type KeycloakConnectorInternalConfiguration, type OidcDiscoveryConfig,
+    type ExtendedRefreshTokenSet,
     type RefreshTokenSetResult,
     StateOptions,
     type SupportedServers,
@@ -25,7 +17,6 @@ import {
     VerifiableJwtTokenTypes
 } from "./types.js";
 import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapter/abstract-adapter.js";
-import type {JWK} from "jose";
 import * as jose from 'jose';
 import {ConnectorErrorRedirect, ErrorHints, LoginError} from "./helpers/errors.js";
 import {
@@ -52,11 +43,10 @@ import {silentLoginResponseHTML} from "./browser-login-helpers/silent-login.js";
 import hash from "object-hash";
 import {fileURLToPath} from "url";
 import path, {dirname} from "path";
-import RPError = errors.RPError;
-import OPError = errors.OPError;
 import {loginListenerHTML} from "./browser-login-helpers/login-listener.js";
 import * as fs from "fs";
 import {CookieStore} from "./cookie-store.js";
+import type {UserInfoResponse} from "oauth4webapi";
 
 const STATIC_FILE_DIR = [dirname(fileURLToPath(import.meta.url)), 'static', ""].join(path.sep);
 
@@ -105,7 +95,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         this.components = components;
 
         this.roleHelper = new RoleHelper({
-            defaultResourceAccessKey : this._config.defaultResourceAccessKey ?? this.components.oidcClient.metadata.client_id,
+            defaultResourceAccessKey : this._config.defaultResourceAccessKey ?? this.components.oidcConfig.clientMetadata().client_id,
             pinoLogger : this._config.pinoLogger,
             caseSensitiveRoleCheck: this._config.caseSensitiveRoleCheck,
         });
@@ -146,7 +136,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         for (const [fileKey, htmlContents] of Object.entries(this.HTML_PAGES)) {
             // Simple match and replace
-            this.HTML_PAGES[fileKey] = htmlContents.replaceAll(/\${(\w*)}/g, (match, key) => staticPageReplacements[key] ?? match);
+            this.HTML_PAGES[fileKey] = htmlContents.replaceAll(/\${(\w*)}/g, (match, key: string) => staticPageReplacements[key] ?? match);
         }
 
         const globalCookieOptions: CookieParams<Server>['options'] = {};
@@ -306,7 +296,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         });
     }
 
-    private handleFailedStaticServe = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
+    private handleFailedStaticServe = async (): Promise<ConnectorResponse<Server>> => {
         this._config.pinoLogger?.error("Failed to serve static file");
         return {
             statusCode: 500,
@@ -316,7 +306,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private handleLoginGet = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
         // Check if the user is already logged in
         const redirectIfAuthenticated = await this.redirectIfAuthenticated(req, false);
-        if (redirectIfAuthenticated) return redirectIfAuthenticated;
+        if (redirectIfAuthenticated !== false) return redirectIfAuthenticated;
 
         // Otherwise, serve the login page
         return {
@@ -388,14 +378,15 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Check if the user is already logged in
         const redirectIfAuthenticated = await this.redirectIfAuthenticated(req);
-        if (redirectIfAuthenticated) return redirectIfAuthenticated;
+        if (redirectIfAuthenticated !== false) return redirectIfAuthenticated;
 
         // Generate random values
-        const cv = generators.codeVerifier();
+        const cv = OpenidClient.randomPKCECodeVerifier();
+        const codeChallenge = await OpenidClient.calculatePKCECodeChallenge(cv);
 
         // The login flow nonce is a custom parameter to help the user experience in case they attempt to sign in across multiple pages at the same time
         // Once KC returns a valid login, the nonce will be used to grab the cookies unique to this login attempt
-        const authFlowNonce = generators.nonce();
+        const authFlowNonce = OpenidClient.randomNonce();
 
         // Check if this is a silent request
         const [silentRequestType, silentRequestToken] = this.silentRequestConfig(req);
@@ -408,9 +399,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
             silentRequestToken: silentRequestToken
         });
 
-        const authorizationUrl = this.components.oidcClient.authorizationUrl({
+        // const authorizationUrl = this.components.oidcClient.authorizationUrl({
+        const authorizationUrl = OpenidClient.buildAuthorizationUrl(this.components.oidcConfig, {
             code_challenge_method: "S256",
-            code_challenge: generators.codeChallenge(cv),
+            code_challenge: codeChallenge,
             redirect_uri: redirectUri,
             response_mode: "jwt",
             scope: "openid",
@@ -439,7 +431,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
        cookies.add(redirectCookie);
 
         return {
-            redirectUrl: authorizationUrl,
+            redirectUrl: authorizationUrl.toString(),
             statusCode: 303,
             cookies: cookies,
         }
@@ -590,8 +582,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Grab the base redirect uri
         const redirectUriBase = (!config.isLogout) ?
-            this.components.oidcClient.metadata.redirect_uris?.[0] :
-            this.components.oidcClient.metadata.post_logout_redirect_uris?.[0];
+            this._config.redirectUris?.[0] :
+            this._config.postLogoutRedirectUris?.[0];
 
         // Ensure we found a URI to use
         if (redirectUriBase === undefined) {
@@ -720,6 +712,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
         });
 
         try {
+            const tokenSet = await OpenidClient.authorizationCodeGrant(this.components.oidcConfig, req.url, {
+                pkceCodeVerifier: inputCookies.codeVerifier,
+                expectedState: OpenidClient.skipStateCheck,
+            })
             const tokenSet = await this.components.oidcClient.callback(
                 redirectUri,
                 this.components.oidcClient.callbackParams(req.url),
@@ -1081,10 +1077,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Verify the token
         const verifyResult = await jose.jwtVerify(jwt, this.components.remoteJWKS, {
-            issuer: this.components.oidcIssuer.metadata.issuer,
+            issuer: this.components.oidcConfig.serverMetadata().issuer,
             ...audience && {audience: audience},
             currentDate: currDate,
-            ...maxAge && {maxTokenAge: maxAge},
+            ...maxAge !== null && {maxTokenAge: maxAge},
             requiredClaims: requiredClaims,
         });
 
@@ -1114,7 +1110,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         //          The configuration below blends the requirement, verifying the azp if it exists otherwise ignoring it.
         const jwtAzp = verifyResult.payload['azp'];
         if (!accessTokenAudienceCheckPass && jwtAzp !== undefined && authorizedParty !== null && jwtAzp !== authorizedParty)  {
-            throw new Error(`Mismatch AZP claim, expected ${this.components.oidcClient.metadata.client_id}`);
+            throw new Error(`Mismatch AZP claim, expected ${this._config.oidcClientMetadata.client_id}`);
         }
 
         // Removed: IAT validated by jose already
@@ -1134,7 +1130,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Execute the following loop at most twice
         let numOfLoopExecutions = 0;
 
-        let userInfo: UserinfoResponse | undefined;
+        let userInfo: UserInfoResponse | undefined;
         let userDataResponse: UserDataResponse<Server>;
         let userData: UserData;
 
@@ -1164,7 +1160,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             if (userData.accessToken === undefined || validatedAccessJwt === undefined) return userDataResponse;
 
             // Skip handling grabbing user info if not required
-            if (!this._config.fetchUserInfo) break;
+            if (this._config.fetchUserInfo === false || this._config.fetchUserInfo === undefined) break;
 
             // Check if this route wants to verify user info
             if (connectorRequest.routeConfig.verifyUserInfoWithServer) {
@@ -1297,13 +1293,13 @@ export class KeycloakConnector<Server extends SupportedServers> {
             if (refreshTokenSetResult === undefined) return;
 
             // Expand variables
-            const {refreshTokenSet, shouldUpdateCookies} = refreshTokenSetResult;
+            const {extendedRefreshTokenSet, shouldUpdateCookies} = refreshTokenSetResult;
 
             // Pass the new TokenSet to the handler and grab the resultant cookie(s)
-            const cookies = this.validateAndHandleTokenSet(refreshTokenSet);
+            const cookies = this.validateAndHandleTokenSet(extendedRefreshTokenSet);
 
             // Store the access token in the response
-            userDataResponse.userData.accessToken = refreshTokenSet.accessToken;
+            userDataResponse.userData.accessToken = extendedRefreshTokenSet.accessToken;
 
             // Record the token pair in the response cookies
             if (shouldUpdateCookies) {
@@ -1312,7 +1308,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             }
 
             // Return the validated access token
-            return refreshTokenSetResult.refreshTokenSet.access_token;
+            return refreshTokenSetResult.extendedRefreshTokenSet.tokenSet.access_token;
         } catch (e) {
             if (isObject(e)) this._config.pinoLogger?.warn(e);
             this._config.pinoLogger?.warn(`Failed to get new TokenSet using refresh token`);
@@ -1339,7 +1335,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             // Validate access token with keycloak server if required
             if (validateAccessTokenWithServer) {
-                const introspectResult = await this.components.oidcClient.introspect(accessJwt, 'access_token');
+
+                const introspectResult = await OpenidClient.tokenIntrospection(this.components.oidcConfig, accessJwt);
 
                 // Check result
                 if (!introspectResult.active) {
@@ -1394,14 +1391,15 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return undefined;
     }
 
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     private hasOtherOrigins = () => !!this._config.validOrigins?.length;
 
     /**
      * @throws OPError
-     * @param tokenSet
      * @private
+     * @param extendedRefreshTokenSet
      */
-    private validateAndHandleTokenSet(tokenSet: TokenSet | RefreshTokenSet): CookieStore<Server> {
+    private validateAndHandleTokenSet(extendedRefreshTokenSet: ExtendedRefreshTokenSet): CookieStore<Server> {
 
         // Check the state configuration
         //todo: add support for stateful
@@ -1409,17 +1407,18 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // todo: move this to its own method
         // Handle stateless configuration
 
+        const {tokenSet, expiresAt} = extendedRefreshTokenSet;
+
         // Ensure certain properties exist (and make typescript happy)
-        if (!tokenSet.refresh_token ||
-            !tokenSet.access_token  ||
-            !tokenSet.id_token      ||
-            !tokenSet.expires_at
+        if (tokenSet.refresh_token === undefined ||
+            tokenSet.id_token === undefined ||
+            tokenSet.expires_in === undefined
         ) {
             throw new OPError({error: "Missing required properties from OP"});
         }
 
-        // Decode the refresh token to grab the expiration date
-        const refreshTokenExpiration = jose.decodeJwt(tokenSet.refresh_token).exp ?? tokenSet.expires_at;
+        // Decode the refresh token to grab the expiration date or use the token set expiration as a backup
+        const refreshTokenExpiration = jose.decodeJwt(tokenSet.refresh_token).exp ?? expiresAt;
 
         // Collect the cookies we would like the server to send back
         const cookies = this.cookieStoreGenerator();
@@ -1430,7 +1429,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             value: tokenSet.access_token,
             options: {
                 ...(this.hasOtherOrigins()) ? this.CookieOptionsUnrestricted : this.CookieOptions,
-                expires: new Date(tokenSet.expires_at * 1000),
+                expires: new Date(expiresAt * 1000),
             }
         });
 
@@ -1494,12 +1493,16 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
     }
 
+    /**
+     * Appears as if this function exists to test the connection to the oidc server using the newly updated config
+     */
     private updateOidcServer = async () => {
         const updateId = webcrypto.randomUUID();
+        // TODO: test this
 
         for (let retries= 0; retries<4; retries++) {
             try {
-                await this.components.oidcClient.introspect("");
+                await OpenidClient.tokenIntrospection(this.components.oidcConfig, "");
                 this._config.pinoLogger?.debug(`(id: ${updateId}) Successfully updated oidc server`);
                 return;
             } catch (e) {
@@ -1541,52 +1544,29 @@ export class KeycloakConnector<Server extends SupportedServers> {
             try {
                 this._config.pinoLogger?.debug(`Starting OIDC update`);
 
-                let shouldUpdate = false;
+                const connectorKeys = await this.components.keyProvider.getActiveKeys();
 
                 // Attempt to grab a new configuration
-                const newOidcConfig = await KeycloakConnector.fetchOpenIdConfig(this.components.oidcDiscoveryUrl, this._config);
+                const newOidcConfig = await KeycloakConnector.fetchOpenIdConfig(this.components.oidcDiscoveryUrl, {
+                    ...this._config,
+                    connectorKeys,
+                });
 
-                // Check for a configuration and check it is an update to the existing one
-                if (newOidcConfig && JSON.stringify(newOidcConfig) !== JSON.stringify(this.components.oidcConfig)) {
-                    // Store the configuration
-                    this.components.oidcConfig = newOidcConfig;
-                    shouldUpdate = true;
-                }
+                // Check for no config
+                if (newOidcConfig === null) return false;
 
                 // Ensure we have a JWKS uri
-                if (this.components.oidcConfig.jwks_uri === undefined) {
+                const serverJwksUri = newOidcConfig.serverMetadata().jwks_uri;
+                if (serverJwksUri === undefined) {
                     this._config.pinoLogger?.error(`Authorization server provided no JWKS_URI, cannot find public keys to verify tokens against`);
                     return false;
                 }
 
+                // Store the configuration
+                this.components.oidcConfig = newOidcConfig;
+
                 // Update the remote JWT set function
-                this.components.remoteJWKS = KeycloakConnector.createRemoteJWTSet(this.components.oidcConfig.jwks_uri);
-
-                // Grab the latest connector keys
-                const newConnectorKeys = await this.components.keyProvider.getActiveKeys();
-
-                if (newConnectorKeys !== this.components.connectorKeys) {
-                    // Store the new keys
-                    this.components.connectorKeys = newConnectorKeys;
-                    shouldUpdate = true;
-                }
-
-                // Check if we should update
-                if (!shouldUpdate) {
-                    this._config.pinoLogger?.debug(`No changes to OIDC keys or configuration, not updating!`);
-                    return true;
-                }
-
-                // Handle configuration change
-                ({
-                    oidcIssuer: this.components.oidcIssuer,
-                    oidcClient: this.components.oidcClient
-                } = await KeycloakConnector.createOidcClients(
-                    this.components.oidcConfig,
-                    this._config.oidcClientMetadata,
-                    this.components.connectorKeys.privateJwk,
-                    this._config.DANGEROUS_disableJwtClientAuthentication
-                ));
+                this.components.remoteJWKS = KeycloakConnector.createRemoteJWTSet(serverJwksUri);
 
                 this._config.pinoLogger?.debug(`OIDC update complete`);
                 return true;
@@ -1621,6 +1601,12 @@ export class KeycloakConnector<Server extends SupportedServers> {
             fetchUserInfo: true,
             DANGEROUS_disableJwtClientAuthentication: (process.env?.['DANGEROUS_KC_DISABLE_JWT_CLIENT_AUTHENTICATION'] === "true"),
             eagerRefreshTime: 5,
+            redirectUris: [
+                KeycloakConnector.getRouteUri(RouteEnum.CALLBACK, customConfig),
+            ],
+            postLogoutRedirectUris: [
+                KeycloakConnector.getRouteUri(RouteEnum.LOGOUT_CALLBACK, customConfig),
+            ],
 
             // Consumer provided configuration
             ...customConfig,
@@ -1635,12 +1621,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
                 client_id: customConfig.clientId ?? process.env?.['KC_CLIENT_ID'] ?? EMPTY_STRING,
                 client_secret: customConfig.clientSecret ?? process.env?.['KC_CLIENT_SECRET'] ?? EMPTY_STRING,
-                redirect_uris: [
-                    KeycloakConnector.getRouteUri(RouteEnum.CALLBACK, customConfig),
-                ],
-                post_logout_redirect_uris: [
-                    KeycloakConnector.getRouteUri(RouteEnum.LOGOUT_CALLBACK, customConfig),
-                ],
 
                 // Consumer provided metadata
                 ...customConfig.oidcClientMetadata,
@@ -1649,18 +1629,31 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 response_types: ['code'],
 
                 // Force certain auth method and signing algorithms based on FAPI
-                token_endpoint_auth_method: 'private_key_jwt',
-                tls_client_certificate_bound_access_tokens: false,
+                token_endpoint_auth_method: 'private_key_jwt', //TODO: ** THIS IS REMOVED
+                tls_client_certificate_bound_access_tokens: false, //TODO: ** THIS IS REMOVED
                 // Removed auth methods, defaults to above setting
                 // introspection_endpoint_auth_method: 'private_key_jwt',
                 // revocation_endpoint_auth_method: 'private_key_jwt',
                 id_token_signed_response_alg: KeycloakConnector.REQUIRED_ALGO,
                 authorization_signed_response_alg: KeycloakConnector.REQUIRED_ALGO,
-                token_endpoint_auth_signing_alg: KeycloakConnector.REQUIRED_ALGO,
-                request_object_signing_alg: KeycloakConnector.REQUIRED_ALGO,
-                introspection_endpoint_auth_signing_alg: KeycloakConnector.REQUIRED_ALGO,
-                revocation_endpoint_auth_signing_alg: KeycloakConnector.REQUIRED_ALGO,
+                introspection_signed_response_alg: KeycloakConnector.REQUIRED_ALGO,
+
+                // TODO: Figure out if we can force a certain signature. Are we required to? Looks like it just uses whatever the server supports
+                token_endpoint_auth_signing_alg: KeycloakConnector.REQUIRED_ALGO, //TODO: ** THIS IS REMOVED
+                request_object_signing_alg: KeycloakConnector.REQUIRED_ALGO, //TODO: ** THIS IS REMOVED
+                revocation_endpoint_auth_signing_alg: KeycloakConnector.REQUIRED_ALGO, //TODO: ** THIS IS REMOVED
             }
+        }
+
+        // Handle deprecation cases
+        if (customConfig.oidcClientMetadata?.redirect_uris !== undefined) {
+            config.pinoLogger?.warn(`redirect_uris is deprecated`);
+            if (customConfig.redirectUris === undefined) customConfig.redirectUris = config.oidcClientMetadata['redirect_uris'] as string[];
+        }
+
+        if (customConfig.oidcClientMetadata?.post_logout_redirect_uris !== undefined) {
+            config.pinoLogger?.warn(`post_logout_redirect_uris is deprecated`);
+            if (customConfig.postLogoutRedirectUris === undefined) customConfig.postLogoutRedirectUris = config.oidcClientMetadata['post_logout_redirect_uris'] as string[];
         }
 
         // Manipulate pino logger to embed a _prefix into each message
@@ -1681,8 +1674,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Check for invalid client metadata
         if (config.oidcClientMetadata.client_id === EMPTY_STRING) throw new Error(`Client ID not specified or environment variable "KC_CLIENT_ID" not found`);
-        if (config.oidcClientMetadata.redirect_uris === undefined || config.oidcClientMetadata.redirect_uris.length === 0)  throw new Error(`No login redirect URIs specified`);
-        if (config.oidcClientMetadata.post_logout_redirect_uris === undefined || config.oidcClientMetadata.post_logout_redirect_uris.length === 0)  throw new Error(`No post logout redirect URIs specified`);
+        if (config.redirectUris === undefined || config.redirectUris.length === 0)  throw new Error(`No login redirect URIs specified`);
+        if (config.postLogoutRedirectUris === undefined || config.postLogoutRedirectUris.length === 0)  throw new Error(`No post logout redirect URIs specified`);
 
         // Check for the dangerous condition
         if (config.DANGEROUS_disableJwtClientAuthentication) {
@@ -1707,9 +1700,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Attempt to connect to a cluster
         await config.clusterProvider?.connectOrThrow();
 
-        // Grab the oidc configuration from the OP
-        const openIdConfig = await KeycloakConnector.fetchInitialOpenIdConfig(oidcDiscoveryUrl, config);
-
         // Grab the server's private/public JWKs (uses the standalone key provider as default)
         const keyProviderConfig: KeyProviderConfig = {
             ...config.pinoLogger && {pinoLogger: config.pinoLogger},
@@ -1718,27 +1708,26 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const keyProvider = await (config.keyProvider ?? standaloneKeyProvider)(keyProviderConfig);
         const connectorKeys = await keyProvider.getActiveKeys();
 
-        // Grab the oidc clients
-        const oidcClients = await KeycloakConnector.createOidcClients(
-            openIdConfig,
-            config.oidcClientMetadata,
-            connectorKeys.privateJwk,
-            config.DANGEROUS_disableJwtClientAuthentication
-        );
+        // Grab the oidc configuration from the OP
+        const oidcConfig = await KeycloakConnector.fetchInitialOpenIdConfig(oidcDiscoveryUrl, {
+            ...config,
+            connectorKeys,
+        });
 
         // Ensure we have a JWKS uri
-        if (oidcClients.oidcIssuer.metadata.jwks_uri === undefined) {
+        const serverJwksUri = oidcConfig.serverMetadata().jwks_uri;
+        if (serverJwksUri === undefined) {
             throw new Error('Authorization server provided no JWKS_URI, cannot find public keys to verify tokens against');
         }
 
         // Store the OP JWK set
-        const remoteJWKS = KeycloakConnector.createRemoteJWTSet(oidcClients.oidcIssuer.metadata.jwks_uri);
+        const remoteJWKS = KeycloakConnector.createRemoteJWTSet(serverJwksUri);
 
         // Prepare the caches
         const cacheOptions = {
             ...config.pinoLogger && {pinoLogger: config.pinoLogger},
             ...config.clusterProvider && {clusterProvider: config.clusterProvider},
-            oidcClient: oidcClients.oidcClient,
+            oidcConfig,
         };
 
         // Initialize the token cache
@@ -1749,13 +1738,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         const components: KeycloakConnectorInternalConfiguration = {
             oidcDiscoveryUrl: oidcDiscoveryUrl,
-            oidcConfig: openIdConfig,
+            oidcConfig: oidcConfig,
             keyProvider: keyProvider,
             tokenCache: tokenCache,
             userInfoCache: userInfoCache,
-            ...oidcClients,
             remoteJWKS: remoteJWKS,
-            connectorKeys: connectorKeys,
         }
 
         // Return the new connector
@@ -1769,29 +1756,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         });
     }
 
-    private static async createOidcClients(
-        newOidcConfig: IssuerMetadata,
-        oidcClientMetadata: ClientMetadata,
-        privateJwk: JWK,
-        DANGEROUS_disableJwtClientAuthentication: boolean = false
-    ) {
-
-        // Initialize Issuer with the new config
-        const oidcIssuer = new Issuer(newOidcConfig);
-
-        // Determine the client to use
-        const clientConstructor = DANGEROUS_disableJwtClientAuthentication ? oidcIssuer.Client : oidcIssuer.FAPI1Client;
-
-        // Initialize the new Client
-        const oidcClient = new clientConstructor(oidcClientMetadata, {keys: [privateJwk]});
-
-        return {
-            oidcIssuer: oidcIssuer,
-            oidcClient: oidcClient
-        };
-    }
-
-    private static async fetchInitialOpenIdConfig(oidcDiscoveryUrl: string, config: KeycloakConnectorConfigBase): Promise<IssuerMetadata> {
+    private static async fetchInitialOpenIdConfig(oidcDiscoveryUrl: string, config: OidcDiscoveryConfig): Promise<OpenidClient.Configuration> {
 
         const MAX_ATTEMPTS = 15;
         let attempts = 0;
@@ -1820,22 +1785,26 @@ export class KeycloakConnector<Server extends SupportedServers> {
         throw new Error(`Failed to fetch OIDC config from remote server after ${MAX_ATTEMPTS} tries. Cannot start.`);
     }
 
-    private static async fetchOpenIdConfig(oidcDiscoveryUrl: string, config: KeycloakConnectorConfigBase): Promise<IssuerMetadata | null> {
+    private static async fetchOpenIdConfig(oidcDiscoveryUrl: string, config: OidcDiscoveryConfig): Promise<OpenidClient.Configuration | null> {
 
         try {
             config.pinoLogger?.info(`Fetching oidc configuration from ${oidcDiscoveryUrl}`);
 
-            // Fetch latest openid-config data
-            const result = await fetch(oidcDiscoveryUrl, {signal: AbortSignal.timeout(60000)});
+            // Grab the correct client auth
+            const clientAuth = config.DANGEROUS_disableJwtClientAuthentication ?
+                OpenidClient.ClientSecretBasic(config.oidcClientMetadata.client_secret) :
+                OpenidClient.PrivateKeyJwt({
+                    key: config.connectorKeys.privateKey,
+                    kid: config.connectorKeys.kid,
+                });
 
-            // Check for an incorrect status code
-            if (result.status !== 200) {
-                config.pinoLogger?.warn(`Could not fetch openid-configuration, unexpected response from auth server: ${result.status}`);
-                return null;
-            }
-
-            // Grab the json value
-            return Object.freeze(await result.json()) as IssuerMetadata;
+            // Grab the config
+            return await OpenidClient.discovery(
+                new URL(oidcDiscoveryUrl),
+                config.oidcClientMetadata.client_id,
+                config.oidcClientMetadata,
+                clientAuth
+            );
 
         } catch (e) {
             // Log the error
@@ -1857,7 +1826,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         return config.serverOrigin + getRoutePath(route, config.routePaths);
     }
 
-    get oidcConfig(): IssuerMetadata | null {
+    get oidcConfig(): OpenidClient.Configuration | null {
         return this.components.oidcConfig;
     }
 

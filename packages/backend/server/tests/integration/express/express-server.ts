@@ -26,8 +26,10 @@ app.use(cookieParser());
 // Initialize the keycloak connector
 const {registerAuthPlugin} = await keycloakConnectorExpress(app, {
     serverOrigin: `http://localhost:3005`,
-    authServerUrl: 'http://localhost:8080',
-    realm: 'local-dev',
+    ...(process.env['KC_SERVER_DISCOVERY_URL'] && {oidcDiscoveryUrlOverride: process.env['KC_SERVER_DISCOVERY_URL']}),
+    authServerUrl: process.env['KC_SERVER'] ?? 'http://localhost:8080/',
+    ...(process.env['KC_CLIENT_ID'] && {clientId: process.env['KC_CLIENT_ID']}),
+    realm: process.env['KC_REALM'] ?? 'local-dev',
     refreshConfigMins: -1, // Disable for dev testing
     pinoLogger: loggerHttp.logger,
     fetchUserInfo: true,

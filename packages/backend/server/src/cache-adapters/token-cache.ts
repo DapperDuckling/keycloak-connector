@@ -1,30 +1,31 @@
-import type {RefreshTokenSet, RefreshTokenSetResult} from "../types.js";
-import type {BaseClient, TokenSet} from "openid-client";
+import type {ExtendedRefreshTokenSet, RefreshTokenSetResult} from "../types.js";
 import * as jose from 'jose';
 import type {CacheProvider} from "../cache/cache-provider.js";
 import {cacheFactory} from "../cache/cache-factory.js";
 import type {CacheAdapterConfig} from "./abstract-cache-adapter.js";
 import {AbstractCacheAdapter} from "./abstract-cache-adapter.js";
 import {isObject} from "@dapperduckling/keycloak-connector-common";
+import * as OpenidClient from "openid-client";
+import type {TokenEndpointResponse} from "oauth4webapi";
 
 export type TokenCacheConfig = CacheAdapterConfig & {
-    oidcClient: BaseClient,
+    oidcConfig: OpenidClient.Configuration,
 }
 
 export type TokenCacheProvider = (...args: ConstructorParameters<typeof TokenCache>) => Promise<TokenCache>;
 
-export class TokenCache extends AbstractCacheAdapter<RefreshTokenSet, [string]> {
+export class TokenCache extends AbstractCacheAdapter<ExtendedRefreshTokenSet, [string]> {
 
     protected static REFRESH_HOLDOVER_WINDOW_SECS = 60; // Will be up to double this value if cluster cache is used
 
     protected override config: TokenCacheConfig;
-    protected cacheProvider: CacheProvider<RefreshTokenSet, [string]>;
+    protected cacheProvider: CacheProvider<ExtendedRefreshTokenSet, [string]>;
 
     constructor(config: TokenCacheConfig) {
         super(config);
         this.config = config;
 
-        this.cacheProvider = cacheFactory<RefreshTokenSet, [string]>({
+        this.cacheProvider = cacheFactory<ExtendedRefreshTokenSet, [string]>({
             ...this.cacheConfig,
             title: `TokenCache`,
             ttl: TokenCache.REFRESH_HOLDOVER_WINDOW_SECS,
@@ -42,18 +43,18 @@ export class TokenCache extends AbstractCacheAdapter<RefreshTokenSet, [string]> 
         const cacheResult = await this.cacheProvider.getFromJwt(validatedRefreshJwt, 'jti', [validatedRefreshJwt]);
 
         return (cacheResult) ? {
-            refreshTokenSet: cacheResult.data,
+            extendedRefreshTokenSet: cacheResult.data,
             shouldUpdateCookies: cacheResult.dataGenerator ?? false
         } : undefined;
     }
 
-    protected performTokenRefresh = async (validatedRefreshJwt: string): Promise<RefreshTokenSet | undefined> => {
+    protected performTokenRefresh = async (validatedRefreshJwt: string): Promise<ExtendedRefreshTokenSet | undefined> => {
 
-        let tokenSet: TokenSet;
+        let tokenSet: TokenEndpointResponse;
 
         try {
             // Perform the refresh
-            tokenSet = await this.config.oidcClient.refresh(validatedRefreshJwt);
+            tokenSet = await OpenidClient.refreshTokenGrant(this.config.oidcConfig, validatedRefreshJwt);
         } catch (e) {
             // Do not dump the error if the token is only not active
             if (e instanceof Error &&
@@ -79,11 +80,19 @@ export class TokenCache extends AbstractCacheAdapter<RefreshTokenSet, [string]> 
             return undefined;
         }
 
+        // Check for an expiration time
+        if (tokenSet.expires_in === undefined) {
+            this.config.pinoLogger?.error(`Missing "expires_in" in refresh response`);
+            return undefined;
+        }
+
         return {
-            ...tokenSet,
-            access_token: tokenSet.access_token,
-            refresh_token: tokenSet.refresh_token,
+            tokenSet: {
+                ...tokenSet,
+                refresh_token: tokenSet.refresh_token,
+            },
             accessToken: jose.decodeJwt(tokenSet.access_token),
+            expiresAt: Math.floor(Date.now() / 1000) + tokenSet.expires_in,
         }
 
     };

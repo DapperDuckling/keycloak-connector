@@ -1,26 +1,26 @@
 import type {CacheAdapterConfig} from "./abstract-cache-adapter.js";
 import {AbstractCacheAdapter} from "./abstract-cache-adapter.js";
-import type {BaseClient, UserinfoResponse} from "openid-client";
 import {cacheFactory} from "../cache/cache-factory.js";
 import {CacheProvider} from "../cache/cache-provider.js";
-import {errors} from "openid-client";
-import RPError = errors.RPError;
 import {isObject} from "@dapperduckling/keycloak-connector-common";
+import * as OpenidClient from "openid-client";
+import {type UserInfoResponse} from "oauth4webapi";
+import * as jose from "jose";
 
 export type UserInfoCacheConfig = CacheAdapterConfig & {
-    oidcClient: BaseClient,
+    oidcConfig: OpenidClient.Configuration,
 }
 
-export class UserInfoCache extends AbstractCacheAdapter<UserinfoResponse, [string]> {
+export class UserInfoCache extends AbstractCacheAdapter<UserInfoResponse, [string]> {
 
     protected override config: UserInfoCacheConfig;
-    protected cacheProvider: CacheProvider<UserinfoResponse, [string]>;
+    protected cacheProvider: CacheProvider<UserInfoResponse, [string]>;
 
     constructor(config: UserInfoCacheConfig) {
         super(config);
         this.config = config;
 
-        this.cacheProvider = cacheFactory<UserinfoResponse, [string]>({
+        this.cacheProvider = cacheFactory<UserInfoResponse, [string]>({
             ...this.cacheConfig,
             title: `UserInfoCache`,
             ttl: 3600,
@@ -32,7 +32,7 @@ export class UserInfoCache extends AbstractCacheAdapter<UserinfoResponse, [strin
         await this.cacheProvider.invalidateFromJwt(validatedJwt, 'jti');
     }
 
-    getUserInfo = async (validatedAccessJwt: string): Promise<UserinfoResponse | undefined> => {
+    getUserInfo = async (validatedAccessJwt: string): Promise<UserInfoResponse | undefined> => {
         // Grab the user info from cache (or generate it into cache)
         const cacheResult = await this.cacheProvider.getFromJwt(validatedAccessJwt, 'jti', [validatedAccessJwt]);
 
@@ -40,19 +40,29 @@ export class UserInfoCache extends AbstractCacheAdapter<UserinfoResponse, [strin
         return cacheResult?.data;
     }
 
-    private fetchUserInfo = async (validatedAccessJwt: string): Promise<UserinfoResponse | undefined> => {
+    private fetchUserInfo = async (validatedAccessJwt: string): Promise<UserInfoResponse | undefined> => {
         try {
-            return await this.config.oidcClient.userinfo(validatedAccessJwt);
+            // Grab the subject from the access token
+            const jwtSubject = jose.decodeJwt(validatedAccessJwt).sub;
+
+            // Ensure a subject exists
+            if (jwtSubject === undefined) {
+                this.config.pinoLogger?.error(`Failed to find a "sub" claim in access token, unable to perform user introspect. Enable "debug" log levels to see access token`);
+                this.config.pinoLogger?.debug(validatedAccessJwt);
+                return;
+            }
+
+            return await OpenidClient.fetchUserInfo(this.config.oidcConfig, validatedAccessJwt, jwtSubject);
         } catch (e) {
             // Check for a server misconfiguration
-            if (e instanceof RPError && e.message.includes("expected application/jwt response")) {
-                this.config.pinoLogger?.error(`Keycloak misconfiguration! See keycloak-connector-server readme for proper client configuration. (Need to set signature algorithm)`);
+            if (e instanceof Error && e.message.includes("expected application/jwt response")) {
+                this.config.pinoLogger?.error(`Possible Keycloak misconfiguration! See documentation for proper client configuration. (Need to set signature algorithm)`);
             }
 
             if (isObject(e)) this.config.pinoLogger?.debug(e);
             this.config.pinoLogger?.debug(`Failed to fetch user info from keycloak`);
         }
 
-        return Promise.resolve(undefined);
+        return;
     }
 }

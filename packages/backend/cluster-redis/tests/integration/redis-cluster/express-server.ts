@@ -34,8 +34,9 @@ export async function makeExpressServer(port: number) {
     // Initialize the keycloak connector
     await keycloakConnectorExpress(app, {
         serverOrigin: `http://localhost:${port}`,
-        authServerUrl: 'http://localhost:8080/',
-        realm: 'local-dev',
+        authServerUrl: process.env['KC_SERVER'] ?? 'http://localhost:8080/',
+        ...(process.env['KC_CLIENT_ID'] && {clientId: process.env['KC_CLIENT_ID']}),
+        realm: process.env['KC_REALM'] ?? 'local-dev',
         refreshConfigMins: -1, // Disable for dev testing
         clusterProvider: clusterProvider,
         keyProvider: clusterKeyProvider,

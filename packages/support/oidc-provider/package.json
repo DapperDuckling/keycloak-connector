@@ -1,0 +1,14 @@
+{
+  "name": "support-oidc-provider",
+  "version": "1.0.0",
+  "description": "Development tool to start simple oidc provider for testing",
+  "author": "DapperDuckling Dev LLC",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "oidc-provider": "^8.8.1"
+  }
+}

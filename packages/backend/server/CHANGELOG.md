@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Swapped cache provider logic to use deferred promise instead due to improper event listener usage
 - Added logic to retry syncing keys if the oidc provider reports issue with public key
 
+### Deprecated
+- `redirect_uris` and `post_logout_redirect_uris` for `redirectUris` and `postLogoutRedirectUris`
+
 ## [2.6.0] - 2024-12-26
 
 ### Added
