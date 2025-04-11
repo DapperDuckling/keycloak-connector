@@ -1,21 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module type="WEB_MODULE" version="4">
   <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$">
-      <excludeFolder url="file://$MODULE_DIR$/packages/backend/cluster-redis/dist" />
-      <excludeFolder url="file://$MODULE_DIR$/packages/backend/group-auth-plugin/dist" />
-      <excludeFolder url="file://$MODULE_DIR$/packages/backend/server/dist" />
-      <excludeFolder url="file://$MODULE_DIR$/packages/frontend/client/dist" />
-      <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react-custom-darksaber/dist" />
-      <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react/dist" />
-      <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react-custom-darksaber/example/.parcel-cache" />
-      <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react-custom-darksaber/example/.yalc" />
-      <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react-custom-darksaber/example/dist" />
-      <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react/example/.parcel-cache" />
-      <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react/example/.yalc" />
-      <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react/example/dist" />
-      <excludeFolder url="file://$MODULE_DIR$/packages/backend/server/examples/express/.yalc" />
-    </content>
+    <content url="file://$MODULE_DIR$" />
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>

@@ -1,0 +1,44 @@
+{
+  "realm": "dev-realm",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "keycloak-connector-dev",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "redirectUris": ["http://localhost:3005/*"],
+      "publicClient": false,
+      "clientAuthenticatorType": "client-jwt",
+      "attributes": {
+        "jwks.url": "http://host.docker.internal:3005/auth/k-jwks",
+        "id.token.signed.response.alg": "PS256",
+        "user.info.signed.response.alg": "PS256",
+        "authorization.signed.response.alg": "PS256",
+        "introspection.signed.response.alg": "PS256",
+        "use.jwks.url": "true"
+      },
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "test",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "test@example.com",
+      "requiredActions": [],
+      "firstName": "Test",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

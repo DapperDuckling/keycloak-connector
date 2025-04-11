@@ -1810,6 +1810,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 return null;
             }
 
+            config.pinoLogger?.info(`Received oidc configuration!`);
+
             return oidcConfig;
 
         } catch (e) {
