@@ -1,11 +1,12 @@
 import {AbstractClusterProvider} from "../cluster/index.js";
 import type {Logger} from "pino";
 import {LRUCache} from "lru-cache";
-import {promiseWait, promiseWaitTimeout, ttlFromExpiration, WaitTimeoutError} from "../helpers/utils.js";
+import {promiseWait, promiseWaitTimeout, ttlFromExpiration} from "../helpers/utils.js";
 import {webcrypto} from "crypto";
 import * as jose from 'jose';
 import type {JWTPayload} from "jose/dist/types/types.js";
 import {type Deferred, deferredFactory, isObject} from "@dapperduckling/keycloak-connector-common";
+import {WaitTimeoutError} from "../helpers/errors.js";
 
 export type CacheMissCallback<T, A extends any[] = any[]> = (...args: A) => Promise<T | undefined>;
 

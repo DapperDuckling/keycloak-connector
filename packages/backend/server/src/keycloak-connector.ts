@@ -18,7 +18,7 @@ import {
 } from "./types.js";
 import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapter/abstract-adapter.js";
 import * as jose from 'jose';
-import {ConnectorErrorRedirect, ErrorHints, LoginError} from "./helpers/errors.js";
+import {AuthServerError, ConnectorErrorRedirect, ErrorHints, LoginError} from "./helpers/errors.js";
 import {
     ConnectorCookies,
     epoch,
@@ -684,7 +684,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const sourceOrigin = this.originFromQuery(req);
 
         // Build the redirect uri
-        const redirectUri = this.buildRedirectUriOrThrow({
+        const redirectUri = this.buildRedirectUriOrThrow({ //TODO: FIGURE OUT IF REDIRECT URI IS STILL USED.
             authFlowNonce: authFlowNonce,
             sourceOrigin: sourceOrigin,
             silentRequestType: silentRequestType,
@@ -711,23 +711,23 @@ export class KeycloakConnector<Server extends SupportedServers> {
             ...this.CookieOptionsLax,
         });
 
+        // Get current url as URL object
+        const currentUrl = new URL(`${this._config.serverOrigin}${req.url}`);
+
         try {
-            const tokenSet = await OpenidClient.authorizationCodeGrant(this.components.oidcConfig, req.url, {
+            // TODO: Need to see if this sends the redirecturi to the auth server for checks. idk why though.
+            const tokenSet = await OpenidClient.authorizationCodeGrant(this.components.oidcConfig, currentUrl, {
                 pkceCodeVerifier: inputCookies.codeVerifier,
-                expectedState: OpenidClient.skipStateCheck,
-            })
-            const tokenSet = await this.components.oidcClient.callback(
-                redirectUri,
-                this.components.oidcClient.callbackParams(req.url),
-                {
-                    code_verifier: inputCookies.codeVerifier,
-                    jarm: true,
-                    response_type: "code",
-                }
-            );
+                expectedNonce: authFlowNonce,
+            }, {
+                redirectUri: redirectUri,
+            });
+
+            // Add extended data
+            const extendedTokenSet = TokenCache.extendTokenSet(tokenSet);
 
             // Pass the new TokenSet to the handler and grab the resultant cookie(s)
-            const tokenSetCookies = this.validateAndHandleTokenSet(tokenSet);
+            const tokenSetCookies = this.validateAndHandleTokenSet(extendedTokenSet);
 
             // Merge in the token set cookies
             cookies.merge(tokenSetCookies);
@@ -747,13 +747,13 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             // Check if silent login requires login
             if (silentRequestType !== SilentLoginTypes.NONE &&
-                e instanceof OPError &&
+                e instanceof Error &&
                 (e.message.includes("login_required") || e.message.includes("interaction_required"))
             ) {
                 return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED, sourceOrigin);
             }
 
-            if (e instanceof RPError) {
+            if (e instanceof Error) {
                 // Check for an expired JWT
                 if (e.message.includes("JWT expired")) {
                     // Hint to the login page the user took too long
@@ -773,7 +773,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
                     // This could be 400 or 500 error
                     throw new LoginError(ErrorHints.UNKNOWN);
                 }
-            } else if (e instanceof OPError) {
+            } else if (e instanceof Error) { // TODO: determine how to differentiate between OP and RP errors and other errors , then check for
                 // Check for inability to load a public key
                 if (e.message.includes("load public key")) {
                     this.components.keyProvider.triggerKeySync();
@@ -803,7 +803,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         this.validateOriginOrThrow(req);
 
         // This nonce will ensure authorization cookies are cleared automatically when KC returns
-        const authFlowNonce = generators.nonce();
+        const authFlowNonce = OpenidClient.randomNonce();
 
         // Build the redirect uri
         const redirectUri = this.buildRedirectUriOrThrow({authFlowNonce: authFlowNonce, isLogout: true});
@@ -821,10 +821,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const idToken = req.cookies?.[ConnectorCookies.ID_TOKEN];
 
         // Generate the logout url
-        const logoutUrl = this.components.oidcClient.endSessionUrl({
+        const logoutUrl = OpenidClient.buildEndSessionUrl(this.components.oidcConfig, {
             post_logout_redirect_uri: redirectUri,
             ...idToken && {id_token_hint: idToken},
-            client_id: this.components.oidcClient.metadata.client_id,
+            client_id: this.components.oidcConfig.clientMetadata().client_id,
             prompt: 'none'
         });
 
@@ -833,7 +833,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         return {
             ...corsHeaders && {headers: corsHeaders},
-            redirectUrl: logoutUrl,
+            redirectUrl: logoutUrl.toString(),
             statusCode: 303,
             cookies: redirectCookies,
         }
@@ -1395,7 +1395,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private hasOtherOrigins = () => !!this._config.validOrigins?.length;
 
     /**
-     * @throws OPError
+     * @throws AuthServerError
      * @private
      * @param extendedRefreshTokenSet
      */
@@ -1414,7 +1414,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             tokenSet.id_token === undefined ||
             tokenSet.expires_in === undefined
         ) {
-            throw new OPError({error: "Missing required properties from OP"});
+            throw new AuthServerError("Missing required properties from OP");
         }
 
         // Decode the refresh token to grab the expiration date or use the token set expiration as a backup
@@ -1629,19 +1629,9 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 response_types: ['code'],
 
                 // Force certain auth method and signing algorithms based on FAPI
-                token_endpoint_auth_method: 'private_key_jwt', //TODO: ** THIS IS REMOVED
-                tls_client_certificate_bound_access_tokens: false, //TODO: ** THIS IS REMOVED
-                // Removed auth methods, defaults to above setting
-                // introspection_endpoint_auth_method: 'private_key_jwt',
-                // revocation_endpoint_auth_method: 'private_key_jwt',
                 id_token_signed_response_alg: KeycloakConnector.REQUIRED_ALGO,
                 authorization_signed_response_alg: KeycloakConnector.REQUIRED_ALGO,
                 introspection_signed_response_alg: KeycloakConnector.REQUIRED_ALGO,
-
-                // TODO: Figure out if we can force a certain signature. Are we required to? Looks like it just uses whatever the server supports
-                token_endpoint_auth_signing_alg: KeycloakConnector.REQUIRED_ALGO, //TODO: ** THIS IS REMOVED
-                request_object_signing_alg: KeycloakConnector.REQUIRED_ALGO, //TODO: ** THIS IS REMOVED
-                revocation_endpoint_auth_signing_alg: KeycloakConnector.REQUIRED_ALGO, //TODO: ** THIS IS REMOVED
             }
         }
 
@@ -1662,9 +1652,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Check if disabling jwt authentication
         const missingClientSecret = config.oidcClientMetadata.client_secret === undefined || config.oidcClientMetadata.client_secret === EMPTY_STRING;
         if (config.DANGEROUS_disableJwtClientAuthentication) {
-            // Update the config to disable jwt auth
-            config.oidcClientMetadata.token_endpoint_auth_method = 'client_secret_post';
-
             // Check if there is a missing client secret when we need one
             if (missingClientSecret) throw new Error(`Client secret not specified or environment variable "KC_CLIENT_SECRET" not found`);
 
@@ -1792,19 +1779,31 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             // Grab the correct client auth
             const clientAuth = config.DANGEROUS_disableJwtClientAuthentication ?
-                OpenidClient.ClientSecretBasic(config.oidcClientMetadata.client_secret) :
+                OpenidClient.ClientSecretPost(config.oidcClientMetadata.client_secret) :
                 OpenidClient.PrivateKeyJwt({
                     key: config.connectorKeys.privateKey,
                     kid: config.connectorKeys.kid,
                 });
 
             // Grab the config
-            return await OpenidClient.discovery(
+            const oidcConfig = await OpenidClient.discovery(
                 new URL(oidcDiscoveryUrl),
                 config.oidcClientMetadata.client_id,
                 config.oidcClientMetadata,
-                clientAuth
+                clientAuth,
+                {
+                    ...(isDev() && {
+                        execute: [
+                            OpenidClient.allowInsecureRequests
+                        ]
+                    }),
+                },
             );
+
+            // Prepare for JARM responses
+            OpenidClient.useJwtResponseMode(oidcConfig);
+
+            return oidcConfig;
 
         } catch (e) {
             // Log the error

@@ -1,14 +1,14 @@
-import type {UserStatus} from "@dapperduckling/keycloak-connector-common";
 import {KeycloakConnectorClient} from "@dapperduckling/keycloak-connector-client";
 import {ReactConfig} from "./components/KeycloakConnectorProvider.js";
 import {ReactNode} from "react";
+import type {UserStatusImmerSafe} from "@dapperduckling/keycloak-connector-common";
 
 export interface AuthProps {
     children: ReactNode;
     reactConfig?: ReactConfig;
 }
 export interface KeycloakConnectorState {
-    userStatus: UserStatus;
+    userStatus: UserStatusImmerSafe;
     hasAuthenticatedOnce: boolean;
     ui: {
         showLoginOverlay: boolean;
@@ -35,7 +35,7 @@ export enum KccDispatchType {
 
 export type KeycloakConnectorStateActions =
     | { type: KccDispatchType.SET_KCC_CLIENT; payload: KeycloakConnectorClient; }
-    | { type: KccDispatchType.KCC_CLIENT_EVENT; payload: Event | CustomEvent<UserStatus>; }
+    | { type: KccDispatchType.KCC_CLIENT_EVENT; payload: Event | CustomEvent<UserStatusImmerSafe>; }
     | { type:
             KccDispatchType.DESTROY_CLIENT |
             KccDispatchType.LENGTHY_LOGIN |

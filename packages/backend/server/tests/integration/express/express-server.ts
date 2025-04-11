@@ -2,9 +2,10 @@ import './dot-env.js'; // Must be the first import
 import express, {type Request} from 'express';
 import {keycloakConnectorExpress, lock} from "@dapperduckling/keycloak-connector-server";
 import cookieParser from "cookie-parser";
-import {default as logger} from "pino-http";
+import {default as logger, type HttpLogger} from "pino-http";
+import type {Logger} from "pino";
 
-const loggerHttp = logger.default({
+const loggerHttp: HttpLogger = logger.default({
     level: "debug",
     transport: {
         target: 'pino-pretty',

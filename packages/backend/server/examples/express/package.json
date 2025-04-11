@@ -7,7 +7,7 @@
     "start": "nodemon express-example.js"
   },
   "dependencies": {
-    "@dapperduckling/keycloak-connector-server": "^2.5.1",
+    "@dapperduckling/keycloak-connector-server": "file:.yalc/@dapperduckling/keycloak-connector-server",
     "cookie-parser": "^1.4.6",
     "express": "^4.19.2",
     "pino": "^8.17.2",

@@ -9,13 +9,13 @@ import {LRUCache} from "lru-cache";
 import {
     promiseWait,
     sleep,
-    ttlFromExpiration,
-    WaitTimeoutError
+    ttlFromExpiration
 } from "../helpers/utils.js";
 import {is} from "typia";
 import {setImmediate} from "timers";
 import type {Deferred} from "@dapperduckling/keycloak-connector-common";
 import {deferredFactory, isObject} from "@dapperduckling/keycloak-connector-common";
+import {WaitTimeoutError} from "../helpers/errors.js";
 
 type UpdateDataMessage<T> = {
     data: T,

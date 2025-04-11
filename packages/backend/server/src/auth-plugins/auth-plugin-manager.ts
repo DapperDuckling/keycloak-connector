@@ -1,4 +1,4 @@
-import type {DecorateResponse, IsUserAuthorized} from "./abstract-auth-plugin.js";
+import type {IsUserAuthorized} from "./abstract-auth-plugin.js";
 import {AbstractAuthPlugin} from "./abstract-auth-plugin.js";
 import type {ConnectorRequest, KeycloakConnectorConfigBase, UserData} from "../types.js";
 import type {Logger} from "pino";
@@ -82,7 +82,7 @@ export class AuthPluginManager {
         for (const [name, plugin] of this.plugins.entries()) {
             try {
                 const decorators = await plugin.decorateRequestDefaults({connectorRequest, userData, logger: this.logger});
-                Object.entries(decorators).forEach(([key, value]) => connectorRequest.pluginDecorators![key] = value);
+                Object.entries(decorators).forEach(([key, value]) => connectorRequest.pluginDecorators[key] = value);
             } catch (e) {
                 throw new Error(`Issue invoking decorateRequestDefaults from auth plugin ${name}`);
             }

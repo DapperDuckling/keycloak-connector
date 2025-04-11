@@ -1,5 +1,4 @@
-import type {ConnectorResponse, CookieParams} from "../types.js";
-import type {SupportedServers} from "../types.js";
+import type {ConnectorResponse, SupportedServers} from "../types.js";
 import {CookieStore} from "../cookie-store.js";
 
 export class ConnectorErrorRedirect<Server extends SupportedServers> implements ConnectorResponse<Server> {
@@ -57,3 +56,15 @@ export class LoginError extends Error {
         return this._hint;
     }
 }
+
+export class WaitTimeoutError extends Error {
+    waitedTimeSec: number;
+
+    constructor(waitedTimeMs: number) {
+        super(`Ran out of time waiting for promise to finish`);
+        this.waitedTimeSec = waitedTimeMs / 1000;
+    }
+}
+
+export class AuthServerError extends Error {}
+export class AuthClientError extends Error {}

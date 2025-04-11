@@ -7,6 +7,7 @@ import {AbstractCacheAdapter} from "./abstract-cache-adapter.js";
 import {isObject} from "@dapperduckling/keycloak-connector-common";
 import * as OpenidClient from "openid-client";
 import type {TokenEndpointResponse} from "oauth4webapi";
+import type {Logger} from "pino";
 
 export type TokenCacheConfig = CacheAdapterConfig & {
     oidcConfig: OpenidClient.Configuration,
@@ -55,6 +56,8 @@ export class TokenCache extends AbstractCacheAdapter<ExtendedRefreshTokenSet, [s
         try {
             // Perform the refresh
             tokenSet = await OpenidClient.refreshTokenGrant(this.config.oidcConfig, validatedRefreshJwt);
+            return TokenCache.extendTokenSet(tokenSet);
+
         } catch (e) {
             // Do not dump the error if the token is only not active
             if (e instanceof Error &&
@@ -63,27 +66,26 @@ export class TokenCache extends AbstractCacheAdapter<ExtendedRefreshTokenSet, [s
                 return;
             }
 
-            if (isObject(e)) this.config.pinoLogger?.debug(e);
+            if (isObject(e)) this.config.pinoLogger?.error(e);
             this.config.pinoLogger?.debug(`Failed to perform token refresh`);
             return;
         }
+    }
 
+    public static extendTokenSet = (tokenSet: TokenEndpointResponse): ExtendedRefreshTokenSet => {
         // Check for an access token
         if (tokenSet.access_token === undefined) {
-            this.config.pinoLogger?.error(`Missing access token in refresh response`);
-            return undefined;
+            throw new Error(`Missing access token in token set`);
         }
 
         // Check for a refresh token
         if (tokenSet.refresh_token === undefined) {
-            this.config.pinoLogger?.error(`Missing refresh token in refresh response`);
-            return undefined;
+            throw new Error(`Missing refresh token in token set`);
         }
 
         // Check for an expiration time
         if (tokenSet.expires_in === undefined) {
-            this.config.pinoLogger?.error(`Missing "expires_in" in refresh response`);
-            return undefined;
+            throw new Error(`Missing "expires_in" in token set`);
         }
 
         return {
@@ -94,6 +96,5 @@ export class TokenCache extends AbstractCacheAdapter<ExtendedRefreshTokenSet, [s
             accessToken: jose.decodeJwt(tokenSet.access_token),
             expiresAt: Math.floor(Date.now() / 1000) + tokenSet.expires_in,
         }
-
-    };
+    }
 }

@@ -49,18 +49,36 @@ export abstract class AbstractKeyProvider {
     protected static async createKeys(alg: string = KeycloakConnector.REQUIRED_ALGO, options?: GenerateKeyPairOptions): Promise<ConnectorKeys> {
 
         // Generate a new key pair
-        const keyPair = await jose.generateKeyPair(alg, options);
+        const keyPair = await jose.generateKeyPair(alg, options ?? {
+            extractable: true
+        });
 
         // Create the key id
         const keyId = `kcc-signing-${Date.now()}-${webcrypto.randomUUID()}`;
 
+        const extraProps = {
+            use: 'sig',
+            alg: alg,
+            kid: keyId,
+        }
+
+        const publicJwk = {
+            ...extraProps,
+            ...await jose.exportJWK(keyPair.publicKey),
+        };
+
+        const privateJwk = {
+            ...extraProps,
+            ...await jose.exportJWK(keyPair.privateKey),
+        };
+
         // Build a connector keys object
         return {
             kid: keyId,
-            alg: alg,
-            use: 'sig',
             publicKey: keyPair.publicKey,
             privateKey: keyPair.privateKey,
+            publicJwk,
+            privateJwk,
         };
     }
 

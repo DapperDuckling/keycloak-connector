@@ -1,7 +1,7 @@
 import type {ImmerReducer} from "use-immer";
 import type {KeycloakConnectorContextProps} from "./keycloak-connector-context.js";
 import {InitialContext} from "./keycloak-connector-context.js";
-import type {UserStatus} from "@dapperduckling/keycloak-connector-common";
+import type {UserStatusImmerSafe} from "@dapperduckling/keycloak-connector-common";
 import {ClientEvent} from "@dapperduckling/keycloak-connector-client";
 import {Draft} from "immer";
 import {KccDispatchType, KeycloakConnectorStateActions} from "./types.js";
@@ -35,7 +35,7 @@ const keycloakConnectorClientEventHandler: ImmerReducerType = (draft, action) =>
             return structuredClone(InitialContext);
 
         case ClientEvent.USER_STATUS_UPDATED:
-            const payload = action.payload as CustomEvent<UserStatus>;
+            const payload = action.payload as CustomEvent<UserStatusImmerSafe>;
             draft.userStatus = payload.detail;
             if (payload.detail.loggedIn) draft.ui.hasInvalidTokens = false;
             resetUiHelperStates(draft);

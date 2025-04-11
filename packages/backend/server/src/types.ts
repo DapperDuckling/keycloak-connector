@@ -14,6 +14,7 @@ import type {CustomRouteUrl, UserStatus} from "@dapperduckling/keycloak-connecto
 import {CookieStore} from "./cookie-store.js";
 import type {DecorateUserStatusBackend} from "./auth-plugins/index.js";
 import type {TokenEndpointResponse, UserInfoResponse} from "oauth4webapi";
+import type {JWK} from "jose";
 
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -29,10 +30,10 @@ export interface KeycloakConnectorInternalConfiguration {
 
 export type ConnectorKeys = {
     kid: string,
-    alg: string,
-    use: string,
     publicKey: CryptoKey,
     privateKey: CryptoKey,
+    publicJwk: JWK,
+    privateJwk: JWK,
 }
 
 export type KeycloakConnectorExposedProperties = ReturnType<KeycloakConnector<any>['getExposed']>;
@@ -198,9 +199,14 @@ export type ReqCookies = { [cookieName: string]: string | undefined };
 
 export type PluginDecorators = Record<string, unknown>;
 
+export type JsonCompatibleClaims<T> = {
+    [K in keyof T]: JsonValue | undefined;
+};
+
+
 export interface ConnectorRequest<
     KcRouteConfig extends object = Record<string, unknown>,
-    KcClaims extends Record<string, JsonValue | undefined> = NonNullable<unknown>
+    KcClaims extends JsonCompatibleClaims<KcClaims> = object
 > {
     origin?: string;
     url: string;
@@ -513,12 +519,11 @@ export type OidcDiscoveryConfig =
     connectorKeys: ConnectorKeys,
 }
 
-
 export type UserInfoResponseExtended<
-    KcClaims extends Record<string, JsonValue | undefined> = NonNullable<unknown>
+    KcClaims extends JsonCompatibleClaims<KcClaims> = object
 > = UserInfoResponse & KcAccessClaims & KcClaims;
 
-export interface UserData<KcClaims extends Record<string, JsonValue | undefined> = NonNullable<unknown>> {
+export interface UserData<KcClaims extends JsonCompatibleClaims<KcClaims> = object> {
     isAuthenticated: boolean;
     isAuthorized: boolean;
     // roles: KeycloakRole[];

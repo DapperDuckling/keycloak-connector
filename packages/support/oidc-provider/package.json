@@ -6,9 +6,13 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build": "node -e 'console.log(`no-op`)'"
   },
   "dependencies": {
     "oidc-provider": "^8.8.1"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.0"
   }
 }

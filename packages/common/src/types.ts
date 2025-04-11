@@ -1,12 +1,30 @@
-import type {UserinfoResponse} from "openid-client";
+import type {JsonPrimitive, UserInfoResponse} from "openid-client";
 
-export type UserStatus<Data extends Record<string, any> = Record<string, any>> = Data & {
+type UserStatusBase<Data extends Record<string, any> = Record<string, any>> = {
     loggedIn: boolean;
-    userInfo: UserinfoResponse | undefined;
     accessExpires: number;
     refreshExpires: number;
     backend?: Data;
 }
+
+export type UserStatus<Data extends Record<string, any> = Record<string, any>> = UserStatusBase<Data> & {
+    userInfo: UserInfoResponse | undefined;
+}
+
+export type UserStatusImmerSafe<Data extends Record<string, any> = Record<string, any>> = UserStatusBase<Data> & {
+    userInfo: {
+        sub: string,
+        [claim: string]: JsonPrimitive,
+    } | undefined;
+}
+
+// export type UserStatus<Data extends Record<string, any> = Record<string, any>> = Data & {
+//     loggedIn: boolean;
+//     userInfo: UserInfoResponse | undefined;
+//     accessExpires: number;
+//     refreshExpires: number;
+//     backend?: Data;
+// }
 
 export enum TokenType {
     ACCESS,
