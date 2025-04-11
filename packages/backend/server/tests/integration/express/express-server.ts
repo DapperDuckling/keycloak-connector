@@ -19,7 +19,7 @@ const loggerHttp: HttpLogger = logger.default({
 // Grab express app
 const app = express();
 
-app.use(loggerHttp);
+// app.use(loggerHttp);
 
 // Register the cookie parser
 app.use(cookieParser());

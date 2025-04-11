@@ -405,7 +405,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
             code_challenge: codeChallenge,
             redirect_uri: redirectUri,
             response_mode: "jwt",
-            scope: "openid",
+            scope: "openid offline_access",
+            accessTokenFormat: 'jwt',
             ...(silentRequestType === SilentLoginTypes.FULL) && {prompt: "none"},
         });
 
@@ -718,7 +719,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             // TODO: Need to see if this sends the redirecturi to the auth server for checks. idk why though.
             const tokenSet = await OpenidClient.authorizationCodeGrant(this.components.oidcConfig, currentUrl, {
                 pkceCodeVerifier: inputCookies.codeVerifier,
-                expectedNonce: authFlowNonce,
+                // expectedNonce: authFlowNonce,
             }, {
                 redirectUri: redirectUri,
             });
@@ -1802,6 +1803,12 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             // Prepare for JARM responses
             OpenidClient.useJwtResponseMode(oidcConfig);
+
+            // Ensure the server supports PKCE
+            if (!oidcConfig.serverMetadata().supportsPKCE()) {
+                config.pinoLogger?.warn(`Cannot continue, unable to determine if server supports PKCE`);
+                return null;
+            }
 
             return oidcConfig;
 

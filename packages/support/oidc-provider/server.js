@@ -7,15 +7,16 @@ const configuration = {
             token_endpoint_auth_method: 'private_key_jwt',
             redirect_uris: ['http://localhost:3005/auth/callback*'],
             response_types: ['code'],
-            grant_types: ['authorization_code', 'client_credentials'],
+            grant_types: ['authorization_code', 'client_credentials', 'refresh_token'],
             client_name: 'Keycloak Connector',
             jwks_uri: 'http://localhost:3005/auth/k-jwks',
             id_token_signed_response_alg: 'PS256',
             userinfo_signed_response_alg: 'PS256',
             authorization_signed_response_alg: 'PS256',
-            introspection_signed_response_alg: 'PS256',
+            introspection_signed_response_alg: 'PS256'
         },
     ],
+    issueRefreshToken: () => true,
     jwks: {
         "keys": [
             {
