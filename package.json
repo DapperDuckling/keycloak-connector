@@ -9,7 +9,6 @@
     "packages/frontend/client",
     "packages/frontend/react",
     "packages/frontend/*",
-    "packages/support/*",
     "docs"
   ],
   "repository": {
@@ -27,8 +26,7 @@
     "publish": "lerna publish --no-private",
     "list-versions": "lerna ls -l",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "postinstall": "patch-package --patch-dir packages/support/oidc-provider/patches"
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@faker-js/faker": "^8.0.0",

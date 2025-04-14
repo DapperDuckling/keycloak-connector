@@ -3,7 +3,7 @@
   "version": "independent",
   "command": {
     "version": {
-      "ignoreChanges": ["docs/**", "support/**"]
+      "ignoreChanges": ["docs/**"]
     }
   }
 }

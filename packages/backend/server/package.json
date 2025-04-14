@@ -26,7 +26,7 @@
     "tsc": "tsc",
     "prepublishOnly": "npm run build",
     "test:start:fastify": "cd ./tests/integration/fastify/ && nodemon --exec node --loader ts-node/esm  ./fastify-server.ts",
-    "test:start:express": "cd ./tests/integration/express/ && nodemon --exec node --loader ts-node/esm ./express-server.ts",
+    "test:start:express": "cd ./tests/integration/express/ && node --loader ts-node/esm ./express-server.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "yalc:publish": "yalc publish --push",

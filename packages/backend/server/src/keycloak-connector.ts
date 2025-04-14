@@ -46,7 +46,7 @@ import path, {dirname} from "path";
 import {loginListenerHTML} from "./browser-login-helpers/login-listener.js";
 import * as fs from "fs";
 import {CookieStore} from "./cookie-store.js";
-import type {UserInfoResponse} from "oauth4webapi";
+import {AuthorizationResponseError, type UserInfoResponse, JWT_TIMESTAMP_CHECK} from "oauth4webapi";
 
 const STATIC_FILE_DIR = [dirname(fileURLToPath(import.meta.url)), 'static', ""].join(path.sep);
 
@@ -721,7 +721,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 pkceCodeVerifier: inputCookies.codeVerifier,
                 // expectedNonce: authFlowNonce,
             }, {
-                redirectUri: redirectUri,
+                "redirect_uri": redirectUri,
             });
 
             // Add extended data
@@ -748,18 +748,23 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             // Check if silent login requires login
             if (silentRequestType !== SilentLoginTypes.NONE &&
-                e instanceof Error &&
-                (e.message.includes("login_required") || e.message.includes("interaction_required"))
+                e instanceof AuthorizationResponseError &&
+                (e.error.includes("login_required") || e.error.includes("interaction_required"))
             ) {
                 return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED, sourceOrigin);
             }
 
             if (e instanceof Error) {
-                // Check for an expired JWT
-                if (e.message.includes("JWT expired")) {
-                    // Hint to the login page the user took too long
-                    throw new LoginError(ErrorHints.JWT_EXPIRED);
-                } else if (e.message.includes("request timed out after")) {
+                if ('code' in e) {
+                    // Check for an expired JWT
+                    if (e.code === JWT_TIMESTAMP_CHECK || e.message.includes("JWT expired")) {
+                        // Hint to the login page the user took too long
+                        throw new LoginError(ErrorHints.JWT_EXPIRED);
+                    }
+
+                }
+
+                if (e.message.includes("request timed out after")) {
 
                     // Log the issue as the OP may not be able to handle the requests or
                     // the RP (this server) is not able to connect to the OP
@@ -1793,16 +1798,15 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 config.oidcClientMetadata,
                 clientAuth,
                 {
-                    ...(isDev() && {
-                        execute: [
-                            OpenidClient.allowInsecureRequests
-                        ]
-                    }),
+                    timeout: 15,
+                    execute: [
+                        OpenidClient.useJwtResponseMode,
+                        ...(isDev() ? [
+                            OpenidClient.allowInsecureRequests,
+                        ] : []),
+                    ]
                 },
             );
-
-            // Prepare for JARM responses
-            OpenidClient.useJwtResponseMode(oidcConfig);
 
             // Ensure the server supports PKCE
             if (!oidcConfig.serverMetadata().supportsPKCE()) {
