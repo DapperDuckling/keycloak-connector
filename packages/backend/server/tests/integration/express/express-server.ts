@@ -39,7 +39,8 @@ const {registerAuthPlugin} = await keycloakConnectorExpress(app, {
             decorations: true,
             theTimeNow: new Date().toISOString(),
         };
-    }
+    },
+    validOrigins: ['http://localhost:3000'],
 });
 
 const router = express.Router();

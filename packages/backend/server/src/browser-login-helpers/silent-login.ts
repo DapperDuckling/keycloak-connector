@@ -4,20 +4,24 @@ import {
 } from "@dapperduckling/keycloak-connector-common";
 import {LOGIN_LISTENER_BROADCAST_CHANNEL, SILENT_LOGIN_EVENT_JSON} from "./common.js";
 
+interface SilentLoginResponseParams {
+    message: SilentLoginMessage;
+    SilentLoginEvent: typeof SilentLoginEventType;
+    loginListenerChannel: string;
+    autoClose: boolean;
+    sourceOrigin: string | undefined;
+    enableDebugger: boolean;
+    silentRequestToken?: string;
+}
+
 const silentLoginResponse = (
-    messageJson: string,
-    silentLoginEventJson: string,
-    loginListenerChannel: string,
-    autoClose: boolean,
-    sourceOrigin: string | undefined,
-    enableDebugger: boolean
+    {message, SilentLoginEvent, loginListenerChannel, autoClose, sourceOrigin, enableDebugger, silentRequestToken}: SilentLoginResponseParams
 ) => {
 
     // Dev helper
     if (enableDebugger) debugger;
 
-    // Decode the silent login event constants
-    const SilentLoginEvent = JSON.parse(silentLoginEventJson) as typeof SilentLoginEventType;
+    // TODO: CHECK THIS FOR XSS ATTACKS. SEE IF WE CAN BREAK OUT OF THE SCRIPT TAG
 
     // Grab the real reference to the parent
     const parent = window.parent;
@@ -33,7 +37,7 @@ const silentLoginResponse = (
     }
 
     // Grab the token from the uri
-    const token = new URLSearchParams(window.location.search).get('silent-token');
+    const token = silentRequestToken ?? new URLSearchParams(window.location.search).get('silent-token');
 
     // Validate the token
     if (token === null || !/^[a-fA-F0-9-]{1,36}$/.test(token)) {
@@ -48,13 +52,13 @@ const silentLoginResponse = (
 
     try {
         // Check for a message from the server
-        if (messageJson === undefined) {
+        if (message === undefined) {
             console.error(`Missing message from auth server, cannot process silent login!`);
             return;
         }
 
         // Ensure we can parse the message
-        const message = JSON.parse(messageJson) as SilentLoginMessage;
+        // const message = JSON.parse(message) as SilentLoginMessage;
 
         // Update the message to parent event
         messageToParent.event = message.event;
@@ -99,27 +103,41 @@ const silentLoginResponse = (
     }
 }
 
-export const silentLoginResponseHTML = (message: SilentLoginMessage, autoClose: boolean, sourceOrigin: string | undefined, enableDebugger: boolean) => {
-    // Build the html for the silent login iframe
+export const silentLoginResponseHTML = (
+    message: SilentLoginMessage,
+    autoClose: boolean,
+    sourceOrigin: string | undefined,
+    enableDebugger: boolean,
+    silentRequestToken?: string
+) => {
     const silentLoginResponseFunction = silentLoginResponse.toString();
+    const payload = {
+        message,
+        autoClose,
+        sourceOrigin,
+        enableDebugger,
+        silentRequestToken,
+        SilentLoginEvent: SilentLoginEventType,
+        channel: LOGIN_LISTENER_BROADCAST_CHANNEL,
+    };
 
-    // Convert the message to a json string and add slashes
-    const messageJson = JSON.stringify(message).replaceAll('"', '\\"');
-
-    // Prepare the source origin
-    const sourceOriginFormatted = (sourceOrigin === undefined) ? undefined : `"${sourceOrigin}"`
-
-    // Return the html
     return `
     <!doctype html>
     <html lang="en">
       <body>
-      <h3>Silent Login Response</h3>
-      <p>This page loaded in error. <a id="back-to-main" href="#">Back to main</a></p>
-      <script>
-        (${silentLoginResponseFunction})("${messageJson}", "${SILENT_LOGIN_EVENT_JSON}", "${LOGIN_LISTENER_BROADCAST_CHANNEL}", ${autoClose}, ${sourceOriginFormatted}, ${enableDebugger});
-      </script>
+        <h3>Silent Login Response</h3>
+        <p>This page loaded in error. <a id="back-to-main" href="#">Back to main</a></p>
+
+        <script id="silent-login-data" type="application/json">
+          ${JSON.stringify(payload)}
+        </script>
+
+        <script>
+          const data = JSON.parse(document.getElementById("silent-login-data").textContent);
+          (${silentLoginResponseFunction})(data);
+        </script>
       </body>
     </html>
   `;
-}
+};
+

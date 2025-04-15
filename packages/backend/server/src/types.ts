@@ -10,7 +10,7 @@ import type {AbstractClusterProvider} from "./cluster/index.js";
 import {TokenCache} from "./cache-adapters/index.js";
 import {UserInfoCache} from "./cache-adapters/index.js";
 import type {KeycloakConnector} from "./keycloak-connector.js";
-import type {CustomRouteUrl, UserStatus} from "@dapperduckling/keycloak-connector-common";
+import {CustomRouteUrl, SilentLoginTypes, UserStatus} from "@dapperduckling/keycloak-connector-common";
 import {CookieStore} from "./cookie-store.js";
 import type {DecorateUserStatusBackend} from "./auth-plugins/index.js";
 import type {TokenEndpointResponse, UserInfoResponse} from "oauth4webapi";
@@ -30,6 +30,7 @@ export interface KeycloakConnectorInternalConfiguration {
 
 export type ConnectorKeys = {
     kid: string,
+    alg: string,
     publicKey: CryptoKey,
     privateKey: CryptoKey,
     publicJwk: JWK,
@@ -55,12 +56,14 @@ export enum StateOptions {
     STATEFUL = 2,
 }
 
-export enum VerifiableJwtTokenTypes {
-    ID = "ID",
-    LOGOUT = "Logout",
-    ACCESS = "Bearer",
+export const VerifiableJwtTokenTypes = {
+    ID: "ID",
+    LOGOUT: "Logout",
+    ACCESS: "Bearer",
+    JARM: "JWT",
+    STATE: "STATE",
     // REFRESH token is NOT verifiable. Keycloak uses symmetric signature (HS256) on these tokens.
-}
+} as const;
 
 export interface KeycloakConnectorConfigBase {
     /** The RP server origin */
@@ -226,6 +229,13 @@ export interface ConnectorRequest<
 export interface UserDataResponse<Server extends SupportedServers> {
     userData: UserData,
     cookies?: CookieStore<Server>,
+}
+
+export interface State extends JWTPayload {
+    authFlowNonce: string,
+    sourceOrigin?: string | undefined,
+    silentRequestType?: SilentLoginTypes,
+    silentRequestToken?: string,
 }
 
 export interface ConnectorResponse<Server extends SupportedServers> {
@@ -543,3 +553,5 @@ export enum ClientSearch {
     REALM,
     RESOURCE_ACCESS,
 }
+
+export type ValueOf<T> = T[keyof T];

@@ -1,4 +1,4 @@
-import {sleep} from "./helpers/utils.js";
+import {jwtVerifyMultiKey, sleep} from "./helpers/utils.js";
 import * as OpenidClient from "openid-client";
 import {
     type ConnectorRequest,
@@ -14,7 +14,7 @@ import {
     type SupportedServers,
     type UserData,
     type UserDataResponse,
-    VerifiableJwtTokenTypes
+    VerifiableJwtTokenTypes, State, ValueOf
 } from "./types.js";
 import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapter/abstract-adapter.js";
 import * as jose from 'jose';
@@ -47,6 +47,7 @@ import {loginListenerHTML} from "./browser-login-helpers/login-listener.js";
 import * as fs from "fs";
 import {CookieStore} from "./cookie-store.js";
 import {AuthorizationResponseError, type UserInfoResponse, JWT_TIMESTAMP_CHECK} from "oauth4webapi";
+import type {JWK, JWTVerifyOptions} from "jose";
 
 const STATIC_FILE_DIR = [dirname(fileURLToPath(import.meta.url)), 'static', ""].join(path.sep);
 
@@ -314,18 +315,23 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
     }
 
-    private silentRequestConfig = (req: ConnectorRequest): [SilentLoginTypes, string] => {
+    private silentRequestConfigRaw = (token: unknown, rawSilentType: unknown): [SilentLoginTypes, string] => {
         // Ensure there is a token passed
-        const token = req.urlQuery["silent-token"];
-        if (token === undefined || typeof token !== "string") return [SilentLoginTypes.NONE, ""];
+        if (typeof token !== "string") return [SilentLoginTypes.NONE, ""];
 
         // Determine the silent type
-        const silentParam = (typeof req.urlQuery["silent"] === "string") ? req.urlQuery["silent"] : undefined
-        // @ts-ignore - Ignoring string can't be a part of the login types... that's why I'm using "includes" dummy!
-        const silentType = (silentParam && Object.values(SilentLoginTypes).includes(silentParam)) ? silentParam : SilentLoginTypes.NONE;
+        const isValidSilentType = (value: unknown): value is SilentLoginTypes => {
+            return typeof value === "string" && Object.values(SilentLoginTypes).includes(value as SilentLoginTypes);
+        };
 
-        return [silentType as SilentLoginTypes, token];
+        const silentType = isValidSilentType(rawSilentType)
+            ? rawSilentType
+            : SilentLoginTypes.NONE;
+
+        return [silentType, token];
     }
+
+    private silentRequestConfig = (req: ConnectorRequest) => this.silentRequestConfigRaw(req.urlQuery['silent-token'], req.urlQuery['silent'])
 
     private originFromQuery = (req: ConnectorRequest): string | undefined => {
         const sourceOriginParam = req.urlQuery['source-origin'];
@@ -392,20 +398,24 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const [silentRequestType, silentRequestToken] = this.silentRequestConfig(req);
 
         // Build the redirect uri
-        const redirectUri = this.buildRedirectUriOrThrow({
+        const redirectUri = this.buildRedirectUriOrThrow();
+
+        // Build the state object
+        const state = await this.signState({
             authFlowNonce: authFlowNonce,
             sourceOrigin: sourceOrigin,
             silentRequestType: silentRequestType,
             silentRequestToken: silentRequestToken
         });
 
-        // const authorizationUrl = this.components.oidcClient.authorizationUrl({
         const authorizationUrl = OpenidClient.buildAuthorizationUrl(this.components.oidcConfig, {
             code_challenge_method: "S256",
             code_challenge: codeChallenge,
             redirect_uri: redirectUri,
+            nonce: authFlowNonce,
+            state,
             response_mode: "jwt",
-            scope: "openid offline_access",
+            scope: "openid",
             accessTokenFormat: 'jwt',
             ...(silentRequestType === SilentLoginTypes.FULL) && {prompt: "none"},
         });
@@ -447,6 +457,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
         if (sourceOrigin === undefined || !this.validRedirectOrigins.includes(sourceOrigin)) return {
             statusCode: 400
         }
+
+        // TODO: DETERMINE IF THIS NEEDS TO BE CHANGED SOMEHOW
 
         // Serve the login listener page
         return {
@@ -536,8 +548,14 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Handle the post login redirect uri
         let rawPostAuthRedirectUri: string|null;
         try {
-            const inputUrlObj = new URL(req.url, req.origin);
-            rawPostAuthRedirectUri = inputUrlObj.searchParams.get('post_auth_redirect_uri');
+            // TODO: FIX THIS
+            rawPostAuthRedirectUri = req.urlQuery['post_auth_redirect_uri'] as string;
+            // const inputUrlObj = new URL(req.url, req.origin);
+            // rawPostAuthRedirectUri = inputUrlObj.searchParams.get('post_auth_redirect_uri');
+
+            // Check a redirect uri does not exist
+            if (rawPostAuthRedirectUri === undefined) return [];
+
         } catch (e) {
             return [];
         }
@@ -573,16 +591,14 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }];
     }
 
-    private buildRedirectUriOrThrow = (config: {
-        authFlowNonce: string,
-        sourceOrigin?: string | undefined,
+    private buildRedirectUriOrThrow = (config?: {
         isLogout?: boolean,
-        silentRequestType?: SilentLoginTypes,
-        silentRequestToken?: string,
+        // silentRequestType?: SilentLoginTypes,
+        // silentRequestToken?: string,
     }): string => {
 
         // Grab the base redirect uri
-        const redirectUriBase = (!config.isLogout) ?
+        const redirectUriBase = (!config?.isLogout) ?
             this._config.redirectUris?.[0] :
             this._config.postLogoutRedirectUris?.[0];
 
@@ -595,28 +611,106 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Convert the base uri to a URL object
         const redirectUriObj = new URL(redirectUriBase);
 
-        // Add the login flow nonce to redirect the uri
-        redirectUriObj.searchParams.append("auth_flow_nonce", config.authFlowNonce);
-
-        // Add the silent query param
-        if (config.silentRequestToken && config.silentRequestType && config.silentRequestType !== SilentLoginTypes.NONE) {
-            redirectUriObj.searchParams.append("silent", config.silentRequestType);
-            redirectUriObj.searchParams.append("silent-token", config.silentRequestToken);
-        }
-
-        // Add the source origin query param
-        if (config.sourceOrigin) {
-            redirectUriObj.searchParams.append("source-origin", config.sourceOrigin);
-        }
-
         return redirectUriObj.toString();
     }
 
-    private getAuthFlowNonce = (req: ConnectorRequest): string|null => {
-        // Check for login flow nonce
-        // (`base` of "localhost" added since browsers are not required to send an origin for all requests. It has no other function than to allow the built-in `URL` class to work in-line)
-        return (new URL(req.url, "https://localhost")).searchParams.get('auth_flow_nonce');
+    private signState = async (state: State) => {
+        // Get private key
+        const keys = await this.components.keyProvider.getActiveKeys();
+
+        return await new jose.SignJWT({
+            ...state,
+            typ: VerifiableJwtTokenTypes.STATE,
+        })
+            .setProtectedHeader({ alg: keys.alg })
+            .setAudience(this._config.oidcClientMetadata.client_id)
+            .setIssuer(this._config.oidcClientMetadata.client_id)
+            .setIssuedAt()
+            .setExpirationTime(`${this._config.authCookieTimeout/1000}s`)
+            .sign(keys.privateKey);
+    };
+
+    private validatedStateFromResponse = async (req: ConnectorRequest): Promise<{state: State, error: string | undefined} | null> => {
+
+        const responseParam = req.urlQuery['response'];
+
+        // Check for missing response param
+        if (typeof responseParam !== "string") {
+            this._config.pinoLogger?.debug(`Missing response param`);
+            return null;
+        }
+
+        let state: string | undefined = undefined;
+        let error: string | undefined = undefined;
+
+        try {
+            // Validate the response
+            const {payload} = await this.validateJwtOrThrow(responseParam, VerifiableJwtTokenTypes.JARM);
+            state = typeof payload['state'] === 'string' ? payload['state'] : undefined;
+            error = typeof payload['error'] === 'string' ? payload['error'] : undefined;
+        } catch (e) {
+            this._config.pinoLogger?.warn("Could not verify response signature, potential malicious activity attempted but failed");
+            this._config.pinoLogger?.debug(e);
+            return null;
+        }
+
+        // Check for a state
+        if (state === undefined) {
+            this._config.pinoLogger?.error(`Missing state in signature validated response param, this should not happen`);
+            return null;
+        }
+
+        try {
+            // Validate the state
+            const publicKeys = await this.components.keyProvider.getPublicKeys();
+            const {payload} = await this.validateJwtOrThrow(state, VerifiableJwtTokenTypes.STATE, publicKeys);
+
+            const parsedState = parseState(payload);
+
+            if (parsedState === null) {
+                this._config.pinoLogger?.debug("Unexpected or missing properties in state");
+                return null;
+            }
+
+            return {state: parsedState, error};
+
+        } catch (e) {
+            this._config.pinoLogger?.warn("Could not verify state signature, potential malicious activity attempted but failed");
+            this._config.pinoLogger?.debug(e);
+            return null;
+        }
+
+        // This function will be hoisted
+        function parseState(obj: unknown): State | null {
+            if (typeof obj !== 'object' || obj === null) return null;
+
+            const data = obj as Record<string, unknown>;
+
+            const requiredProperties = ['authFlowNonce'];
+            const allProperties: (keyof State)[] = [
+                'authFlowNonce',
+                'sourceOrigin',
+                'silentRequestType',
+                'silentRequestToken',
+            ];
+
+            // Check required properties
+            for (const prop of requiredProperties) {
+                if (typeof data[prop] !== 'string') return null;
+            }
+
+            const result: Partial<State> = {};
+            for (const prop of allProperties) {
+                const value = data[prop];
+                if (typeof value === 'string') {
+                    result[prop] = value;
+                }
+            }
+
+            return result as State;
+        }
     }
+
 
     private handleCallbackWrapped = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
         try {
@@ -627,7 +721,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             // Silent, return data via silent login response
             if (silentRequestType !== SilentLoginTypes.NONE) {
-                return this.handleSilentLoginResponse(req, this.cookieStoreGenerator(), SilentLoginEvent.LOGIN_ERROR, req.origin);
+                this._config.pinoLogger?.error(`Could not handle silent login response, unknown silent token! This should not happen *****`);
+                this._config.pinoLogger?.error(e);
+
+                // return this.handleSilentLoginResponse(req, this.cookieStoreGenerator(), SilentLoginEvent.LOGIN_ERROR, req.origin);
             }
 
             // Rethrow on non-silent requests
@@ -637,18 +734,14 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     private handleCallback = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
-        // todo: Removed origin check since this is a get request
-        // // Ensure the request comes from an allowed origin
-        // this.validateOriginOrThrow(req);
+        // Get state from request
+        const {state, error} = await this.validatedStateFromResponse(req) ?? {};
 
-        // Grab the auth flow nonce
-        const authFlowNonce = this.getAuthFlowNonce(req);
-
-        // Check for missing auth flow nonce
-        if (authFlowNonce === null) {
+        // Check for missing state
+        if (state === undefined) {
             // Log the bad request
             this._config.pinoLogger?.warn(req.url);
-            this._config.pinoLogger?.warn("Missing login flow nonce parameter during login attempt");
+            this._config.pinoLogger?.warn("Missing or invalid state during login attempt");
 
             // Redirect the user back to the login page
             throw new LoginError(ErrorHints.CODE_400);
@@ -661,11 +754,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
         };
 
         try {
-            const redirectUri64 = req.cookies?.[`${ConnectorCookies.REDIRECT_URI_B64}-${authFlowNonce}`];
+            const redirectUri64 = req.cookies?.[`${ConnectorCookies.REDIRECT_URI_B64}-${state.authFlowNonce}`];
 
             // Grab the input cookies
             inputCookies = {
-                codeVerifier: req.cookies[`${ConnectorCookies.CODE_VERIFIER}-${authFlowNonce}`],
+                codeVerifier: req.cookies[`${ConnectorCookies.CODE_VERIFIER}-${state.authFlowNonce}`],
                 redirectUriRaw: (!!redirectUri64) ? Buffer.from(redirectUri64, 'base64').toString() : undefined,
             }
         } catch (e) {
@@ -679,18 +772,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         // Check if this is a silent request
-        const [silentRequestType, silentRequestToken] = this.silentRequestConfig(req);
-
-        // Grab the source origin of the initial request from the query param
-        const sourceOrigin = this.originFromQuery(req);
-
-        // Build the redirect uri
-        const redirectUri = this.buildRedirectUriOrThrow({ //TODO: FIGURE OUT IF REDIRECT URI IS STILL USED.
-            authFlowNonce: authFlowNonce,
-            sourceOrigin: sourceOrigin,
-            silentRequestType: silentRequestType,
-            silentRequestToken: silentRequestToken
-        });
+        const [silentRequestType] = this.silentRequestConfigRaw(state.silentRequestToken, state.silentRequestType);
 
         // Check for a code verifier
         if (inputCookies.codeVerifier === undefined) {
@@ -708,22 +790,28 @@ export class KeycloakConnector<Server extends SupportedServers> {
         this.validateRedirectUriOrThrow(postAuthRedirectUri);
 
         // Grab and add the cookies to remove (for immediate expiration)
-        const cookies = this.cookieStoreGenerator().removeAuthFlowCookies(req.cookies, authFlowNonce, {
+        const cookies = this.cookieStoreGenerator().removeAuthFlowCookies(req.cookies, state.authFlowNonce, {
             ...this.CookieOptionsLax,
         });
+
+        // Check for error
+        if (error !== undefined) {
+            // Check if silent login requires login
+            if (silentRequestType !== SilentLoginTypes.NONE &&
+                (error.includes("login_required") || error.includes("interaction_required"))
+            ) {
+                return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED, state.sourceOrigin, state.silentRequestToken);
+            }
+        }
 
         // Get current url as URL object
         const currentUrl = new URL(`${this._config.serverOrigin}${req.url}`);
 
         try {
-            // TODO: Need to see if this sends the redirecturi to the auth server for checks. idk why though.
             const tokenSet = await OpenidClient.authorizationCodeGrant(this.components.oidcConfig, currentUrl, {
                 pkceCodeVerifier: inputCookies.codeVerifier,
-                expectedState: "sup dawg", // TODO: USE THESE?
-                expectedNonce: "sup dawg2",// TODO: USE THESE?
-                // expectedNonce: authFlowNonce,
-            }, {
-                "redirect_uri": redirectUri,
+                expectedState: OpenidClient.skipStateCheck, // We verify the state validity through signatures outside of this flow, pkce verification handles CSRF attacks
+                expectedNonce: state.authFlowNonce,
             });
 
             // Add extended data
@@ -737,7 +825,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             // Return a silent login response if required
             if (silentRequestType !== SilentLoginTypes.NONE) {
-                return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_SUCCESS, sourceOrigin);
+                return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_SUCCESS, state.sourceOrigin, state.silentRequestToken);
             }
 
             return {
@@ -749,11 +837,12 @@ export class KeycloakConnector<Server extends SupportedServers> {
         } catch (e) {
 
             // Check if silent login requires login
+            // TODO: SEE IF WE CAN REMOVE THIS NOW THAT WE CHECK UP TOP
             if (silentRequestType !== SilentLoginTypes.NONE &&
                 e instanceof AuthorizationResponseError &&
                 (e.error.includes("login_required") || e.error.includes("interaction_required"))
             ) {
-                return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED, sourceOrigin);
+                return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED, state.sourceOrigin, state.silentRequestToken);
             }
 
             if (e instanceof Error) {
@@ -814,7 +903,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const authFlowNonce = OpenidClient.randomNonce();
 
         // Build the redirect uri
-        const redirectUri = this.buildRedirectUriOrThrow({authFlowNonce: authFlowNonce, isLogout: true});
+        // TODO: FIX LOGOUT
+        const redirectUri = this.buildRedirectUriOrThrow({
+            // authFlowNonce: authFlowNonce,
+            isLogout: true
+        });
 
         // Add the redirect cookie
         const redirectCookie = this.buildRedirectCookie({
@@ -831,6 +924,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Generate the logout url
         const logoutUrl = OpenidClient.buildEndSessionUrl(this.components.oidcConfig, {
             post_logout_redirect_uri: redirectUri,
+            // TODO: ADD A STATE HERE TOO!! SO WE CAN GET THE post auth redirect uri
             ...idToken && {id_token_hint: idToken},
             client_id: this.components.oidcConfig.clientMetadata().client_id,
             prompt: 'none'
@@ -857,8 +951,13 @@ export class KeycloakConnector<Server extends SupportedServers> {
             ...(this.hasOtherOrigins()) ? this.CookieOptionsUnrestricted : this.CookieOptions
         });
 
+
+        //TODO: FIX THIS
+
+
         // Grab the auth flow nonce
-        const authFlowNonce = this.getAuthFlowNonce(req);
+        // const authFlowNonce = this.getAuthFlowNonce(req);
+        const authFlowNonce = Math.random().toString();
 
         // Build the post logout redirect uri
         let postAuthRedirectUri = null;
@@ -986,7 +1085,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         };
     }
 
-    private handleSilentLoginResponse = async (req: ConnectorRequest, cookies: CookieStore<Server>, event: SilentLoginEvent, sourceOrigin: string | undefined): Promise<ConnectorResponse<Server>> => {
+    private handleSilentLoginResponse = async (req: ConnectorRequest, cookies: CookieStore<Server>, event: SilentLoginEvent, sourceOrigin: string | undefined, silentRequestToken?: string): Promise<ConnectorResponse<Server>> => {
         // Convert the cookies into an object based store
         const requestCookies = cookies.updatedReqCookies(req.cookies);
 
@@ -1030,17 +1129,20 @@ export class KeycloakConnector<Server extends SupportedServers> {
             responseHtml: silentLoginResponseHTML(message,
                 silentRequestType === SilentLoginTypes.PARTIAL,
                 sourceOrigin ?? req.origin,
-                process.env?.['DEBUG_SILENT_IFRAME'] !== undefined
+                process.env?.['DEBUG_SILENT_IFRAME'] !== undefined,
+                silentRequestToken,
             )
         }
 
     }
 
-    private validateJwtOrThrow = async (jwt: string, type: VerifiableJwtTokenTypes): Promise<JWTVerifyResult> => {
+    private validateJwtOrThrow = async (jwt: string, type: ValueOf<typeof VerifiableJwtTokenTypes>, publicKeys?: JWK[]): Promise<JWTVerifyResult> => {
 
         let authorizedParty = null;
         let audience: string|null = this._config.oidcClientMetadata.client_id;
         let requiredClaims: string[] = [];
+        let skipTypeClaim = false;
+        let issuer = this.components.oidcConfig.serverMetadata().issuer;
 
         // Snapshot the time
         const currDate = new Date();
@@ -1059,6 +1161,18 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
                 // Override the max age. Logout messages from an OP should not come too late.
                 maxAge = "10 minutes";
+                break;
+
+            case VerifiableJwtTokenTypes.JARM:
+                requiredClaims = ['exp', 'iss', 'aud', 'state'];
+
+                maxAge = null; // Disable age, IAT does not exist in keycloak response at the moment
+                skipTypeClaim = true; // Disable type check
+                break;
+
+            case VerifiableJwtTokenTypes.STATE:
+                requiredClaims = ['authFlowNonce'];
+                issuer = this._config.oidcClientMetadata.client_id; // We are the issuer for this token
                 break;
 
             // REMOVED: Cannot verify Keycloak signature token. KC uses symmetric algo (HS256). Left here if that changes in the future.
@@ -1084,13 +1198,20 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         // Verify the token
-        const verifyResult = await jose.jwtVerify(jwt, this.components.remoteJWKS, {
-            issuer: this.components.oidcConfig.serverMetadata().issuer,
+        let verifyResult;
+        const options: JWTVerifyOptions = {
+            issuer,
             ...audience && {audience: audience},
             currentDate: currDate,
             ...maxAge !== null && {maxTokenAge: maxAge},
             requiredClaims: requiredClaims,
-        });
+        };
+
+        if (publicKeys) {
+            verifyResult = await jwtVerifyMultiKey(jwt, publicKeys, options);
+        } else {
+            verifyResult = await jose.jwtVerify(jwt, this.components.remoteJWKS, options);
+        }
 
         // For access tokens, check if there is an audience that matches this client_id
         let accessTokenAudienceCheckPass = false;
@@ -1109,7 +1230,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Validate the typ declaration
         const jwtTyp = verifyResult.payload['typ'];
-        if (jwtTyp !== type) {
+        if (!skipTypeClaim && jwtTyp !== type) {
             throw new Error(`Mismatch TYP claim, expected ${type}`);
         }
 
@@ -1803,6 +1924,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
                     timeout: 15,
                     execute: [
                         OpenidClient.useJwtResponseMode,
+                        OpenidClient.enableNonRepudiationChecks,
                         ...(isDev() ? [
                             OpenidClient.allowInsecureRequests,
                         ] : []),

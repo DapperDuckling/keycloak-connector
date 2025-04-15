@@ -24,13 +24,11 @@
     "build": "npm run clean && tsc",
     "yalc:publish": "yalc publish --push",
     "yalc:watch": "yalc-watch",
-    "prepublishOnly": "npm run build",
-    "prepare": "ts-patch install"
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
     "@types/js-cookie": "^3.0.6",
     "ts-node": "^10.9.2",
-    "ts-patch": "^3.1.1",
     "typescript": "^5.2.2"
   },
   "files": [

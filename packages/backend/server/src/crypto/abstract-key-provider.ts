@@ -75,6 +75,7 @@ export abstract class AbstractKeyProvider {
         // Build a connector keys object
         return {
             kid: keyId,
+            alg: alg,
             publicKey: keyPair.publicKey,
             privateKey: keyPair.privateKey,
             publicJwk,

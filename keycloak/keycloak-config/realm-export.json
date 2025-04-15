@@ -11,10 +11,14 @@
       "clientAuthenticatorType": "client-jwt",
       "attributes": {
         "jwks.url": "http://host.docker.internal:3005/auth/k-jwks",
+        "access.token.signed.response.alg": "PS256",
         "id.token.signed.response.alg": "PS256",
         "user.info.signed.response.alg": "PS256",
         "authorization.signed.response.alg": "PS256",
         "introspection.signed.response.alg": "PS256",
+        "user.info.response.signature.alg": "PS256",
+        "request.object.signature.alg": "PS256",
+        "pkce.code.challenge.method": "S256",
         "use.jwks.url": "true"
       },
       "standardFlowEnabled": true,

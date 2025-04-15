@@ -86,7 +86,11 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
         if (this.clusterConnectorKeys) publicKeys.push(this.clusterConnectorKeys.connectorKeys.publicJwk);
 
         // Add the previous key
-        if (this.clusterConnectorKeys?.prevConnectorKeys) publicKeys.push(this.clusterConnectorKeys.prevConnectorKeys.publicJwk);
+        const previousKeys = this.clusterConnectorKeys?.prevConnectorKeys;
+        const previousKeysExpiration = this.clusterConnectorKeys?.prevExpire;
+        if (previousKeys && previousKeysExpiration &&
+            previousKeysExpiration + 1 > Date.now() / 1000 &&
+            previousKeysExpiration < Date.now() / 1000 + this.constants.MAX_PREV_JWKS_EXPIRATION_SECS) publicKeys.push(previousKeys);
 
         return publicKeys;
     }

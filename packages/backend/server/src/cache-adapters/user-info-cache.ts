@@ -55,7 +55,10 @@ export class UserInfoCache extends AbstractCacheAdapter<UserInfoResponse, [strin
             return await OpenidClient.fetchUserInfo(this.config.oidcConfig, validatedAccessJwt, jwtSubject);
         } catch (e) {
             // Check for a server misconfiguration
-            if (e instanceof Error && e.message.includes("expected application/jwt response")) {
+            if (e instanceof Error && (
+                e.message.includes("expected application/jwt response")
+                || e.message.includes("JWT UserInfo Response expected")
+            )) {
                 this.config.pinoLogger?.error(`Possible Keycloak misconfiguration! See documentation for proper client configuration. (Need to set signature algorithm)`);
             }
 

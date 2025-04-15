@@ -1,4 +1,6 @@
 import {WaitTimeoutError} from "./errors.js";
+import {jwtVerify} from "jose";
+import type {JWK, JWTVerifyOptions} from "jose";
 
 /**
  * Waits until a specified unix timestamp, throws a WaitTimeoutError if expiry time is reached
@@ -54,4 +56,20 @@ export const debounce = <T extends (...args: any[]) => void>(
             func(...args);
         }, wait);
     };
+};
+
+export const jwtVerifyMultiKey = async (
+    jwt: string,
+    keys: JWK[],
+    options?: JWTVerifyOptions,
+) => {
+    let lastError;
+    for (const key of keys) {
+        try {
+            return await jwtVerify(jwt, key, options);
+        } catch (err) {
+            lastError = err;
+        }
+    }
+    throw lastError;
 };
