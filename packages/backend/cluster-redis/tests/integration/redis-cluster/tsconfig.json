@@ -6,7 +6,9 @@
   ],
   "ts-node": {
     "esm": true,
-    "files": true
+    "files": true,
+    "experimentalSpecifierResolution": "node",
+    "transpileOnly": true
   },
   "compilerOptions": {
     "noUnusedLocals": false,
