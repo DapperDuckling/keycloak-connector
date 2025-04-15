@@ -719,6 +719,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
             // TODO: Need to see if this sends the redirecturi to the auth server for checks. idk why though.
             const tokenSet = await OpenidClient.authorizationCodeGrant(this.components.oidcConfig, currentUrl, {
                 pkceCodeVerifier: inputCookies.codeVerifier,
+                expectedState: "sup dawg", // TODO: USE THESE?
+                expectedNonce: "sup dawg2",// TODO: USE THESE?
                 // expectedNonce: authFlowNonce,
             }, {
                 "redirect_uri": redirectUri,
