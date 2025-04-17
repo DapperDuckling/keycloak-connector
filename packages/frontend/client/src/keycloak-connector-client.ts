@@ -188,8 +188,12 @@ export class KeycloakConnectorClient {
                 // Update the user status and interface
                 this.storeUserStatus(silentLoginMessage.data);
 
-                // Remove the iframe
+                // Remove the iframes
                 this.removeSilentIframe();
+
+                if (silentLoginMessage.event === SilentLoginEvent.LOGIN_SUCCESS) {
+                    this.removeListenerIframe();
+                }
 
                 // Reset the auth check flag
                 this.isAuthChecking = false;
@@ -495,6 +499,9 @@ export class KeycloakConnectorClient {
 
         // Calculate time remaining until eager refresh should occur
         const secondsRemaining = userStatus.accessExpires - Date.now()/1000 - (this.config.eagerRefreshTime * 60);
+
+        // Check if we have a negative value
+        if (userStatus.accessExpires < 0) return;
 
         // Set up the expiration listener
         this.expirationWatchSignal = window.setTimeout(async () => {

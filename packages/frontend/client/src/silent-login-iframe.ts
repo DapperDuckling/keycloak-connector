@@ -1,12 +1,19 @@
 import {SilentLoginEvent as SilentLoginEventType} from "@dapperduckling/keycloak-connector-common";
+import {
+  LOGIN_LISTENER_BROADCAST_CHANNEL
+} from "@dapperduckling/keycloak-connector-server/dist/browser-login-helpers/common";
 
-const silentLoginIframe = (authUrl: string, token: string, silentLoginEventJson: string, enableDebugger: unknown) => {
+interface SilentLoginIframeParams {
+  authUrl: string;
+  token: string;
+  SilentLoginEvent: typeof SilentLoginEventType;
+  enableDebugger: unknown;
+}
+
+const silentLoginIframe = ({authUrl, token, SilentLoginEvent, enableDebugger}: SilentLoginIframeParams) => {
 
   // Dev helper
   if (enableDebugger === true) debugger;
-
-  // Decode the silent login event constants
-  const SilentLoginEvent = JSON.parse(silentLoginEventJson);
 
   // Grab the reference to the parent
   const parent = window.parent;
@@ -60,11 +67,13 @@ export const silentLoginIframeHTML = (authUrl: string, token: string, enableDebu
   // Build the html for the silent login iframe
   const silentLoginFunction = silentLoginIframe.toString();
 
-  // Ensure the auth url is clean
-  authUrl = authUrl.replaceAll('"', '\\"');
-
-  // Grab the silent login event constants and add slashes
-  const silentLoginEventJson = JSON.stringify(SilentLoginEventType).replaceAll('"', '\\"');
+  const payload = {
+    authUrl,
+    token,
+    enableDebugger,
+    SilentLoginEvent: SilentLoginEventType,
+    channel: LOGIN_LISTENER_BROADCAST_CHANNEL,
+  };
 
   // Return the html
   return `
@@ -73,8 +82,12 @@ export const silentLoginIframeHTML = (authUrl: string, token: string, enableDebu
       <body>
       <h3>Silent Login</h3>
       <p>This page loaded in error. <a id="back-to-main" href="#">Back to main</a></p>
+      <script id="silent-login-iframe-data" type="application/json">
+        ${JSON.stringify(payload)}
+      </script>
       <script>
-        (${silentLoginFunction})("${authUrl}", "${token}", "${silentLoginEventJson}", ${(enableDebugger) ? "true" : "false"});
+        const data = JSON.parse(document.getElementById("silent-login-iframe-data").textContent);
+        (${silentLoginFunction})(data);
       </script>
       </body>
     </html>

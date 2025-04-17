@@ -41,6 +41,7 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
     protected readonly config: CacheProviderConfig<T, A>;
     private readonly instanceLevelUpdateLock: LRUCache<string, InstanceLock<T>>;
     protected readonly cachedResult: LRUCache<string, T>;
+    private isInitialized: boolean = false;
 
     constructor(config: CacheProviderConfig<T, A>) {
         // Update pino logger reference
@@ -62,6 +63,14 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         // Store the config
         this.config = config;
     }
+
+    async initialize(): Promise<void> {
+        if (this.isInitialized) throw new Error("Cache provider already initialized");
+        this.isInitialized = true;
+        await this.performInitialization();
+    }
+
+    protected async performInitialization(): Promise<void> {}
 
     async invalidateFromJwt(validatedJwt: string, targetKeyParam: keyof JWTPayload) {
         // Grab the key and expiration from the jwt
@@ -256,4 +265,6 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
             return undefined;
         }
     }
+
+
 }

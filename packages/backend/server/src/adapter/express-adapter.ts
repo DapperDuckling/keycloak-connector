@@ -88,7 +88,7 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
             } else if (connectorResponse.serveFileFullPath !== undefined) {
 
                 // Send file
-                res.sendFile(connectorResponse.serveFileFullPath, (err) => {
+                res.sendFile(connectorResponse.serveFileFullPath, () => {
                     if (!res.headersSent) res.status(404).send('Could not find file to serve.');
                 });
 
@@ -244,6 +244,8 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
 }
 
 export const lock = (routeConfigOrRoles?: KeycloakRouteConfigOrRoles): RequestHandler => {
+    // Express does not declare their async middleware type
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     return async (...args) => {
         // Determine the input route config type and build the requisite route config object
         let routeConfig: KeycloakRouteConfig | undefined;

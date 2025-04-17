@@ -6,6 +6,7 @@ import {isObject} from "@dapperduckling/keycloak-connector-common";
 import * as OpenidClient from "openid-client";
 import {type UserInfoResponse} from "oauth4webapi";
 import * as jose from "jose";
+import {WWWAuthenticateChallengeError} from "openid-client";
 
 export type UserInfoCacheConfig = CacheAdapterConfig & {
     oidcConfig: OpenidClient.Configuration,
@@ -29,12 +30,12 @@ export class UserInfoCache extends AbstractCacheAdapter<UserInfoResponse, [strin
     }
 
     async invalidateFromJwt(validatedJwt: string) {
-        await this.cacheProvider.invalidateFromJwt(validatedJwt, 'jti');
+        await this.cacheProvider.invalidateFromJwt(validatedJwt, 'sid');
     }
 
     getUserInfo = async (validatedAccessJwt: string): Promise<UserInfoResponse | undefined> => {
         // Grab the user info from cache (or generate it into cache)
-        const cacheResult = await this.cacheProvider.getFromJwt(validatedAccessJwt, 'jti', [validatedAccessJwt]);
+        const cacheResult = await this.cacheProvider.getFromJwt(validatedAccessJwt, 'sid', [validatedAccessJwt]);
 
         // Return just the data
         return cacheResult?.data;
@@ -55,14 +56,22 @@ export class UserInfoCache extends AbstractCacheAdapter<UserInfoResponse, [strin
             return await OpenidClient.fetchUserInfo(this.config.oidcConfig, validatedAccessJwt, jwtSubject);
         } catch (e) {
             // Check for a server misconfiguration
-            if (e instanceof Error && (
-                e.message.includes("expected application/jwt response")
-                || e.message.includes("JWT UserInfo Response expected")
-            )) {
-                this.config.pinoLogger?.error(`Possible Keycloak misconfiguration! See documentation for proper client configuration. (Need to set signature algorithm)`);
+            if (e instanceof Error) {
+
+                // Check for known issues
+                if (e.message.includes("expected application/jwt response") ||
+                    e.message.includes("JWT UserInfo Response expected")) {
+                    this.config.pinoLogger?.error(`Possible Keycloak misconfiguration! See documentation for proper client configuration. (Need to set signature algorithm)`);
+
+                } else if (e instanceof WWWAuthenticateChallengeError) {
+                    // Check for (likely) revoked access token
+                    this.config.pinoLogger?.warn(`Server validated access token rejected by Keycloak. Likely due to a user attempting to token after an administrator manually revoked the token.`);
+
+                } else {
+                    this.config.pinoLogger?.debug(e);
+                }
             }
 
-            if (isObject(e)) this.config.pinoLogger?.debug(e);
             this.config.pinoLogger?.debug(`Failed to fetch user info from keycloak`);
         }
 

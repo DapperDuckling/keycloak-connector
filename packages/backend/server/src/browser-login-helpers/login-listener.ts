@@ -1,19 +1,21 @@
-import {SilentLoginEvent, type SilentLoginMessage} from "@dapperduckling/keycloak-connector-common";
-import {LOGIN_LISTENER_BROADCAST_CHANNEL, SILENT_LOGIN_EVENT_JSON} from "./common.js";
-import {SilentLoginEvent as SilentLoginEventType} from "@dapperduckling/keycloak-connector-common/dist/types.js";
+import {SilentLoginEvent as SilentLoginEventType, type SilentLoginMessage} from "@dapperduckling/keycloak-connector-common";
+import {LOGIN_LISTENER_BROADCAST_CHANNEL} from "./common.js";
+
+interface LoginListenerParams {
+    sourceOrigin: string | undefined;
+    SilentLoginEvent: typeof SilentLoginEventType;
+    loginListenerChannel: string;
+    enableDebugger: boolean;
+}
 
 const loginListener = (
-    sourceOrigin: string | undefined,
-    silentLoginEventJson: string,
-    loginListenerChannel: string,
-    enableDebugger: boolean
+    {sourceOrigin, SilentLoginEvent, loginListenerChannel, enableDebugger}: LoginListenerParams
 ) => {
 
     // Dev helper
     if (enableDebugger) debugger;
 
-    // Decode the silent login event constants
-    const SilentLoginEvent = JSON.parse(silentLoginEventJson) as typeof SilentLoginEventType;
+    // TODO: CHECK THIS FOR XSS ATTACKS. SEE IF WE CAN BREAK OUT OF THE SCRIPT TAG
 
     // Update the error link
     const backToMainLink = document.querySelector<HTMLAnchorElement>("#back-to-main");
@@ -25,8 +27,8 @@ const loginListener = (
         return;
     }
 
-    // Check for a parent window
-    if (!window.parent) {
+    // Check for no parent window
+    if (window.parent === window) {
         console.error('No parent window found, cannot listen');
         return;
     }
@@ -69,6 +71,12 @@ const loginListener = (
 export const loginListenerHTML = (sourceOrigin: string | undefined, enableDebugger: boolean) => {
     // Build the html
     const loginListenerFunction = loginListener.toString();
+    const payload = {
+        sourceOrigin,
+        enableDebugger,
+        SilentLoginEvent: SilentLoginEventType,
+        channel: LOGIN_LISTENER_BROADCAST_CHANNEL,
+    };
 
     // Return the html
     return `
@@ -77,8 +85,12 @@ export const loginListenerHTML = (sourceOrigin: string | undefined, enableDebugg
       <body>
       <h3>Login Listener</h3>
       <p>This page loaded in error. <a id="back-to-main" href="#">Back to main</a></p>
+      <script id="login-listener-data" type="application/json">
+        ${JSON.stringify(payload)}
+      </script>
       <script>
-        (${loginListenerFunction})("${sourceOrigin}", "${SILENT_LOGIN_EVENT_JSON}", "${LOGIN_LISTENER_BROADCAST_CHANNEL}", ${enableDebugger});
+        const data = JSON.parse(document.getElementById("login-listener-data").textContent);
+        (${loginListenerFunction})(data);
       </script>
       </body>
     </html>

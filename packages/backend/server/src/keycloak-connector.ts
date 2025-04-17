@@ -14,7 +14,8 @@ import {
     type SupportedServers,
     type UserData,
     type UserDataResponse,
-    VerifiableJwtTokenTypes, State, ValueOf
+    VerifiableJwtTokenTypes, State, ValueOf,
+    ValidatedStateResult
 } from "./types.js";
 import type {AbstractAdapter, ConnectorCallback, RouteRegistrationOptions} from "./adapter/abstract-adapter.js";
 import * as jose from 'jose';
@@ -46,8 +47,9 @@ import path, {dirname} from "path";
 import {loginListenerHTML} from "./browser-login-helpers/login-listener.js";
 import * as fs from "fs";
 import {CookieStore} from "./cookie-store.js";
-import {AuthorizationResponseError, type UserInfoResponse, JWT_TIMESTAMP_CHECK} from "oauth4webapi";
+import {type UserInfoResponse, JWT_TIMESTAMP_CHECK} from "oauth4webapi";
 import type {JWK, JWTVerifyOptions} from "jose";
+import {AbstractCacheAdapter} from "./cache-adapters/abstract-cache-adapter.js";
 
 const STATIC_FILE_DIR = [dirname(fileURLToPath(import.meta.url)), 'static', ""].join(path.sep);
 
@@ -65,7 +67,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private readonly authPluginManager: AuthPluginManager;
     private readonly validRedirectOrigins: string[];
     private readonly cookieStoreGenerator: ReturnType<typeof CookieStore.generator>;
-    private oidcConfigTimer: ReturnType<typeof setTimeout> | null = null;
     private updateOidcConfig: Promise<boolean> | null = null;
     private updateOidcConfigPending: Promise<boolean> | null = null;
 
@@ -103,8 +104,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Configure updating the OP oidc configuration periodically
         if (this._config.refreshConfigMins && this._config.refreshConfigMins > 0) {
-            // Create a timeout
-            this.oidcConfigTimer = setTimeout(this.updateOpenIdConfig.bind(this), this._config.refreshConfigMins * 60 * 1000);
+            setTimeout(this.updateOpenIdConfig.bind(this), this._config.refreshConfigMins * 60 * 1000);
         }
 
         // Setup the auth plugin manager
@@ -241,15 +241,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
          * Handles any back channel logout messages from keycloak
          */
         this.registerRoute(adapter, {
-            url: this.getRoutePath(RouteEnum.ADMIN_URL),
-            method: "POST",
-            isUnlocked: true,
-        }, this.handleAdminMessages);
-
-        /**
-         * Handles any back channel logout messages from keycloak
-         */
-        this.registerRoute(adapter, {
             url: this.getRoutePath(RouteEnum.BACK_CHANNEL_LOGOUT),
             method: "POST",
             isUnlocked: true,
@@ -355,12 +346,12 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Dev note: Doing this over forcibly invalidating the cache as some requests handled by this function may not require it
         req.routeConfig.verifyUserInfoWithServer = true;
 
-        // Determine the silent login status
-        const [silentRequestType] = this.silentRequestConfig(req);
+        // Check if this is a silent request
+        const [silentRequestType, silentRequestToken] = this.silentRequestConfig(req);
 
         // Silent, return data via silent login response
         if (silentRequestType !== SilentLoginTypes.NONE) {
-            return this.handleSilentLoginResponse(req, this.cookieStoreGenerator(), SilentLoginEvent.LOGIN_SUCCESS, req.origin);
+            return this.handleSilentLoginResponse(req, this.cookieStoreGenerator(), SilentLoginEvent.LOGIN_SUCCESS, req.origin, silentRequestToken, silentRequestType);
         }
 
         // Validate the redirect uri (or throw)
@@ -458,8 +449,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
             statusCode: 400
         }
 
-        // TODO: DETERMINE IF THIS NEEDS TO BE CHANGED SOMEHOW
-
         // Serve the login listener page
         return {
             statusCode: 200,
@@ -548,10 +537,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Handle the post login redirect uri
         let rawPostAuthRedirectUri: string|null;
         try {
-            // TODO: FIX THIS
             rawPostAuthRedirectUri = req.urlQuery['post_auth_redirect_uri'] as string;
-            // const inputUrlObj = new URL(req.url, req.origin);
-            // rawPostAuthRedirectUri = inputUrlObj.searchParams.get('post_auth_redirect_uri');
 
             // Check a redirect uri does not exist
             if (rawPostAuthRedirectUri === undefined) return [];
@@ -630,7 +616,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             .sign(keys.privateKey);
     };
 
-    private validatedStateFromResponse = async (req: ConnectorRequest): Promise<{state: State, error: string | undefined} | null> => {
+    private validatedStateFromResponse = async (req: ConnectorRequest): Promise<ValidatedStateResult> => {
 
         const responseParam = req.urlQuery['response'];
 
@@ -654,8 +640,13 @@ export class KeycloakConnector<Server extends SupportedServers> {
             return null;
         }
 
+        return await this.validatedState(state, error);
+    }
+
+    private validatedState = async (state: unknown, error?: string | undefined): Promise<ValidatedStateResult> => {
+
         // Check for a state
-        if (state === undefined) {
+        if (typeof state !== 'string') {
             this._config.pinoLogger?.error(`Missing state in signature validated response param, this should not happen`);
             return null;
         }
@@ -710,7 +701,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
             return result as State;
         }
     }
-
 
     private handleCallbackWrapped = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
         try {
@@ -800,7 +790,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
             if (silentRequestType !== SilentLoginTypes.NONE &&
                 (error.includes("login_required") || error.includes("interaction_required"))
             ) {
-                return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED, state.sourceOrigin, state.silentRequestToken);
+                return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED, state.sourceOrigin, state.silentRequestToken, state.silentRequestType);
             }
         }
 
@@ -825,7 +815,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
             // Return a silent login response if required
             if (silentRequestType !== SilentLoginTypes.NONE) {
-                return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_SUCCESS, state.sourceOrigin, state.silentRequestToken);
+                return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_SUCCESS, state.sourceOrigin, state.silentRequestToken, state.silentRequestType);
             }
 
             return {
@@ -836,56 +826,42 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         } catch (e) {
 
-            // Check if silent login requires login
-            // TODO: SEE IF WE CAN REMOVE THIS NOW THAT WE CHECK UP TOP
-            if (silentRequestType !== SilentLoginTypes.NONE &&
-                e instanceof AuthorizationResponseError &&
-                (e.error.includes("login_required") || e.error.includes("interaction_required"))
-            ) {
-                return this.handleSilentLoginResponse(req, cookies, SilentLoginEvent.LOGIN_REQUIRED, state.sourceOrigin, state.silentRequestToken);
-            }
-
+            // Check for known issues
             if (e instanceof Error) {
+
+                // Check for known codes
                 if ('code' in e) {
                     // Check for an expired JWT
                     if (e.code === JWT_TIMESTAMP_CHECK || e.message.includes("JWT expired")) {
                         // Hint to the login page the user took too long
                         throw new LoginError(ErrorHints.JWT_EXPIRED);
                     }
-
                 }
 
+                // Check for oidc async timeout
                 if (e.message.includes("request timed out after")) {
-
                     // Log the issue as the OP may not be able to handle the requests or
                     // the RP (this server) is not able to connect to the OP
                     this._config.pinoLogger?.error(e);
                     this._config.pinoLogger?.error(`Timed out while connecting to the OP. It is possible the OP is still trying to fetch this server's public key and has not yet timed out from that response before we did here.`);
-
-                } else {
-                    // Log the issue as a possibility to detect attacks
-                    this._config.pinoLogger?.warn(e);
-                    this._config.pinoLogger?.warn(`Failed to complete login, RP error`);
-
-                    // This could be 400 or 500 error
-                    throw new LoginError(ErrorHints.UNKNOWN);
                 }
-            } else if (e instanceof Error) { // TODO: determine how to differentiate between OP and RP errors and other errors , then check for
+
                 // Check for inability to load a public key
                 if (e.message.includes("load public key")) {
                     this.components.keyProvider.triggerKeySync();
                 }
 
                 // Log the issue
-                this._config.pinoLogger?.error(e);
-                this._config.pinoLogger?.error(`Unexpected response from OP`);
+                this._config.pinoLogger?.warn(e);
+                this._config.pinoLogger?.warn(`Failed to complete login`);
 
-            } else {
-                // Log the issue
-                if (isObject(e)) this._config.pinoLogger?.error(e);
-                this._config.pinoLogger?.error(`Unexpected error during login`);
+                // This could be 400 or 500 error
+                throw new LoginError(ErrorHints.UNKNOWN);
             }
 
+            // Log the issue
+            if (isObject(e)) this._config.pinoLogger?.error(e);
+            this._config.pinoLogger?.error(`Unexpected error during login`);
             throw new LoginError(ErrorHints.CODE_500);
         }
     }
@@ -903,9 +879,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
         const authFlowNonce = OpenidClient.randomNonce();
 
         // Build the redirect uri
-        // TODO: FIX LOGOUT
         const redirectUri = this.buildRedirectUriOrThrow({
-            // authFlowNonce: authFlowNonce,
             isLogout: true
         });
 
@@ -921,10 +895,15 @@ export class KeycloakConnector<Server extends SupportedServers> {
         // Grab the ID token
         const idToken = req.cookies?.[ConnectorCookies.ID_TOKEN];
 
+        // Build the state object
+        const state = await this.signState({
+            authFlowNonce: authFlowNonce,
+        });
+
         // Generate the logout url
         const logoutUrl = OpenidClient.buildEndSessionUrl(this.components.oidcConfig, {
             post_logout_redirect_uri: redirectUri,
-            // TODO: ADD A STATE HERE TOO!! SO WE CAN GET THE post auth redirect uri
+            state,
             ...idToken && {id_token_hint: idToken},
             client_id: this.components.oidcConfig.clientMetadata().client_id,
             prompt: 'none'
@@ -951,13 +930,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
             ...(this.hasOtherOrigins()) ? this.CookieOptionsUnrestricted : this.CookieOptions
         });
 
+        // Grab the validated state
+        const {state} = await this.validatedState(req.urlQuery['state']) ?? {};
 
-        //TODO: FIX THIS
-
-
-        // Grab the auth flow nonce
-        // const authFlowNonce = this.getAuthFlowNonce(req);
-        const authFlowNonce = Math.random().toString();
+        // Grab the auth flow nonce (if it exists)
+        const authFlowNonce = state?.authFlowNonce;
 
         // Build the post logout redirect uri
         let postAuthRedirectUri = null;
@@ -995,23 +972,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
         };
     }
 
-    private handleAdminMessages = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
-
-        //todo: what does keycloak send us???
-        console.log(req);
-
-        return {
-            statusCode: 200,
-            responseText: "TODO: finish1",
-        };
-    };
-
     private handleBackChannelLogout = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
-        //todo: finish backchannel logout. what does keycloak send us???
-        console.log(req);
-
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const logoutToken = req.body?.['logout_token'];
 
         // Check for a lack of logout token(s)
@@ -1020,16 +982,13 @@ export class KeycloakConnector<Server extends SupportedServers> {
         }
 
         // Validate logout token
-        const result = await this.validateJwtOrThrow(logoutToken, VerifiableJwtTokenTypes.LOGOUT);
+        await this.validateJwtOrThrow(logoutToken, VerifiableJwtTokenTypes.LOGOUT);
 
-        // ({payload: userData.accessToken} = await this.validateJwt(accessJwt));
-
-        console.log(result);
-
+        // Invalidate the user info cache
+        await this.components.userInfoCache.invalidateFromJwt(logoutToken);
 
         return {
             statusCode: 200,
-            // responseText: "TODO: finish2",
         };
     }
 
@@ -1085,7 +1044,14 @@ export class KeycloakConnector<Server extends SupportedServers> {
         };
     }
 
-    private handleSilentLoginResponse = async (req: ConnectorRequest, cookies: CookieStore<Server>, event: SilentLoginEvent, sourceOrigin: string | undefined, silentRequestToken?: string): Promise<ConnectorResponse<Server>> => {
+    private handleSilentLoginResponse = async (
+        req: ConnectorRequest,
+        cookies: CookieStore<Server>,
+        event: SilentLoginEvent,
+        sourceOrigin: string | undefined,
+        silentRequestToken: string | undefined,
+        silentRequestType: SilentLoginTypes | undefined,
+    ): Promise<ConnectorResponse<Server>> => {
         // Convert the cookies into an object based store
         const requestCookies = cookies.updatedReqCookies(req.cookies);
 
@@ -1113,9 +1079,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Wrap the user status data
         const userStatusWrapped = await this.buildWrappedUserStatus(req);
-
-        // Get the silent type configuration
-        const [silentRequestType] = this.silentRequestConfig(req);
 
         // Build the silent login response message
         const message: SilentLoginMessage = {
@@ -1391,8 +1354,20 @@ export class KeycloakConnector<Server extends SupportedServers> {
             typeof this.config.eagerRefreshTime === "number" &&
             this.config.eagerRefreshTime > 0) {
 
+            const eagerRefreshTimeSeconds = this.config.eagerRefreshTime * 60;
+            const accessTokenLifetime = accessToken.exp - (accessToken.iat ?? 0);
+
+            // Check for overly eager refresh or too short-lived access token configurations
+            if (accessTokenLifetime <= eagerRefreshTimeSeconds) {
+                this.config.pinoLogger?.warn(
+                    `Likely substantial performance issue: Access token lifetime ${accessTokenLifetime} seconds is 
+                    equal to or less than eager refresh time of ${eagerRefreshTimeSeconds}. EVERY request will trigger a token refresh causing significantly 
+                    more resources to process. Increase the access token lifetime, or ensure "eagerRefreshTime" is not set too high.`
+                );
+            }
+
             // Calculate the time until we need to perform an eager refresh
-            const timeUntilEager = accessToken.exp - Date.now()/1000 - (this.config.eagerRefreshTime * 60);
+            const timeUntilEager = accessToken.exp - Date.now()/1000 - eagerRefreshTimeSeconds;
             eagerRefresh = (timeUntilEager <= 0);
         }
 
@@ -1627,7 +1602,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
      */
     private updateOidcServer = async () => {
         const updateId = webcrypto.randomUUID();
-        // TODO: test this
 
         for (let retries= 0; retries<4; retries++) {
             try {
@@ -1847,10 +1821,10 @@ export class KeycloakConnector<Server extends SupportedServers> {
         };
 
         // Initialize the token cache
-        const tokenCache = new TokenCache(cacheOptions);
+        const tokenCache = await AbstractCacheAdapter.init(TokenCache, cacheOptions);
 
         // Initialize the user info cache
-        const userInfoCache = new UserInfoCache(cacheOptions);
+        const userInfoCache = await AbstractCacheAdapter.init(UserInfoCache, cacheOptions);
 
         const components: KeycloakConnectorInternalConfiguration = {
             oidcDiscoveryUrl: oidcDiscoveryUrl,

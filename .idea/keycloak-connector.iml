@@ -4,6 +4,8 @@
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/packages/backend/server/dist" />
       <excludeFolder url="file://$MODULE_DIR$/packages/backend/server/examples/express/.yalc" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react-custom-darksaber/example/.yalc" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react/example/.yalc" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

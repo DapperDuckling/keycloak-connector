@@ -27,10 +27,11 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
         _PREFIX: "cluster-cache",
         UPDATE_DATA: "update-data",
         LISTENING_CHANNEL: "listening-channel",
+        INVALIDATOR_LISTENING_CHANNEL: "invalidator-listening-channel",
     } as const;
     private readonly clusterProvider: AbstractClusterProvider;
     private readonly pendingRefresh;
-    private readonly lockOptions: {key: string, ttl: number};
+    private readonly FULL_INVALIDATOR_LISTENING_CHANNEL: string;
 
     constructor(config: CacheProviderConfig<T, A>) {
         super(config);
@@ -46,22 +47,41 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
             ttl: (this.config.maxWaitSecs ?? CacheProvider.MAX_WAIT_SECS) * 1000,
         });
 
-        // Build the lock options
-        this.lockOptions = {
-            key: `${this.constants._PREFIX}:${this.constants.UPDATE_DATA}:${this.config.title}`, //TODO: Ducky, this should be based off of the key of the individual item
-            ttl: 60,
-        }
-
         // Store reference to the cluster provider
         this.clusterProvider = config.clusterProvider;
+        
+        // Store the reference to the invalidator listening channel
+        this.FULL_INVALIDATOR_LISTENING_CHANNEL = `${this.constants._PREFIX}:${this.constants.INVALIDATOR_LISTENING_CHANNEL}:${this.config.title}`;
 
     }
 
+    private getLockOptions = (key: string): {key: string, ttl: number} => ({
+        key: `${this.constants._PREFIX}:${this.constants.UPDATE_DATA}:${this.config.title}:${key}`,
+        ttl: 60,
+    })
+
+    private handleIncomingInvalidationData = (message: unknown) => {
+        // Check for an improperly formatted message
+        if (!is<UpdateDataMessage<any>>(message)) {
+            return;
+        }
+
+        // Invalidate local cache
+        this.cachedResult.delete(message.key);
+
+        // tODO: TEST THIS
+    }
+
+    protected override async performInitialization(): Promise<void> {
+        // Listen for invalidated cache keys
+        await this.clusterProvider.subscribe(this.constants.INVALIDATOR_LISTENING_CHANNEL, this.handleIncomingInvalidationData);
+    }
+
     override async invalidateCache(key: string) {
-        await super.invalidateCache(key);
+        const lockOptions = this.getLockOptions(key);
 
         // Grab a lock, force breaking any existing locks
-        await this.clusterProvider.lock(this.lockOptions, true);
+        await this.clusterProvider.lock(lockOptions, true);
 
         // Grab the storage key
         const storageKey = this.getStorageKey(key);
@@ -69,8 +89,16 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
         // Invalidate cluster cache
         await this.clusterProvider.remove(storageKey);
 
+        // tODO: TEST THIS
+
+        // Send message to invalidate all other local caches
+        await this.clusterProvider.publish<UpdateDataMessage<undefined>>(this.constants.INVALIDATOR_LISTENING_CHANNEL, {
+            key: key,
+            data: undefined,
+        });
+
         // Unlock our own lock
-        await this.clusterProvider.unlock(this.lockOptions);
+        await this.clusterProvider.unlock(lockOptions);
     }
 
     private handleIncomingUpdateData = (message: unknown) => {
@@ -113,6 +141,9 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
         // Grab the storage key
         const storageKey = this.getStorageKey(key);
 
+        // Grab the lock options
+        const lockOptions = this.getLockOptions(key);
+
         let data: T | undefined;
 
         try {
@@ -127,7 +158,7 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
 
             do {
                 // Grab a lock
-                lock = await this.clusterProvider.lock(this.lockOptions); // ** TODO: DO BELIEVE THIS IS A PROBLEM. Needs more specific locking key for some operations
+                lock = await this.clusterProvider.lock(lockOptions); // ** TODO: DO BELIEVE THIS IS A PROBLEM. Needs more specific locking key for some operations
 
                 // Check for a lock
                 if (lock) break;
@@ -164,7 +195,7 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
                 const ttl = ttlFromExpiration(expiration) ?? this.config.ttl;
 
                 // Store the result in the cluster
-                await this.clusterProvider.storeObject(storageKey, data, Math.max(1, ttl), this.lockOptions.key);
+                await this.clusterProvider.storeObject(storageKey, data, Math.max(1, ttl), lockOptions.key);
 
                 // Return the new data
                 return {
@@ -191,7 +222,7 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
                 });
 
                 // Release the lock
-                await this.clusterProvider.unlock(this.lockOptions);
+                await this.clusterProvider.unlock(lockOptions);
             }
 
         }

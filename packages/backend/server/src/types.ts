@@ -555,3 +555,5 @@ export enum ClientSearch {
 }
 
 export type ValueOf<T> = T[keyof T];
+
+export type ValidatedStateResult = {state: State, error: string | undefined} | null;

@@ -8,9 +8,8 @@ export const RouteUrlDefaults: Required<CustomRouteUrl> = {
     logoutPage: '/logout',
     logoutPost: '/logout',
     callback: '/callback',
-    logoutCallback: '/logout-callback', // Todo: Is this used?
+    logoutCallback: '/logout-callback',
     publicKeys: '/k-jwks',
-    adminUrl: '/k-admin-url',
     backChannelLogout: '/k-logout',
     userStatus: '/user-status',
     publicDir: "/static"

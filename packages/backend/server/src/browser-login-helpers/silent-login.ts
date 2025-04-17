@@ -2,7 +2,7 @@ import {
     SilentLoginEvent as SilentLoginEventType,
     type SilentLoginMessage
 } from "@dapperduckling/keycloak-connector-common";
-import {LOGIN_LISTENER_BROADCAST_CHANNEL, SILENT_LOGIN_EVENT_JSON} from "./common.js";
+import {LOGIN_LISTENER_BROADCAST_CHANNEL} from "./common.js";
 
 interface SilentLoginResponseParams {
     message: SilentLoginMessage;

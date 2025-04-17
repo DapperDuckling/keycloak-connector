@@ -70,9 +70,8 @@ export type CustomRouteUrl = {
     logoutPage?: string;
     logoutPost?: string;
     callback?: string;
-    logoutCallback?: string;  // Todo: Is this used?
+    logoutCallback?: string;
     publicKeys?: string;
-    adminUrl?: string;
     backChannelLogout?: string;
     userStatus?: string;
     publicDir?: string;
@@ -86,9 +85,8 @@ export enum RouteEnum {
     LOGOUT_PAGE = "logoutPage",
     LOGOUT_POST = "logoutPost",
     CALLBACK = "callback",
-    LOGOUT_CALLBACK = "logoutCallback",  // Todo: Is this used?
+    LOGOUT_CALLBACK = "logoutCallback",
     PUBLIC_KEYS = "publicKeys",
-    ADMIN_URL = "adminUrl",
     BACK_CHANNEL_LOGOUT = "backChannelLogout",
     USER_STATUS = "userStatus",
     PUBLIC_DIR = "publicDir",

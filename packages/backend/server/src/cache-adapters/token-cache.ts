@@ -7,13 +7,11 @@ import {AbstractCacheAdapter} from "./abstract-cache-adapter.js";
 import {isObject} from "@dapperduckling/keycloak-connector-common";
 import * as OpenidClient from "openid-client";
 import type {TokenEndpointResponse} from "oauth4webapi";
-import type {Logger} from "pino";
+import {ResponseBodyError} from "openid-client";
 
 export type TokenCacheConfig = CacheAdapterConfig & {
     oidcConfig: OpenidClient.Configuration,
 }
-
-export type TokenCacheProvider = (...args: ConstructorParameters<typeof TokenCache>) => Promise<TokenCache>;
 
 export class TokenCache extends AbstractCacheAdapter<ExtendedRefreshTokenSet, [string]> {
 
@@ -60,8 +58,8 @@ export class TokenCache extends AbstractCacheAdapter<ExtendedRefreshTokenSet, [s
 
         } catch (e) {
             // Do not dump the error if the token is only not active
-            if (e instanceof Error &&
-                e.message.includes('Token is not active')) {
+            if (e instanceof ResponseBodyError &&
+                e.error_description?.includes('not active')) {
                 this.config.pinoLogger?.debug(`Refresh token is not active, cannot perform token refresh`);
                 return;
             }
@@ -97,4 +95,5 @@ export class TokenCache extends AbstractCacheAdapter<ExtendedRefreshTokenSet, [s
             expiresAt: Math.floor(Date.now() / 1000) + tokenSet.expires_in,
         }
     }
+
 }
