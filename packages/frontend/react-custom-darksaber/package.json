@@ -23,7 +23,6 @@
     "build:esm": "tsc",
     "build:cjs": "tsc --module commonjs --outDir dist/cjs",
     "yalc:publish": "yalc publish --push",
-    "yalc:watch": "yalc-watch",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {

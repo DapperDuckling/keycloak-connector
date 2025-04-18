@@ -29,8 +29,7 @@
     "test:start:express": "cd ./tests/integration/express/ && node --loader ts-node/esm ./express-server.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "yalc:publish": "yalc publish --push",
-    "yalc:watch": "yalc-watch"
+    "yalc:publish": "yalc publish --push"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -41,7 +40,6 @@
     "@types/jest": "^29.5.1",
     "@types/object-hash": "^3.0.6",
     "cpy-cli": "^5.0.0",
-    "nodemon": "^3.1.9",
     "pino-http": "^8.4.0",
     "readline-sync": "^1.4.10",
     "trianglify": "^4.1.1",

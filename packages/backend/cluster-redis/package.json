@@ -22,8 +22,7 @@
     "copy:scripts": "cpy \"src/lua-scripts/**/*\" dist/lua-scripts",
     "test:start:redis-cluster": "npm run build && cd ./tests/integration/redis-cluster/ && node --loader ts-node/esm ./main.test.ts",
     "test:start:orchestrator": "cd ./tests/integration/redis-cluster/ && node --loader ts-node/esm ./orchestrator.ts",
-    "yalc:publish": "yalc publish --push",
-    "yalc:watch": "yalc-watch"
+    "yalc:publish": "yalc publish --push"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
