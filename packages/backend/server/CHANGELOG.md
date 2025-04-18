@@ -8,18 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - None
-- 
-## [3.0.0] - 2025-04-17
+
+## [3.0.0] - 2025-04-18
 
 ### Changed
+
 - Significant core code and logic updated for parts touching the openid-client library to match OAuth 2.1 specifications
 - Additional logic to retry syncing keys if the oidc provider reports issue with public key
 
 ### Deprecated
+
 - `redirect_uris` and `post_logout_redirect_uris` for `redirectUris` and `postLogoutRedirectUris`
 
 ### Fixed
+
 - Swapped cache provider logic to use deferred promise instead due to improper event listener usage
+- Cache provider logic more robust to operate as intended
+- Cluster key provider updated to interface with non-serializable keys 
+- Backchannel logouts correctly clear cached user info
 
 ## [2.6.3] - 2025-02-25
 
