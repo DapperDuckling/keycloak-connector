@@ -21,8 +21,6 @@ const silentLoginResponse = (
     // Dev helper
     if (enableDebugger) debugger;
 
-    // TODO: CHECK THIS FOR XSS ATTACKS. SEE IF WE CAN BREAK OUT OF THE SCRIPT TAG
-
     // Grab the real reference to the parent
     const parent = window.parent;
 

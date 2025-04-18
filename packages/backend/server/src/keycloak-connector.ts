@@ -579,8 +579,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
     private buildRedirectUriOrThrow = (config?: {
         isLogout?: boolean,
-        // silentRequestType?: SilentLoginTypes,
-        // silentRequestToken?: string,
     }): string => {
 
         // Grab the base redirect uri
