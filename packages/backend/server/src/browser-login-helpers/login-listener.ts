@@ -15,8 +15,6 @@ const loginListener = (
     // Dev helper
     if (enableDebugger) debugger;
 
-    // TODO: CHECK THIS FOR XSS ATTACKS. SEE IF WE CAN BREAK OUT OF THE SCRIPT TAG
-
     // Update the error link
     const backToMainLink = document.querySelector<HTMLAnchorElement>("#back-to-main");
     if (backToMainLink) backToMainLink.href = window.location.origin;
@@ -78,6 +76,9 @@ export const loginListenerHTML = (sourceOrigin: string | undefined, enableDebugg
         channel: LOGIN_LISTENER_BROADCAST_CHANNEL,
     };
 
+    const payloadJson = JSON.stringify(payload);
+    const payloadBase64 = Buffer.from(payloadJson, 'utf-8').toString('base64');
+
     // Return the html
     return `
     <!doctype html>
@@ -85,11 +86,15 @@ export const loginListenerHTML = (sourceOrigin: string | undefined, enableDebugg
       <body>
       <h3>Login Listener</h3>
       <p>This page loaded in error. <a id="back-to-main" href="#">Back to main</a></p>
-      <script id="login-listener-data" type="application/json">
-        ${JSON.stringify(payload)}
+
+      <script id="function-data" type="application/json">
+        ${payloadBase64}
       </script>
+        
       <script>
-        const data = JSON.parse(document.getElementById("login-listener-data").textContent);
+        const base64 = document.getElementById("function-data").textContent;
+        const json = atob(base64);
+        const data = JSON.parse(json);
         (${loginListenerFunction})(data);
       </script>
       </body>

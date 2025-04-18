@@ -121,6 +121,9 @@ export const silentLoginResponseHTML = (
         channel: LOGIN_LISTENER_BROADCAST_CHANNEL,
     };
 
+    const payloadJson = JSON.stringify(payload);
+    const payloadBase64 = Buffer.from(payloadJson, 'utf-8').toString('base64');
+
     return `
     <!doctype html>
     <html lang="en">
@@ -128,12 +131,14 @@ export const silentLoginResponseHTML = (
         <h3>Silent Login Response</h3>
         <p>This page loaded in error. <a id="back-to-main" href="#">Back to main</a></p>
 
-        <script id="silent-login-data" type="application/json">
-          ${JSON.stringify(payload)}
+        <script id="function-data" type="application/json">
+          ${payloadBase64}
         </script>
 
         <script>
-          const data = JSON.parse(document.getElementById("silent-login-data").textContent);
+          const base64 = document.getElementById("function-data").textContent;
+          const json = atob(base64);
+          const data = JSON.parse(json);
           (${silentLoginResponseFunction})(data);
         </script>
       </body>

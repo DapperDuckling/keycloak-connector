@@ -230,15 +230,6 @@ export class ExpressAdapter extends AbstractAdapter<SupportedServers.express> {
         // Initialize the keycloak connector
         adapter._keycloakConnector = await KeycloakConnector.init<SupportedServers.express>(adapter, customConfig);
 
-        //todo: update readme to reflect no automatic locking
-        // // Add handler to every request
-        // // Forcing all pages to require at least a valid login
-        // app.use(adapter.lock([]));
-
-        // return {
-        //     lock: adapter.lock,
-        //     ...adapter._keycloakConnector.getExposed()
-        // };
         return adapter._keycloakConnector.getExposed()
     };
 }

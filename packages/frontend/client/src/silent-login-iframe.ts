@@ -75,6 +75,9 @@ export const silentLoginIframeHTML = (authUrl: string, token: string, enableDebu
     channel: LOGIN_LISTENER_BROADCAST_CHANNEL,
   };
 
+  const payloadJson = JSON.stringify(payload);
+  const payloadBase64 = Buffer.from(payloadJson, 'utf-8').toString('base64');
+
   // Return the html
   return `
     <!doctype html>
@@ -82,11 +85,15 @@ export const silentLoginIframeHTML = (authUrl: string, token: string, enableDebu
       <body>
       <h3>Silent Login</h3>
       <p>This page loaded in error. <a id="back-to-main" href="#">Back to main</a></p>
-      <script id="silent-login-iframe-data" type="application/json">
-        ${JSON.stringify(payload)}
+
+      <script id="function-data" type="application/json">
+        ${payloadBase64}
       </script>
+        
       <script>
-        const data = JSON.parse(document.getElementById("silent-login-iframe-data").textContent);
+        const base64 = document.getElementById("function-data").textContent;
+        const json = atob(base64);
+        const data = JSON.parse(json);
         (${silentLoginFunction})(data);
       </script>
       </body>
