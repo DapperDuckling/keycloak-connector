@@ -46,7 +46,7 @@ await keycloakConnectorExpress(app, {
     clientId: 'keycloak-connector-example',
     clientSecret: 'PASSWORD_ONLY_USED_IN_DEV',    // A password is not allowed in non-dev environments
     serverOrigin: `http://localhost:3005`,
-    authServerUrl: 'http://localhost:8080/',    // Your keycloak server here!
+    authServerUrl: 'http://localhost:8080',    // Your keycloak server here!
     realm: 'master',
     // highlight-start
     clusterProvider: clusterProvider,

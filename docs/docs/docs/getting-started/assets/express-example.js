@@ -18,7 +18,7 @@ await keycloakConnectorExpress(app, {
     DANGEROUS_disableJwtClientAuthentication: true, // Dev only
     fetchUserInfo: true,
     serverOrigin: `http://localhost:${serverPort}`, // This server's origin
-    authServerUrl: 'http://localhost:8080/',        // Your keycloak server here
+    authServerUrl: 'http://localhost:8080',        // Your keycloak server here
 });
 
 // Register a public route on the app

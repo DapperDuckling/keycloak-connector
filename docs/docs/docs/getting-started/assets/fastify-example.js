@@ -20,7 +20,7 @@ await fastify.register(keycloakConnectorFastify(), {
     DANGEROUS_disableJwtClientAuthentication: true, // Dev only
     fetchUserInfo: true,
     serverOrigin: `http://localhost:${serverPort}`, // This server's origin
-    authServerUrl: 'http://localhost:8080/',        // Your keycloak server here
+    authServerUrl: 'http://localhost:8080',        // Your keycloak server here
 });
 
 // A public route

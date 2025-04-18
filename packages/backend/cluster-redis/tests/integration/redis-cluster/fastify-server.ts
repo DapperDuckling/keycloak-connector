@@ -37,13 +37,22 @@ export async function makeFastifyServer(port: number) {
 
     // Initialize the keycloak-connector
     await fastify.register(keycloakConnectorFastify(), {
-        serverOrigin: `http://localhost:${port}`,
-        authServerUrl: 'http://localhost:8080/',
-        realm: 'local-dev',
+        serverOrigin: `http://localhost:3005`,
+        ...(process.env['KC_SERVER_DISCOVERY_URL'] && {oidcDiscoveryUrlOverride: process.env['KC_SERVER_DISCOVERY_URL']}),
+        authServerUrl: process.env['KC_SERVER'] ?? 'http://localhost:8080',
+        ...(process.env['KC_CLIENT_ID'] && {clientId: process.env['KC_CLIENT_ID']}),
+        realm: process.env['KC_REALM'] ?? 'local-dev',
         refreshConfigMins: -1, // Disable for dev testing
+        fetchUserInfo: true,
+        decorateUserStatus: async (connectorRequest, logger) => {
+            return {
+                decorations: true,
+                theTimeNow: new Date().toISOString(),
+            };
+        },
+        validOrigins: ['http://localhost:3000'],
         clusterProvider: clusterProvider,
         keyProvider: clusterKeyProvider,
-        fetchUserInfo: true,
     });
 
     // Register our routes

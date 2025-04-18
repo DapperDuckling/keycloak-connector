@@ -45,7 +45,7 @@ await fastify.register(cookie, {
 // Initialize the keycloak-connector
 await fastify.register(keycloakConnectorFastify(), {
     serverOrigin: 'http://localhost:3005',
-    authServerUrl: 'http://localhost:8080/',
+    authServerUrl: 'http://localhost:8080',
     realm: 'local-dev',
     refreshConfigMins: -1, // Disable for dev testing
     fetchUserInfo: true,

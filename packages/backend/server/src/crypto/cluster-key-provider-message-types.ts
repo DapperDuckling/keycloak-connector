@@ -14,7 +14,7 @@ export interface CancelPendingJwksUpdateMsg {
 export interface NewJwksAvailableMsg {
     event: "new-jwks-available",
     processId: string,
-    clusterConnectorKeys: ClusterConnectorKeys
+    serializedClusterConnectorKeys: ClusterConnectorKeys<'serializable'>
 }
 
 export interface RequestUpdateSystemJwksMsg {

@@ -581,4 +581,4 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
     }
 }
 
-export const redisClusterProvider = RedisClusterProvider.init;
+export const redisClusterProvider = (config?: RedisClusterConfig) => RedisClusterProvider.init(config);

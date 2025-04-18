@@ -21,7 +21,7 @@ await keycloakConnectorExpress(app, {
     pinoLogger: getPinoLogger,
     fetchUserInfo: true,
     serverOrigin: `http://localhost:${serverPort}`, // This server's origin
-    authServerUrl: 'http://localhost:8080/',        // Your keycloak server here
+    authServerUrl: 'http://localhost:8080',        // Your keycloak server here
     validOrigins: ['http://localhost:3000'],
 });
 

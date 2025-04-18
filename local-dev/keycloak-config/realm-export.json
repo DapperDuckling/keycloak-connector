@@ -42,7 +42,10 @@
         "user.info.response.signature.alg": "PS256",
         "request.object.signature.alg": "PS256",
         "pkce.code.challenge.method": "S256",
-        "use.jwks.url": "true"
+        "use.jwks.url": "true",
+        "display.on.consent.screen": false,
+        "backchannel.logout.url": "http://host.docker.internal:3005/auth/k-logout",
+        "backchannel.logout.session.required": "true"
       },
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,

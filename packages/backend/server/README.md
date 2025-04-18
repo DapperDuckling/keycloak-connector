@@ -140,7 +140,7 @@ app.use(cookieParser());
 // Initialize the keycloak connector
 const lock = await keycloakConnectorExpress(app, {
     serverOrigin: 'http://localhost:3005',
-    authServerUrl: 'http://localhost:8080/',
+    authServerUrl: 'http://localhost:8080',
     realm: 'local-dev',
     refreshConfigMins: -1, // Disable for dev testing
     pinoLogger: logger().logger, // Optional, but without pinologger, log messages are supressed (ie. error, warn, etc...)

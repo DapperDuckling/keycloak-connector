@@ -28,6 +28,11 @@ export interface KeycloakConnectorInternalConfiguration {
     notBefore?: number;
 }
 
+export type ConnectorKeysSerializable = Omit<ConnectorKeys, 'publicKey' | 'privateKey'> & {
+    publicKey?: unknown;
+    privateKey?: unknown;
+};
+
 export type ConnectorKeys = {
     kid: string,
     alg: string,

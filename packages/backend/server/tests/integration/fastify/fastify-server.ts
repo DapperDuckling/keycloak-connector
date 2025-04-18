@@ -49,7 +49,7 @@ await fastify.register(cookie, {
 // Initialize the keycloak-connector
 await fastify.register(keycloakConnectorFastify(), {
     serverOrigin: 'https://dev-local.dapperduckling.com:3005',
-    authServerUrl: 'http://localhost:8080/',
+    authServerUrl: 'http://localhost:8080',
     realm: 'local-dev',
     refreshConfigMins: -1, // Disable for dev testing
     wildcardCookieBaseDomain: `dev-local.dapperduckling.com`

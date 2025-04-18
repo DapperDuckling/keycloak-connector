@@ -18,7 +18,7 @@ export async function makeExpressServer(port: number) {
     // Grab express app
     const app = express();
 
-    app.use(loggerHttp);
+    // app.use(loggerHttp);
 
     // Register the cookie parser
     app.use(cookieParser());
@@ -26,21 +26,30 @@ export async function makeExpressServer(port: number) {
     const clusterProvider = await redisClusterProvider({
         pinoLogger: loggerHttp.logger,
         redisOptions: {
-            username: 'dev-only',
-            password: 'my-cool-dev-password',
+            username: 'default',
+            password: 'dev',
         }
     });
 
     // Initialize the keycloak connector
     await keycloakConnectorExpress(app, {
-        serverOrigin: `http://localhost:${port}`,
-        authServerUrl: process.env['KC_SERVER'] ?? 'http://localhost:8080/',
+        serverOrigin: `http://localhost:3005`,
+        ...(process.env['KC_SERVER_DISCOVERY_URL'] && {oidcDiscoveryUrlOverride: process.env['KC_SERVER_DISCOVERY_URL']}),
+        authServerUrl: process.env['KC_SERVER'] ?? 'http://localhost:8080',
         ...(process.env['KC_CLIENT_ID'] && {clientId: process.env['KC_CLIENT_ID']}),
         realm: process.env['KC_REALM'] ?? 'local-dev',
         refreshConfigMins: -1, // Disable for dev testing
+        pinoLogger: loggerHttp.logger,
+        fetchUserInfo: true,
+        decorateUserStatus: async (connectorRequest, logger) => {
+            return {
+                decorations: true,
+                theTimeNow: new Date().toISOString(),
+            };
+        },
+        validOrigins: ['http://localhost:3000'],
         clusterProvider: clusterProvider,
         keyProvider: clusterKeyProvider,
-        pinoLogger: loggerHttp.logger,
     });
 
     const router = express.Router();

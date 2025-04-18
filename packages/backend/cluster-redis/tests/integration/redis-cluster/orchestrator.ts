@@ -1,3 +1,4 @@
+import './dot-env.js'; // Must be the first import
 import readline from "node:readline/promises";
 import {stdin as input, stdout as output} from "node:process";
 import process from "process";
@@ -9,64 +10,21 @@ import type {
     RequestUpdateSystemJwksMsg, ServerActiveKey
 } from "@dapperduckling/keycloak-connector-server";
 import {AbstractKeyProvider} from "@dapperduckling/keycloak-connector-server";
-import {fromNodeProviderChain} from "@aws-sdk/credential-providers";
 
 import pino from "pino";
-import {SignatureV4} from "@smithy/signature-v4";
-import type {HttpRequest} from "@aws-sdk/types";
-import {Hash} from "@aws-sdk/hash-node";
-import { formatUrl } from '@aws-sdk/util-format-url';
 import {isDev} from "@dapperduckling/keycloak-connector-common";
 
-// Use AWS SDK to get temporary credentials
-const awsCredentialProvider = fromNodeProviderChain({
-    clientConfig: {
-        ...process.env["AWS_REGION"] && {region: process.env["AWS_REGION"]},
-    },
-});
-
-const signer = new SignatureV4({
-    service: 'elasticache',
-    region: 'us-gov-west-1',
-    credentials: awsCredentialProvider,
-    sha256: Hash.bind(null, 'sha256'),
-});
-
-const request: HttpRequest = {
-    method: 'GET',
-    protocol: 'http:',
-    hostname: `keycloak-connector-aws-redis-channel-v5-001.keycloak-connector-aws-redis-channel-v5.6ufjp6.usgw1.cache.amazonaws.com`,
-    port: 6379,
-    path: '/',
-    query: {
-        Action: 'connect',
-        User: 'arm-dev',
-    },
-    headers: {
-        host: `keycloak-connector-aws-redis-channel-v5-001.keycloak-connector-aws-redis-channel-v5.6ufjp6.usgw1.cache.amazonaws.com`,
-    },
-}
-
-const presigned = await signer.presign(request);
-const format = formatUrl(presigned).replace(`http://`, '');
-
-
+// Local Redis credentials
 export const redisCredentialProvider = async () => {
-    try {
-        // const credentials = await awsCredentialProvider();
-        return {
-            // password: credentials.secretAccessKey,
-            password: format,
-        }
-    } catch (e) {
-        console.error("Error getting AWS credentials", e);
-        return undefined;
-    }
-}
+    return {
+        username: 'default',
+        password: 'dev',
+    };
+};
 
 export const numberOfServers = {
-    express: 5,
-    fastify: 5,
+    express: 2,
+    fastify: 0,
 } as const;
 
 // Remove existing keys
@@ -84,12 +42,13 @@ export const logger = pino({
 });
 
 const mainRedisClusterProvider = await redisClusterProvider({
-    prefix: prefix,
+    prefix,
     credentialProvider: redisCredentialProvider,
     pinoLogger: logger,
+
 });
 await mainRedisClusterProvider.connectOrThrow();
-const deleteResult = await mainRedisClusterProvider.remove('key-provider:connector-keys');
+await mainRedisClusterProvider.remove('key-provider:connector-keys');
 
 // Build the prompt loop promise
 export const promptPromise = (async () => {
@@ -111,7 +70,7 @@ export const promptPromise = (async () => {
             case "x":
                 console.log('******************** Exiting per user request ********************');
                 process.exit(0);
-                //@ts-ignore
+                // @ts-ignore
                 break;
             case "u":
                 console.log('******************** Sending fake update request ********************');
@@ -142,7 +101,7 @@ export const promptPromise = (async () => {
                 await mainRedisClusterProvider.publish<NewJwksAvailableMsg>('key-provider:listening-channel', {
                     event: "new-jwks-available",
                     processId: "fake-process-id",
-                    clusterConnectorKeys: {
+                    serializedClusterConnectorKeys: {
                         connectorKeys: await AbstractKeyProvider['createKeys'](),
                         currentStart: Date.now()/1000,
                         prevConnectorKeys: await AbstractKeyProvider['createKeys'](),
@@ -177,7 +136,7 @@ async function syncCheck() {
     // Push out our request message
     await mainRedisClusterProvider.publish<RequestActiveKey>('key-provider:listening-channel', {
         event: "request-active-key",
-        listeningChannel: listeningChannel
+        listeningChannel
     });
 
     // Only listen for a second and repeat the process
@@ -196,7 +155,7 @@ async function syncCheck() {
         // Check for more than one md5 logged
         if (syncCheckMessages.length > 1) {
             syncCheckMessages.forEach(msg => console.log(msg));
-            console.error(`SYNC-CHECK :: FAILED with ${syncCheckMessages.length} different hashes!! ***********************************************`)
+            console.error(`SYNC-CHECK :: FAILED with ${syncCheckMessages.length} different hashes!! ***********************************************`);
         }
 
         // Check for responding servers

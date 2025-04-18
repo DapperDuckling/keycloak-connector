@@ -2,9 +2,9 @@ import type {KeyProviderConfig} from "./abstract-key-provider.js";
 import {AbstractKeyProvider} from "./abstract-key-provider.js";
 import type {AbstractClusterProvider, ClusterMessage, LockOptions} from "../cluster/abstract-cluster-provider.js";
 import {BaseClusterEvents} from "../cluster/abstract-cluster-provider.js";
-import type {ConnectorKeys, KeyProvider} from "../types.js";
+import type {ConnectorKeys, ConnectorKeysSerializable, KeyProvider} from "../types.js";
 import {debounce, sleep} from "../helpers/utils.js";
-import {is} from "typia";
+import {is, validate} from "typia";
 import {ClusterJob} from "../cluster/cluster-job.js";
 import type {JWK} from "jose";
 import type {
@@ -20,12 +20,12 @@ import {createHash} from "node:crypto";
 import {setImmediate} from "timers";
 import {isObject} from "@dapperduckling/keycloak-connector-common";
 
-export type ClusterConnectorKeys = {
-    connectorKeys: ConnectorKeys,
-    currentStart?: number,
-    prevConnectorKeys?: ConnectorKeys,
-    prevExpire?: number,
-}
+export type ClusterConnectorKeys<T extends "full" | "serializable" = "full"> = {
+    connectorKeys: T extends "serializable" ? ConnectorKeysSerializable : ConnectorKeys;
+    currentStart?: number;
+    prevConnectorKeys?: T extends "serializable" ? ConnectorKeysSerializable : ConnectorKeys;
+    prevExpire?: number;
+};
 
 interface GenerateClusterKeysConfig {
     onlyIfStoreIsEmpty?: boolean,
@@ -265,7 +265,7 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
             // Advise all listeners that a new jwk is available and will be ready for use soon
             await this.clusterProvider.publish<NewJwksAvailableMsg>(this.listeningChannel(), {
                 event: "new-jwks-available",
-                clusterConnectorKeys: newClusterConnectorKeys,
+                serializedClusterConnectorKeys: await this.serializeClusterConnectorKeys(newClusterConnectorKeys),
                 processId: processId,
             });
 
@@ -350,13 +350,43 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
         }
 
         // Check if the returned data is our expected type
-        if (!is<ClusterConnectorKeys>(keys)) {
+        if (!is<ClusterConnectorKeys<'serializable'>>(keys)) {
             this.keyProviderConfig.pinoLogger?.error(`Stored key string is valid JSON, but does not match expected type`);
             return null;
         }
 
-        // Return the correct keys
-        return keys;
+        return this.importClusterFromSerializable(keys);
+    }
+
+    protected async importClusterFromSerializable(
+        serializedKeys: ClusterConnectorKeys<'serializable'>
+    ): Promise<ClusterConnectorKeys> {
+        const {
+            connectorKeys: rawConnectorKeys,
+            prevConnectorKeys: rawPrevConnectorKeys,
+            ...rest
+        } = serializedKeys;
+
+        const connectorKeys = await this.importFromSerializable(rawConnectorKeys);
+        const prevConnectorKeys = rawPrevConnectorKeys
+            ? await this.importFromSerializable(rawPrevConnectorKeys)
+            : undefined;
+
+        return {
+            ...rest,
+            connectorKeys,
+            ...(prevConnectorKeys && { prevConnectorKeys }),
+        };
+    }
+
+    protected async serializeClusterConnectorKeys(clusterConnectorKeys: ClusterConnectorKeys): Promise<ClusterConnectorKeys<"serializable">> {
+        return {
+            ...clusterConnectorKeys,
+            connectorKeys: await this.serializeConnectorKeys(clusterConnectorKeys.connectorKeys),
+            ...(clusterConnectorKeys.prevConnectorKeys && {
+                prevConnectorKeys: await this.serializeConnectorKeys(clusterConnectorKeys.prevConnectorKeys),
+            }),
+        };
     }
 
     private async setupSubscriptions() {
@@ -437,7 +467,8 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
                 break;
             case "new-jwks-available":
                 // Handle the new jwks
-                await this.handleNewJwks(message.processId, message.clusterConnectorKeys);
+                const clusterConnectorKeys = await this.importClusterFromSerializable(message.serializedClusterConnectorKeys);
+                await this.handleNewJwks(message.processId, clusterConnectorKeys);
                 break;
             case "request-active-key":
                 // Grab the active keys

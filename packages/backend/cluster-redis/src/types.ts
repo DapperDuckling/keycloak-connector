@@ -2,7 +2,7 @@ import type {ClusterConfig} from "@dapperduckling/keycloak-connector-server";
 import type {ClusterNode, ClusterOptions, RedisOptions} from "ioredis";
 import Redis, {Cluster} from "ioredis";
 
-interface Credentials {
+export interface Credentials {
     username?: string,
     password?: string,
 }

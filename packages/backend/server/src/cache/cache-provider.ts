@@ -185,8 +185,8 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         const currentInstanceLock = this.instanceLevelUpdateLock.get(key);
         const stillHadLock = (currentInstanceLock?.instanceLockId === instanceLockId);
 
-        // Check if we still have a lock
-        if (stillHadLock) {
+        // Check if we still have a lock or no one currently has a lock
+        if (stillHadLock || currentInstanceLock === undefined) {
             // Clear the instance level lock
             this.instanceLevelUpdateLock.delete(key);
 

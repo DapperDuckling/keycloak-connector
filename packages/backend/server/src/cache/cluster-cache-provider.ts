@@ -89,8 +89,6 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
         // Invalidate cluster cache
         await this.clusterProvider.remove(storageKey);
 
-        // tODO: TEST THIS
-
         // Send message to invalidate all other local caches
         await this.clusterProvider.publish<UpdateDataMessage<undefined>>(this.constants.INVALIDATOR_LISTENING_CHANNEL, {
             key: key,

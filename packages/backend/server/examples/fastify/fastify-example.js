@@ -22,7 +22,7 @@ await fastify.register(keycloakConnectorFastify(), {
     DANGEROUS_disableJwtClientAuthentication: true, // Only allowed in dev environments
     fetchUserInfo: true,
     serverOrigin: `http://localhost:${serverPort}`, // This server's origin
-    authServerUrl: 'http://localhost:8080/',        // Your keycloak server here
+    authServerUrl: 'http://localhost:8080',        // Your keycloak server here
 
     /** Uncomment the following options to enable dev on a client served on a different port */
     // validOrigins: [

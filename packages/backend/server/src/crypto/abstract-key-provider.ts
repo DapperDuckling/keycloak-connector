@@ -1,5 +1,5 @@
-import type {ConnectorKeys, Listener} from "../types.js";
-import type {JWK} from "jose";
+import type {ConnectorKeys, ConnectorKeysSerializable, Listener} from "../types.js";
+import {importJWK, type JWK} from "jose";
 import * as jose from "jose";
 import type {GenerateKeyPairOptions} from "jose/dist/types/key/generate_key_pair.js";
 import {KeycloakConnector} from "../keycloak-connector.js";
@@ -80,6 +80,22 @@ export abstract class AbstractKeyProvider {
             privateKey: keyPair.privateKey,
             publicJwk,
             privateJwk,
+        };
+    }
+
+    protected async importFromSerializable(serializedKeys: ConnectorKeysSerializable): Promise<ConnectorKeys> {
+        return {
+            ...serializedKeys,
+            publicKey: await importJWK(serializedKeys.publicJwk, serializedKeys.alg) as CryptoKey,
+            privateKey: await importJWK(serializedKeys.privateJwk, serializedKeys.alg) as CryptoKey,
+        }
+    }
+
+    protected async serializeConnectorKeys(connectorKeys: ConnectorKeys): Promise<ConnectorKeysSerializable> {
+        return {
+            ...connectorKeys,
+            publicKey: undefined,
+            privateKey: undefined,
         };
     }
 
