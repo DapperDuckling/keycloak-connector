@@ -143,7 +143,7 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
     public override triggerKeySync(): void {
         // Grab keys from the cluster
         this.keyProviderConfig.pinoLogger?.info("Attempting to sync keys with cluster");
-        debounce(this.getAndStoreKeysFromCluster, 1000);
+        debounce(this.getAndStoreKeysFromCluster.bind(this), 1000);
     }
 
     private async generateClusterKeys(config: GenerateClusterKeysConfig = {}): Promise<ClusterConnectorKeys | null> {
@@ -163,11 +163,11 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
             ttl: 60,
         };
 
-        // Attempt to obtain a lock
-        const lock = await this.clusterProvider.lock(lockOptions);
-
         // Calculate end of lock time
         const endOfLockTime = Date.now()/1000 + lockOptions.ttl;
+
+        // Attempt to obtain a lock
+        const lock = await this.clusterProvider.lock(lockOptions);
 
         // Check for no lock
         if (!lock) {
@@ -309,10 +309,8 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
                 }
 
                 // Update the oidc server
-                if (this.updateOidcServer) {
-                    logger?.debug(`Executing the update oidc server callback`);
-                    await this.updateOidcServer();
-                }
+                logger?.debug(`Executing the update oidc server callback`);
+                await this.updateOidcServer();
 
                 // Send job finish notification
                 await config.clusterJob?.finish();

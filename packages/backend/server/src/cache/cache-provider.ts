@@ -52,7 +52,7 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
         // Build the LRU caches
         this.instanceLevelUpdateLock = new LRUCache<string, InstanceLock<T>>({
             max: 10000,
-            ttl: config.ttl * 1000,
+            ttl: (config.maxWaitSecs ?? CacheProvider.MAX_WAIT_SECS) * 1000,
         });
 
         this.cachedResult = new LRUCache<string, T>({
@@ -206,7 +206,7 @@ export class CacheProvider<T extends NonNullable<unknown>, A extends any[] = any
                 });
             }
         } else {
-            this.config.pinoLogger?.debug(`Lost instance lock, will not emit or store a valid result`);
+            this.config.pinoLogger?.warn(`Lost instance lock, will not emit or store a valid result`);
         }
 
         return result;

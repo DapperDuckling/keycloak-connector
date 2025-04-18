@@ -129,8 +129,13 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
 
     protected override async handleCacheMiss(key: string, wrappedCacheMissCallback: WrappedCacheMissCallback<T>, expiration?: number): Promise<CacheResult<T>> {
 
-        // TODO: Likely need to move this line down into the try-catch block just before the existing result check. then add the deferredrefresh line just before.
-        // TODO: Will there ever be two attempts to subscribe to the same listening channel????
+        // Record the final retry time
+        const finalRetryTimeMs = Date.now() + (this.config.maxWaitSecs ?? CacheProvider.MAX_WAIT_SECS) * 1000;
+
+        // Prepare pending refresh
+        const deferredRefresh = deferredFactory<T | undefined>();
+        this.pendingRefresh.set(key, deferredRefresh);
+
         // Start listening to cluster messages for this update id
         const listeningChannel = `${this.constants._PREFIX}:${this.constants.LISTENING_CHANNEL}:${this.config.title}:${key}`;
         await this.clusterProvider.subscribe(listeningChannel, this.handleIncomingUpdateData);
@@ -145,6 +150,7 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
         const lockOptions = this.getLockOptions(key);
 
         let data: T | undefined;
+        let endOfLockTime = 0;
 
         try {
             // Grab an already completed update request stored with the cluster provider
@@ -153,23 +159,16 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
                 data: existingResult,
             };
 
-            // Record the final retry time
-            const finalRetryTimeMs = Date.now() + (this.config.maxWaitSecs ?? CacheProvider.MAX_WAIT_SECS) * 1000;
-
             do {
                 // Grab a lock
-                lock = await this.clusterProvider.lock(lockOptions); // ** TODO: DO BELIEVE THIS IS A PROBLEM. Needs more specific locking key for some operations
+                endOfLockTime = Date.now()/1000 + lockOptions.ttl;
+                lock = await this.clusterProvider.lock(lockOptions);
 
                 // Check for a lock
                 if (lock) break;
 
-                // Did not obtain a lock, wait for result from elsewhere
-
-                // Store the pending refresh
-                const deferredRefresh = deferredFactory<T | undefined>();
-                this.pendingRefresh.set(key, deferredRefresh); // ** TODO: IS THIS ENOUGH TOO? WHAT ABOUT MULTIPLE REQUESTS THAT NEED PENDING REFRESHES FOR THE SAME KEY???
-
                 try {
+                    // Did not obtain a lock, wait for result from another instance in the cluster
                     // Wait for a pending refresh
                     const updateDataResult = await promiseWait<T | undefined>(deferredRefresh.promise, finalRetryTimeMs);
                     if (updateDataResult) return {
@@ -178,7 +177,7 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
                 } catch (e) {
                     if (e instanceof WaitTimeoutError) {
                         // Log this in order to inform the owner they may need to increase the wait timeout
-                        this.config.pinoLogger?.warn(`Timed out waiting for cache cluster update to occur. May consider increasing the wait time or investigating why the request is taking so long.`);
+                        this.config.pinoLogger?.warn(`Timed out waiting for response from cluster cache provider. May consider increasing the wait time or investigating why the request is taking so long.`);
                     }
                 }
             } while (
@@ -213,18 +212,25 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
             // Unsubscribe from the listener
             await this.clusterProvider.unsubscribe(listeningChannel, this.handleIncomingUpdateData);
 
+            // Remove pending refresh
+            this.pendingRefresh.delete(key);
+
             // Check for lock
             if (lock) {
-                // Broadcast result to the cluster
-                await this.clusterProvider.publish<UpdateDataMessage<T | undefined>>(listeningChannel, {
-                    key: key,
-                    data: data,
-                });
+                if (endOfLockTime < Date.now()/1000) {
+                    this.config.pinoLogger?.warn(`Cluster cache provider had a lock, but finally exited after end of lock time`);
 
-                // Release the lock
-                await this.clusterProvider.unlock(lockOptions);
+                } else {
+                    // Broadcast result to the cluster
+                    await this.clusterProvider.publish<UpdateDataMessage<T | undefined>>(listeningChannel, {
+                        key: key,
+                        data: data,
+                    });
+
+                    // Release the lock
+                    await this.clusterProvider.unlock(lockOptions);
+                }
             }
-
         }
 
         return undefined;
