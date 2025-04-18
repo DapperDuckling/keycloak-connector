@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - None
-
-## [2.6.3] - 2025-04-07
+- 
+## [3.0.0] - 2025-04-17
 
 ### Fixed
 
@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecated
 - `redirect_uris` and `post_logout_redirect_uris` for `redirectUris` and `postLogoutRedirectUris`
+
+## [2.6.3] - 2025-02-25
+
+### Fixed
+
+- Fixed silent listener message passing to handle unsanitized input. Now base64 encodes the event data to ensure message is wrapped properly.
 
 ## [2.6.0] - 2024-12-26
 
