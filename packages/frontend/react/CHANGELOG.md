@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2025-04-17
+
+### Changed
+- Typing name change `UserStatus` -> `UserStatusImmerSafe` to match new openid-client types
+
 ## [1.2.3] - 2024-12-30
 
 ### Fixed
