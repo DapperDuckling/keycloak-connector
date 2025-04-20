@@ -1,7 +1,4 @@
 import {SilentLoginEvent as SilentLoginEventType} from "@dapperduckling/keycloak-connector-common";
-import {
-  LOGIN_LISTENER_BROADCAST_CHANNEL
-} from "@dapperduckling/keycloak-connector-server/dist/browser-login-helpers/common";
 
 interface SilentLoginIframeParams {
   authUrl: string;
@@ -67,12 +64,11 @@ export const silentLoginIframeHTML = (authUrl: string, token: string, enableDebu
   // Build the html for the silent login iframe
   const silentLoginFunction = silentLoginIframe.toString();
 
-  const payload = {
+  const payload: SilentLoginIframeParams = {
     authUrl,
     token,
     enableDebugger,
     SilentLoginEvent: SilentLoginEventType,
-    channel: LOGIN_LISTENER_BROADCAST_CHANNEL,
   };
 
   const payloadJson = JSON.stringify(payload);

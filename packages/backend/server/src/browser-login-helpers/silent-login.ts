@@ -11,7 +11,7 @@ interface SilentLoginResponseParams {
     autoClose: boolean;
     sourceOrigin: string | undefined;
     enableDebugger: boolean;
-    silentRequestToken?: string;
+    silentRequestToken: string | undefined;
 }
 
 const silentLoginResponse = (
@@ -109,14 +109,14 @@ export const silentLoginResponseHTML = (
     silentRequestToken?: string
 ) => {
     const silentLoginResponseFunction = silentLoginResponse.toString();
-    const payload = {
+    const payload: SilentLoginResponseParams = {
         message,
         autoClose,
         sourceOrigin,
         enableDebugger,
         silentRequestToken,
         SilentLoginEvent: SilentLoginEventType,
-        channel: LOGIN_LISTENER_BROADCAST_CHANNEL,
+        loginListenerChannel: LOGIN_LISTENER_BROADCAST_CHANNEL,
     };
 
     const payloadJson = JSON.stringify(payload);

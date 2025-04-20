@@ -69,11 +69,11 @@ const loginListener = (
 export const loginListenerHTML = (sourceOrigin: string | undefined, enableDebugger: boolean) => {
     // Build the html
     const loginListenerFunction = loginListener.toString();
-    const payload = {
+    const payload: LoginListenerParams = {
         sourceOrigin,
         enableDebugger,
         SilentLoginEvent: SilentLoginEventType,
-        channel: LOGIN_LISTENER_BROADCAST_CHANNEL,
+        loginListenerChannel: LOGIN_LISTENER_BROADCAST_CHANNEL,
     };
 
     const payloadJson = JSON.stringify(payload);
