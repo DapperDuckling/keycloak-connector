@@ -723,13 +723,24 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private handleCallback = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
         // Get state from request
-        const {state, error} = await this.validatedStateFromResponse(req) ?? {};
+        const stateResponse= await this.validatedStateFromResponse(req);
+
+        // Check if missing state response
+        if (stateResponse === null) {
+            // Log the bad request
+            this._config.pinoLogger?.debug(req.url);
+
+            // Redirect the user back to the login page
+            throw new LoginError(ErrorHints.CODE_400);
+        }
+
+        // Pull state and error from the response
+        const {state, error} = stateResponse;
 
         // Check for missing state
         if (state === undefined) {
             // Log the bad request
-            this._config.pinoLogger?.warn(req.url);
-            this._config.pinoLogger?.warn("Missing or invalid state during login attempt");
+            this._config.pinoLogger?.debug(req.url); // Often times due to users bookmarking keycloak login urls
 
             // Redirect the user back to the login page
             throw new LoginError(ErrorHints.CODE_400);
@@ -1125,7 +1136,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
                 break;
 
             case VerifiableJwtTokenTypes.JARM:
-                requiredClaims = ['exp', 'iss', 'aud', 'state'];
+                requiredClaims = ['exp', 'iss', 'aud'];
 
                 maxAge = null; // Disable age, IAT does not exist in keycloak response at the moment
                 skipTypeClaim = true; // Disable type check
@@ -1362,6 +1373,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
                     equal to or less than eager refresh time of ${eagerRefreshTimeSeconds}. EVERY request will trigger a token refresh causing significantly 
                     more resources to process. Increase the access token lifetime, or ensure "eagerRefreshTime" is not set too high.`
                 );
+                this.config.pinoLogger?.info(accessToken);
             }
 
             // Calculate the time until we need to perform an eager refresh
