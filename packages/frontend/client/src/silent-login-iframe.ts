@@ -71,8 +71,19 @@ export const silentLoginIframeHTML = (authUrl: string, token: string, enableDebu
     SilentLoginEvent: SilentLoginEventType,
   };
 
+  // Encode the payload (base64 the json encoded string)
   const payloadJson = JSON.stringify(payload);
-  const payloadBase64 = Buffer.from(payloadJson, 'utf-8').toString('base64');
+  const uint8 = new TextEncoder().encode(payloadJson);
+  const base64Payload = btoa(String.fromCharCode(...uint8));
+
+  // Decoding function to inject
+  const decodePayloadFromBase64 = function (base64: string) {
+    const binary = atob(base64);
+    const uint8 = Uint8Array.from(binary, c => c.charCodeAt(0));
+    const json = new TextDecoder().decode(uint8);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return JSON.parse(json);
+  }.toString();
 
   // Return the html
   return `
@@ -83,13 +94,13 @@ export const silentLoginIframeHTML = (authUrl: string, token: string, enableDebu
       <p>This page loaded in error. <a id="back-to-main" href="#">Back to main</a></p>
 
       <script id="function-data" type="application/json">
-        ${payloadBase64}
+        ${base64Payload}
       </script>
         
       <script>
+        const decodePayloadFromBase64 = ${decodePayloadFromBase64};
         const base64 = document.getElementById("function-data").textContent;
-        const json = atob(base64);
-        const data = JSON.parse(json);
+        const data = decodePayloadFromBase64(base64);
         (${silentLoginFunction})(data);
       </script>
       </body>
