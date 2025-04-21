@@ -47,3 +47,12 @@ class URL_polyfill extends URL {
     }
 }
 export {URL_polyfill as URL};
+
+// Polyfill for browsers
+export const decodePayloadFromBase64 = (base64: string): Record<string, any> => {
+    const binary = atob(base64);
+    const uint8 = Uint8Array.from(binary, c => c.charCodeAt(0));
+    const json = new TextDecoder().decode(uint8);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return JSON.parse(json);
+}

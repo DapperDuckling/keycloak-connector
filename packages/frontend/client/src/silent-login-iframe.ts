@@ -1,4 +1,7 @@
-import {SilentLoginEvent as SilentLoginEventType} from "@dapperduckling/keycloak-connector-common";
+import {
+  decodePayloadFromBase64,
+  SilentLoginEvent as SilentLoginEventType
+} from "@dapperduckling/keycloak-connector-common";
 
 interface SilentLoginIframeParams {
   authUrl: string;
@@ -76,15 +79,6 @@ export const silentLoginIframeHTML = (authUrl: string, token: string, enableDebu
   const uint8 = new TextEncoder().encode(payloadJson);
   const base64Payload = btoa(String.fromCharCode(...uint8));
 
-  // Decoding function to inject
-  const decodePayloadFromBase64 = function (base64: string) {
-    const binary = atob(base64);
-    const uint8 = Uint8Array.from(binary, c => c.charCodeAt(0));
-    const json = new TextDecoder().decode(uint8);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return JSON.parse(json);
-  }.toString();
-
   // Return the html
   return `
     <!doctype html>
@@ -98,7 +92,7 @@ export const silentLoginIframeHTML = (authUrl: string, token: string, enableDebu
       </script>
         
       <script>
-        const decodePayloadFromBase64 = ${decodePayloadFromBase64};
+        const decodePayloadFromBase64 = ${decodePayloadFromBase64.toString()};
         const base64 = document.getElementById("function-data").textContent;
         const data = decodePayloadFromBase64(base64);
         (${silentLoginFunction})(data);

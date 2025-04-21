@@ -1,4 +1,5 @@
 import {
+    decodePayloadFromBase64,
     SilentLoginEvent as SilentLoginEventType,
     type SilentLoginMessage
 } from "@dapperduckling/keycloak-connector-common";
@@ -134,9 +135,9 @@ export const silentLoginResponseHTML = (
         </script>
 
         <script>
+          const decodePayloadFromBase64 = ${decodePayloadFromBase64.toString()};
           const base64 = document.getElementById("function-data").textContent;
-          const json = atob(base64);
-          const data = JSON.parse(json);
+          const data = decodePayloadFromBase64(base64);
           (${silentLoginResponseFunction})(data);
         </script>
       </body>
