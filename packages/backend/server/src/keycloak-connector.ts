@@ -645,7 +645,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Check for a state
         if (typeof state !== 'string') {
-            this._config.pinoLogger?.error(`Missing state in signature validated response param, this should not happen`);
+            // Often times due to users bookmarking keycloak login urls
             return null;
         }
 
@@ -723,7 +723,7 @@ export class KeycloakConnector<Server extends SupportedServers> {
     private handleCallback = async (req: ConnectorRequest): Promise<ConnectorResponse<Server>> => {
 
         // Get state from request
-        const stateResponse= await this.validatedStateFromResponse(req);
+        const stateResponse = await this.validatedStateFromResponse(req);
 
         // Check if missing state response
         if (stateResponse === null) {
@@ -736,15 +736,6 @@ export class KeycloakConnector<Server extends SupportedServers> {
 
         // Pull state and error from the response
         const {state, error} = stateResponse;
-
-        // Check for missing state
-        if (state === undefined) {
-            // Log the bad request
-            this._config.pinoLogger?.debug(req.url); // Often times due to users bookmarking keycloak login urls
-
-            // Redirect the user back to the login page
-            throw new LoginError(ErrorHints.CODE_400);
-        }
 
         // Ingest required cookies
         let inputCookies: {
