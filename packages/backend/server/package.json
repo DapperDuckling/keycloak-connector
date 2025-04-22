@@ -30,7 +30,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "yalc:publish": "yalc publish --push",
-    "postinstall": "ts-patch install"
+    "prepare": "ts-patch install"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
