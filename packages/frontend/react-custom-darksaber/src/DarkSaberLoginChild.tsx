@@ -5,9 +5,10 @@ import {useState} from "react";
 
 interface Props {
     logo?: string;
+    header?: string;
 }
 
-export const DarkSaberLoginChild = ({logo}: Props) => {
+export const DarkSaberLoginChild = ({logo, header}: Props) => {
 
     const [kccContext] = useKeycloakConnector();
     const [isLogoLoaded, setIsLogoLoaded] = useState(false);
@@ -17,7 +18,7 @@ export const DarkSaberLoginChild = ({logo}: Props) => {
 
     return (
         <>
-            <Typography variant="h5">Dark Saber Authenticator</Typography>
+            <Typography variant="h5">{header ?? 'Dark Saber Authenticator'}</Typography>
             <Box sx={{
                 position: "relative",
                 width: 210,

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.3] - 2025-04-22
+
+### Added
+
+- Ability to override header title
+
 ## [3.0.0] - 2025-04-18
 
 (No change. Version number sync)
