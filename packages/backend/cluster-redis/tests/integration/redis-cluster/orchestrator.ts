@@ -23,7 +23,7 @@ export const redisCredentialProvider = async () => {
 };
 
 export const numberOfServers = {
-    express: 2,
+    express: 1,
     fastify: 0,
 } as const;
 

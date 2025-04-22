@@ -1,0 +1,17 @@
+{
+  "version": "v1",
+  "packages": {
+    "@dapperduckling/keycloak-connector-react": {
+      "signature": "babe1ba0efff72197e2087adb1908b46",
+      "file": true
+    },
+    "@dapperduckling/keycloak-connector-client": {
+      "signature": "2d5c911669c4ce5076bf4f0d2eeb534a",
+      "file": true
+    },
+    "@dapperduckling/keycloak-connector-common": {
+      "signature": "09123c62173d014895c09de6b5ee1835",
+      "file": true
+    }
+  }
+}

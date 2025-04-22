@@ -8,10 +8,7 @@
     "lib": [
       "es2021",
       "DOM"
-    ],
-    "plugins": [
-      { "transform": "typia/lib/transform" }
-    ],
+    ]
   },
   "include": ["./src/**/*", "./src/lua-scripts/*.lua"],
   "exclude": ["./tests/**/*", "./dist/**/*"],

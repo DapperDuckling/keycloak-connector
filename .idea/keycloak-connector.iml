@@ -6,6 +6,7 @@
       <excludeFolder url="file://$MODULE_DIR$/packages/backend/server/examples/express/.yalc" />
       <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react-custom-darksaber/example/.yalc" />
       <excludeFolder url="file://$MODULE_DIR$/packages/frontend/react/example/.yalc" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/common/dist" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

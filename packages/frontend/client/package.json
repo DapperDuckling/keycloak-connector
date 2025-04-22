@@ -23,12 +23,14 @@
     "clean": "rimraf ./dist/",
     "build": "npm run clean && tsc",
     "yalc:publish": "yalc publish --push",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "prepare": "ts-patch install && typia patch"
   },
   "devDependencies": {
     "@types/js-cookie": "^3.0.6",
     "ts-node": "^10.9.2",
-    "typescript": "^5.2.2"
+    "ts-patch": "^3.3.0",
+    "typescript": "^5.4.2"
   },
   "files": [
     "dist",

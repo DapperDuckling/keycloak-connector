@@ -14,6 +14,8 @@
         "transform": "typia/lib/transform"
       }
     ],
+    "strictNullChecks": true,
+    "strict": true
   },
   "include": [
     "./src/**/*"
