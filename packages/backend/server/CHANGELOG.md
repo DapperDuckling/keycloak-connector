@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Reduced 
+- Corrected token cache ttl
+- Pared down unnecessary logging messaging
 
 ## [3.0.4] - 2025-04-21
 

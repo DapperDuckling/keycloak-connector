@@ -708,12 +708,8 @@ export class KeycloakConnector<Server extends SupportedServers> {
             const [silentRequestType] = this.silentRequestConfig(req);
 
             // Silent, return data via silent login response
-            //TODO: can this happen if the callback doesn't is just bad??
             if (silentRequestType !== SilentLoginTypes.NONE) {
-                this._config.pinoLogger?.error(`Could not handle silent login response, unknown silent token! This should not happen *****`);
-                this._config.pinoLogger?.error(e);
-
-                // return this.handleSilentLoginResponse(req, this.cookieStoreGenerator(), SilentLoginEvent.LOGIN_ERROR, req.origin);
+                this._config.pinoLogger?.debug(`Could not handle silent login response, unknown silent token!`);
             }
 
             // Rethrow on non-silent requests

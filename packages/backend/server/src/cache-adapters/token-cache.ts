@@ -57,10 +57,13 @@ export class TokenCache extends AbstractCacheAdapter<ExtendedRefreshTokenSet, [s
             return TokenCache.extendTokenSet(tokenSet);
 
         } catch (e) {
-            // Do not dump the error if the token is only not active
-            if (e instanceof ResponseBodyError &&
-                e.error_description?.includes('not active')) {
-                this.config.pinoLogger?.debug(`Refresh token is not active, cannot perform token refresh`);
+            // Do not dump the error for known error responses
+            if (e instanceof ResponseBodyError) {
+                if (e.error_description?.includes('not active')) {
+                    this.config.pinoLogger?.debug(`Refresh token is not active, cannot perform token refresh`);
+                } else if (e.error_description?.includes('have required client')) {
+                    this.config.pinoLogger?.debug(`Session doesn't have required client message, cannot perform token refresh`);
+                }
                 return;
             }
 
