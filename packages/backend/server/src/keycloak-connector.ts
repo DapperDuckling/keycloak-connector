@@ -1355,18 +1355,11 @@ export class KeycloakConnector<Server extends SupportedServers> {
             const accessTokenLifetime = accessToken.exp - (accessToken.iat ?? 0);
 
             // Check for overly eager refresh or too short-lived access token configurations
-            if (accessTokenLifetime <= eagerRefreshTimeSeconds) {
-                this.config.pinoLogger?.warn(
-                    `Likely substantial performance issue: Access token lifetime ${accessTokenLifetime} seconds is 
-                    equal to or less than eager refresh time of ${eagerRefreshTimeSeconds}. EVERY request will trigger a token refresh causing significantly 
-                    more resources to process. Increase the access token lifetime, or ensure "eagerRefreshTime" is not set too high.`
-                );
-                this.config.pinoLogger?.info(accessToken);
-            }
+            const isTooEager = accessTokenLifetime <= eagerRefreshTimeSeconds; // Often times due to a user approaching the end of available session max time
 
             // Calculate the time until we need to perform an eager refresh
             const timeUntilEager = accessToken.exp - Date.now()/1000 - eagerRefreshTimeSeconds;
-            eagerRefresh = (timeUntilEager <= 0);
+            eagerRefresh = !isTooEager && (timeUntilEager <= 0);
         }
 
         // Check for an access token
