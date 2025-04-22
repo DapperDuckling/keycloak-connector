@@ -68,8 +68,6 @@ export class ClusterCacheProvider<T extends NonNullable<unknown>, A extends any[
 
         // Invalidate local cache
         this.cachedResult.delete(message.key);
-
-        // tODO: TEST THIS
     }
 
     protected override async performInitialization(): Promise<void> {
