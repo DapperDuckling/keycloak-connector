@@ -1,4 +1,4 @@
-import {throttle, type Listener, type LockOptions} from "@dapperduckling/keycloak-connector-server";
+import {throttle, type Listener, type LockOptions, WaitTimeoutError} from "@dapperduckling/keycloak-connector-server";
 import {
     AbstractClusterProvider,
     BaseClusterEvents,
@@ -20,7 +20,6 @@ import type {
 } from "./types.js";
 import {RedisClusterEvents} from "./types.js";
 import {EventEmitter} from "node:events";
-import {WaitTimeoutError} from "@dapperduckling/keycloak-connector-server/dist/helpers/errors";
 
 class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
