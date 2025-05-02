@@ -42,21 +42,34 @@ export const sleep = (ms: number, extraVariability?: number, setNodeTimeout?: (n
     setNodeTimeout?.(nodeTimeout);
 });
 
-export const debounce = <T extends (...args: any[]) => void>(
+export const throttle = <T extends (...args: any[]) => void>(
     func: T,
     wait: number
 ): (...args: Parameters<T>) => void => {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let lastCall = 0;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     return (...args: Parameters<T>) => {
-        if (timeoutId) {
-            clearTimeout(timeoutId);
-        }
-        timeoutId = setTimeout(() => {
+        const now = Date.now();
+        const remaining = wait - (now - lastCall);
+
+        if (remaining <= 0) {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+            lastCall = now;
             func(...args);
-        }, wait);
+        } else if (!timeoutId) {
+            timeoutId = setTimeout(() => {
+                lastCall = Date.now();
+                timeoutId = null;
+                func(...args);
+            }, remaining);
+        }
     };
 };
+
 
 export const jwtVerifyMultiKey = async (
     jwt: string,

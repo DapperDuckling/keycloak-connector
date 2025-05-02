@@ -32,7 +32,8 @@ const prefix = process.env["CLUSTER_REDIS_PREFIX"];
 if (prefix === undefined) throw new Error('No prefix in env variables');
 
 export const logger = pino({
-    level: isDev() ? 'debug' : 'info',
+    // level: isDev() ? 'debug' : 'info',
+    level: 'info',
     transport: {
         target: 'pino-pretty',
         options: {

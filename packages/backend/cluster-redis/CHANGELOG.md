@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.9] - 2025-05-01
+
+### Fixed
+
+- Enhanced redis connection initialization retry and error logging
+
 ## [3.0.8] - 2025-05-01
 
 ### Added

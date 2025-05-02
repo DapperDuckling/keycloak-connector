@@ -1,4 +1,4 @@
-import {type Listener, type LockOptions, sleep} from "@dapperduckling/keycloak-connector-server";
+import {throttle, type Listener, type LockOptions} from "@dapperduckling/keycloak-connector-server";
 import {
     AbstractClusterProvider,
     BaseClusterEvents,
@@ -20,6 +20,8 @@ import type {
 } from "./types.js";
 import {RedisClusterEvents} from "./types.js";
 import {EventEmitter} from "node:events";
+import {noop} from "ioredis/built/utils";
+import {WaitTimeoutError} from "@dapperduckling/keycloak-connector-server/dist/helpers/errors";
 
 class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
@@ -28,7 +30,9 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
     private readonly subscriber: RedisClient;
     private connectionData = {
         clientConnected: false,
+        clientInitConnectDeferred: deferredFactory<void>(),
         subscriberConnected: false,
+        subscriberInitConnectDeferred: deferredFactory<void>(),
         subscriberHadToReconnect: false,
     }
     private readonly uniqueClientId: string;
@@ -166,6 +170,9 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
         // Check if we are disabling the redis cluster name
         const disableRedisClusterName = process.env["CLUSTER_REDIS_CLIENT_NAME_DISABLE"]?.toLowerCase() === "true";
 
+        // Debounce reconnect errors
+        const logErrorDebounced = throttle((msg: string) => this.clusterConfig.pinoLogger?.error(msg), 1000);
+
         config.redisOptions = {
             ...defaultHostOption,
             ...username && {username: username},
@@ -178,7 +185,7 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
                 //  until the credentials are updated.
                 void this.updateCredentials();
 
-                this.clusterConfig.pinoLogger?.error(`Redis connection error: ${err.message}`);
+                logErrorDebounced(`Redis connection error: ${err.message}`);
 
                 return true;
                 // // Reconnect on READONLY state to handle AWS ElastiCache primary replica changes
@@ -237,7 +244,7 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
         // Check if we are already updating credentials
         if (this.updatingCredentials !== undefined) return this.updatingCredentials;
 
-        this.clusterConfig.pinoLogger?.info(`Updating credentials`);
+        this.clusterConfig.pinoLogger?.debug(`Updating credentials`);
 
         // Obtain a "lock"
         const lockPromise = deferredFactory<undefined>();
@@ -280,7 +287,7 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
                 if (credentials.password) options.password = credentials.password;
             });
 
-            this.clusterConfig.pinoLogger?.info(`Finished updating credentials`);
+            this.clusterConfig.pinoLogger?.debug(`Finished updating credentials`);
 
         } catch (e) {
             this.clusterConfig.pinoLogger?.error(`Failed to update credentials`);
@@ -323,6 +330,9 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
         const isSubscriber = this.isClientClusterMode(client);
         const clientNameTag = isSubscriber ? "Subscriber" : "Client";
 
+
+        const wasConnected = (isSubscriber: boolean) => isSubscriber ? this.connectionData.subscriberConnected : this.connectionData.clientConnected;
+
         // Register the event listeners
         client.on(RedisClusterEvents.READY, (msg: string) => {
             this.clusterConfig.pinoLogger?.info(`Redis ${clientNameTag} ready to use`);
@@ -331,21 +341,27 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
             this.emitEvent(RedisClusterEvents.READY, msg);
         });
         client.on(RedisClusterEvents.END, (msg: string) => {
-            this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} connection has been closed`);
-            this.clusterConfig.pinoLogger?.error(msg);
+            if (wasConnected(isSubscriber)) {
+                this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} connection has been closed`);
+                this.clusterConfig.pinoLogger?.error(msg);
+            }
             this.setIsConnected(isSubscriber, false);
             this.emitEvent(RedisClusterEvents.END, msg);
         });
         client.on(RedisClusterEvents.ERROR, (msg: string) => {
-            this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} cluster error`);
-            this.clusterConfig.pinoLogger?.error(msg);
+            if (wasConnected(isSubscriber)) {
+                this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} cluster error`);
+                this.clusterConfig.pinoLogger?.error(msg);
+            }
             this.setIsConnected(isSubscriber, false);
             this.emitEvent(BaseClusterEvents.ERROR, msg);
             if (isSubscriber) this.connectionData.subscriberHadToReconnect = true;
         });
         client.on(RedisClusterEvents.RECONNECTING, (msg: string) => {
-            this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} is attempting to reconnect to the server`);
-            this.clusterConfig.pinoLogger?.error(msg);
+            if (wasConnected(isSubscriber)) {
+                this.clusterConfig.pinoLogger?.error(`Redis ${clientNameTag} is attempting to reconnect to the server`);
+                this.clusterConfig.pinoLogger?.error(msg);
+            }
             this.setIsConnected(isSubscriber, false);
             this.emitEvent(RedisClusterEvents.RECONNECTING, msg);
         });
@@ -353,35 +369,31 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
     }
 
-    async connectOrThrow(): Promise<true> {
+    async connectOrThrow(maxConnectWait = 10_000): Promise<true> {
+        this.clusterConfig.pinoLogger?.debug(`Connecting to redis`);
 
-        this.clusterConfig.pinoLogger?.debug(`Connecting to redis server`);
+        // Attempt to connect (using ioredis retry strategy)
+        this.client.connect().catch(noop);
+        this.subscriber.connect().catch(noop);
 
-        const maxAttempts = 5;
-        const baseDelayMs = 300;
+        const clientPromise = this.connectionData.clientInitConnectDeferred.promise;
+        const subscriberPromise = this.connectionData.subscriberInitConnectDeferred.promise;
 
-        const retry = async (fn: () => Promise<void>, name: string) => {
-            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-                try {
-                    await fn();
-                    return;
-                } catch (e) {
-                    const errMsg = `${name} failed to connect to redis (attempt ${attempt}/${maxAttempts})`;
+        try {
+            // Wait for both connections to occur
+            const combinedPromise = Promise.all([clientPromise, subscriberPromise]);
+            await promiseWaitTimeout(combinedPromise, maxConnectWait);
+        } catch (e) {
+            // Disconnect
+            this.client.disconnect();
+            this.subscriber.disconnect();
 
-                    if (attempt === maxAttempts) {
-                        if (isObject(e)) this.clusterConfig.pinoLogger?.error(e);
-                        this.clusterConfig.pinoLogger?.error(errMsg);
-                        throw new Error(errMsg);
-                    }
-
-                    await sleep(baseDelayMs * attempt, 300);
-                }
-            }
-        };
-
-
-        await retry(() => this.client.connect(), "Client");
-        await retry(() => this.subscriber.connect(), "Subscriber");
+            // Report error
+            const errMsg = `Failed to connect to redis cluster`;
+            if (isObject(e) && !(e instanceof WaitTimeoutError)) this.clusterConfig.pinoLogger?.error(e);
+            this.clusterConfig.pinoLogger?.error(errMsg);
+            throw new Error(errMsg);
+        }
 
         return true;
     }
@@ -389,8 +401,10 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
     private setIsConnected(isSubscriber: boolean, connected: boolean) {
         if (isSubscriber) {
             this.connectionData.subscriberConnected = connected;
+            this.connectionData.subscriberInitConnectDeferred.resolve();
         } else {
             this.connectionData.clientConnected = connected;
+            this.connectionData.clientInitConnectDeferred.resolve();
         }
 
         // Check if the subscriber had to reconnect at some point and both client & subscriber are now fully connected

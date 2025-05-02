@@ -3,7 +3,7 @@ import {AbstractKeyProvider} from "./abstract-key-provider.js";
 import type {AbstractClusterProvider, ClusterMessage, LockOptions} from "../cluster/abstract-cluster-provider.js";
 import {BaseClusterEvents} from "../cluster/abstract-cluster-provider.js";
 import type {ConnectorKeys, ConnectorKeysSerializable, KeyProvider} from "../types.js";
-import {debounce, sleep} from "../helpers/utils.js";
+import {throttle, sleep} from "../helpers/utils.js";
 import {is, validate} from "typia";
 import {ClusterJob} from "../cluster/cluster-job.js";
 import type {JWK} from "jose";
@@ -143,7 +143,7 @@ export class ClusterKeyProvider extends AbstractKeyProvider {
     public override triggerKeySync(): void {
         // Grab keys from the cluster
         this.keyProviderConfig.pinoLogger?.info("Attempting to sync keys with cluster");
-        debounce(this.getAndStoreKeysFromCluster.bind(this), 1000);
+        throttle(this.getAndStoreKeysFromCluster.bind(this), 1000);
     }
 
     private async generateClusterKeys(config: GenerateClusterKeysConfig = {}): Promise<ClusterConnectorKeys | null> {
