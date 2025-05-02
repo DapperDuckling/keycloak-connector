@@ -74,8 +74,8 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
         this.subscriber = this.isClientClusterMode(this.client) ? this.client.duplicate([], overrideOptions) : this.client.duplicate(overrideOptions);
 
         // Register event listeners
-        this.registerEventListeners(this.client);
-        this.registerEventListeners(this.subscriber);
+        this.registerEventListeners(this.client, false);
+        this.registerEventListeners(this.subscriber, true);
 
         // Add cluster mode warning
         //todo: Test cluster mode
@@ -323,12 +323,9 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
     }
 
-    private registerEventListeners(client: RedisClient) {
+    private registerEventListeners(client: RedisClient, isSubscriber: boolean) {
 
-        const isSubscriber = this.isClientClusterMode(client);
         const clientNameTag = isSubscriber ? "Subscriber" : "Client";
-
-
         const wasConnected = (isSubscriber: boolean) => isSubscriber ? this.connectionData.subscriberConnected : this.connectionData.clientConnected;
 
         // Register the event listeners
@@ -367,8 +364,8 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
 
     }
 
-    async connectOrThrow(maxConnectWait = 10_000): Promise<true> {
-        this.clusterConfig.pinoLogger?.debug(`Connecting to redis`);
+    async connectOrThrow(maxConnectWait = 7_500): Promise<true> {
+        this.clusterConfig.pinoLogger?.info(`Connecting to redis`);
 
         // Attempt to connect (using ioredis retry strategy)
         this.client.connect().catch(() => {});
