@@ -20,7 +20,6 @@ import type {
 } from "./types.js";
 import {RedisClusterEvents} from "./types.js";
 import {EventEmitter} from "node:events";
-import {noop} from "ioredis/built/utils";
 import {WaitTimeoutError} from "@dapperduckling/keycloak-connector-server/dist/helpers/errors";
 
 class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
@@ -373,8 +372,8 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
         this.clusterConfig.pinoLogger?.debug(`Connecting to redis`);
 
         // Attempt to connect (using ioredis retry strategy)
-        this.client.connect().catch(noop);
-        this.subscriber.connect().catch(noop);
+        this.client.connect().catch(() => {});
+        this.subscriber.connect().catch(() => {});
 
         const clientPromise = this.connectionData.clientInitConnectDeferred.promise;
         const subscriberPromise = this.connectionData.subscriberInitConnectDeferred.promise;
