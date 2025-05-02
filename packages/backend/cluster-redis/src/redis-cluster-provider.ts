@@ -1,4 +1,4 @@
-import type {Listener, LockOptions} from "@dapperduckling/keycloak-connector-server";
+import {type Listener, type LockOptions, sleep} from "@dapperduckling/keycloak-connector-server";
 import {
     AbstractClusterProvider,
     BaseClusterEvents,
@@ -354,25 +354,34 @@ class RedisClusterProvider extends AbstractClusterProvider<RedisClusterEvents> {
     }
 
     async connectOrThrow(): Promise<true> {
+
         this.clusterConfig.pinoLogger?.debug(`Connecting to redis server`);
 
-        try {
-            await this.client.connect();
-        } catch (e) {
-            const errMsg = `Client failed to connect to redis cluster`;
-            if (isObject(e)) this.clusterConfig.pinoLogger?.error(e);
-            this.clusterConfig.pinoLogger?.error(errMsg);
-            throw new Error(errMsg);
-        }
+        const maxAttempts = 5;
+        const baseDelayMs = 300;
 
-        try {
-            await this.subscriber.connect();
-        } catch (e) {
-            const errMsg = `Subscriber failed to connect to redis cluster`;
-            if (isObject(e)) this.clusterConfig.pinoLogger?.error(e);
-            this.clusterConfig.pinoLogger?.error(errMsg);
-            throw new Error(errMsg);
-        }
+        const retry = async (fn: () => Promise<void>, name: string) => {
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                try {
+                    await fn();
+                    return;
+                } catch (e) {
+                    const errMsg = `${name} failed to connect to redis (attempt ${attempt}/${maxAttempts})`;
+
+                    if (attempt === maxAttempts) {
+                        if (isObject(e)) this.clusterConfig.pinoLogger?.error(e);
+                        this.clusterConfig.pinoLogger?.error(errMsg);
+                        throw new Error(errMsg);
+                    }
+
+                    await sleep(baseDelayMs * attempt, 300);
+                }
+            }
+        };
+
+
+        await retry(() => this.client.connect(), "Client");
+        await retry(() => this.subscriber.connect(), "Subscriber");
 
         return true;
     }
